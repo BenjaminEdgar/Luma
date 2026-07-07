@@ -1,0 +1,149 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:Luma.App.Controls"
+        x:Class="Luma.App.MainWindow"
+        Width="52" Height="52" MinWidth="52" MinHeight="52"
+        CanResize="False" ShowInTaskbar="False" Topmost="True"
+        WindowDecorations="None" TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent" ExtendClientAreaToDecorationsHint="True">
+  <Border Name="Shell" Background="Transparent">
+    <Grid>
+      <Border Name="PanelBackground" IsVisible="False" Background="#EE14161E"
+              BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="18"
+              BoxShadow="0 10 34 0 #73000000" />
+
+      <Border Name="DockGlow" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Left"
+              VerticalAlignment="Top" Margin="2" Classes="dockglow">
+        <Border.Background>
+          <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%">
+            <GradientStop Color="#CC8A63F5" Offset="0" />
+            <GradientStop Color="#004F7CFF" Offset="1" />
+          </RadialGradientBrush>
+        </Border.Background>
+      </Border>
+
+      <Button Name="DockButton" Classes="accent" Width="44" Height="44" HorizontalAlignment="Left"
+              VerticalAlignment="Top" Margin="3" CornerRadius="15" FontSize="19"
+              ToolTip.Tip="Open Luma">&#x2726;</Button>
+
+      <Grid Name="Panel" IsVisible="False" Opacity="0" RenderTransform="translateY(10px)"
+            Margin="18,16,16,16" RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <Grid.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+          </Transitions>
+        </Grid.Transitions>
+        <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent"
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,12">
+          <Button Name="LogoButton" Classes="accent" Width="30" Height="30" CornerRadius="10"
+                  Padding="0" FontSize="15" Content="SD" VerticalAlignment="Center" Margin="0,0,9,0"
+                  ToolTip.Tip="Minimize to dock" />
+          <StackPanel Name="DragHandle" Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="Luma" FontSize="15" FontWeight="SemiBold" />
+            <TextBlock Text="Ask about anything on screen" FontSize="10.5" Opacity="0.55" />
+          </StackPanel>
+          <ComboBox Grid.Column="2" Width="82" FontSize="12" CornerRadius="10"
+                    Background="#14FFFFFF" BorderBrush="#26FFFFFF"
+                    SelectedIndex="{Binding SelectedModeIndex}"
+                    ItemsSource="{Binding Modes}" Margin="8,0,0,0" VerticalAlignment="Center" />
+          <ComboBox Grid.Column="3" Width="86" FontSize="12" CornerRadius="10"
+                    Background="#14FFFFFF" BorderBrush="#26FFFFFF"
+                    SelectedIndex="{Binding SelectedProviderIndex}"
+                    ItemsSource="{Binding Providers}" Margin="6,0" VerticalAlignment="Center" />
+          <Button Grid.Column="4" Name="ClosePanelButton" Classes="ghost" Content="x"
+                  Width="30" Height="30" CornerRadius="10" FontSize="16" VerticalAlignment="Center"
+                  ToolTip.Tip="Minimize to dock" />
+        </Grid>
+
+        <Border Grid.Row="1" Name="PreviewBorder" IsVisible="{Binding HasCapture}" Height="122"
+                CornerRadius="11" ClipToBounds="True" Background="#26000000"
+                BorderBrush="#26FFFFFF" BorderThickness="1" Margin="0,0,0,10">
+          <Grid>
+            <Image Source="{Binding Preview}" Stretch="Uniform" />
+            <Border Background="#A6000000" CornerRadius="7" Padding="7,2" Margin="6"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom">
+              <TextBlock Text="{Binding PreviewLabel}" FontSize="10" Foreground="#D9FFFFFF" />
+            </Border>
+            <Button Command="{Binding ClearCaptureCommand}" Classes="ghost" Content="x"
+                    Width="26" Height="26" CornerRadius="9" FontSize="14"
+                    Background="#59000000" ToolTip.Tip="Remove this capture"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" />
+          </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,10">
+          <Button Name="ProjectButton" Classes="outline" IsVisible="{Binding IsCodeMode}" Height="38"
+                  Content="{Binding WorkingDirectoryLabel}" ToolTip.Tip="Choose programming project" />
+          <Button Grid.Column="1" Classes="outline" Command="{Binding CaptureCommand}"
+                  IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" Height="38">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+              <TextBlock Text="[]" Foreground="#B3A6FF" />
+              <TextBlock Text="Add screenshot" FontSize="13" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <Grid Grid.Row="3" Margin="0,0,0,10">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6"
+                      IsVisible="{Binding !Messages.Count}">
+            <TextBlock Text="*" FontSize="24" Opacity="0.25" HorizontalAlignment="Center" />
+            <TextBlock Text="Ask anything. Add a screenshot or choose Code when useful."
+                       FontSize="12" Opacity="0.4" TextAlignment="Center" TextWrapping="Wrap"
+                       MaxWidth="220" />
+          </StackPanel>
+          <ScrollViewer Name="ChatScroll" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Messages}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="bubble" Classes.user="{Binding IsUser}" Classes.error="{Binding IsError}"
+                          Classes.codecard="{Binding HasCodeSession}">
+                    <Grid>
+                      <StackPanel Spacing="5">
+                        <StackPanel Orientation="Horizontal" Spacing="7"
+                                    IsVisible="{Binding Caption, Converter={x:Static ObjectConverters.IsNotNull}}">
+                          <TextBlock Text="{Binding Caption}" FontSize="10.5" Foreground="#8CC9BFFF"
+                                     VerticalAlignment="Center" />
+                          <Ellipse Classes="thinkingring" IsVisible="{Binding IsPending}" />
+                          <TextBlock Text="{Binding Elapsed}" FontSize="10.5" Foreground="#59FFFFFF"
+                                     VerticalAlignment="Center" />
+                        </StackPanel>
+                        <c:MarkdownView Markdown="{Binding Text}" IsVisible="{Binding !IsPending}" />
+                        <TextBlock Text="|" IsVisible="{Binding IsStreaming}" Classes="streamcursor"
+                                   Foreground="#B3A6FF" FontSize="13" />
+                        <Border IsVisible="{Binding IsQuestion}" Classes="questionhint" CornerRadius="9"
+                                Padding="9,6" Margin="0,4,0,0">
+                          <TextBlock Text="The assistant asked a question - check the popup" FontSize="11.5" />
+                        </Border>
+                        <c:DiffCardControl Session="{Binding CodeSession}" IsVisible="{Binding HasCodeSession}"
+                                           Margin="0,6,0,0" />
+                      </StackPanel>
+                      <Button Classes="msgcopy" Content="copy" HorizontalAlignment="Right" VerticalAlignment="Top"
+                              IsVisible="{Binding !IsUser}" ToolTip.Tip="Copy answer"
+                              Command="{Binding $parent[ItemsControl].DataContext.CopyMessageCommand}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Name="QuestionBox" Text="{Binding Question}" AcceptsReturn="True"
+                   PlaceholderText="What would you like me to do? (Enter to send)" CornerRadius="12"
+                   MinHeight="42" MaxHeight="92" TextWrapping="Wrap" FontSize="13"
+                   Background="#14FFFFFF" BorderBrush="#26FFFFFF" />
+          <Grid Grid.Column="1" VerticalAlignment="Bottom">
+            <Button Classes="accent" Command="{Binding SendCommand}" IsEnabled="{Binding CanSend}"
+                    IsVisible="{Binding !IsBusy}" Width="42" Height="42" CornerRadius="14"
+                    FontSize="15" Content=">" ToolTip.Tip="Send" />
+            <Button Classes="stop" Command="{Binding StopCommand}" IsVisible="{Binding IsBusy}"
+                    Width="42" Height="42" CornerRadius="14" FontSize="12" Content="x" ToolTip.Tip="Stop" />
+          </Grid>
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,253 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Luma.App.App"
+             RequestedThemeVariant="Dark">
+    <!-- The shell is designed dark-glass; pin the Dark variant so Fluent controls match. -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AccentStart">#8A63F5</Color>
+            <Color x:Key="AccentEnd">#4F7CFF</Color>
+            <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="{StaticResource AccentStart}" Offset="0" />
+                <GradientStop Color="{StaticResource AccentEnd}" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="AccentGradientBright" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="#9D7BFF" Offset="0" />
+                <GradientStop Color="#6690FF" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="UserBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="#B38A63F5" Offset="0" />
+                <GradientStop Color="#B34F7CFF" Offset="1" />
+            </LinearGradientBrush>
+            <ConicGradientBrush x:Key="ThinkingBrush" Center="50%,50%">
+                <GradientStop Color="#008A63F5" Offset="0" />
+                <GradientStop Color="#FF8A63F5" Offset="0.82" />
+                <GradientStop Color="#FFB3A6FF" Offset="1" />
+            </ConicGradientBrush>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- Accent-filled circular buttons (dock toggle, send). -->
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentGradientBright}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.accent:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+        <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="Foreground" Value="#55FFFFFF" />
+        </Style>
+
+        <!-- Quiet ghost buttons (close, clear capture). -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Outlined utility button (capture). -->
+        <Style Selector="Button.outline">
+            <Setter Property="Background" Value="#12FFFFFF" />
+            <Setter Property="Foreground" Value="#E6FFFFFF" />
+            <Setter Property="BorderBrush" Value="#2EFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF" />
+            <Setter Property="BorderBrush" Value="#4D8A7CFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Stop button shown while a request is in flight. -->
+        <Style Selector="Button.stop">
+            <Setter Property="Background" Value="#2EFF5D6E" />
+            <Setter Property="Foreground" Value="#FFFF9AA6" />
+            <Setter Property="BorderBrush" Value="#59FF5D6E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.stop:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4DFF5D6E" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Hover-revealed copy button on assistant bubbles. -->
+        <Style Selector="Button.msgcopy">
+            <Setter Property="Background" Value="#33000000" />
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.bubble:pointerover Button.msgcopy">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.msgcopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#59000000" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Tiny copy button rendered inside markdown code blocks. -->
+        <Style Selector="Button.codecopy">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#80FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="Button.codecopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Border.dockglow">
+            <Setter Property="Opacity" Value="0.35" />
+            <Setter Property="Effect"><BlurEffect Radius="10" /></Setter>
+            <Style.Animations><Animation Duration="0:0:1.8" IterationCount="Infinite" PlaybackDirection="Alternate">
+                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.3" /></KeyFrame>
+                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.75" /></KeyFrame>
+            </Animation></Style.Animations>
+        </Style>
+        <Style Selector="Ellipse.thinkingring">
+            <Setter Property="Width" Value="16" /><Setter Property="Height" Value="16" />
+            <Setter Property="Fill" Value="Transparent" /><Setter Property="Stroke" Value="{StaticResource ThinkingBrush}" />
+            <Setter Property="StrokeThickness" Value="2" /><Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform"><RotateTransform /></Setter>
+            <Style.Animations><Animation Duration="0:0:0.9" IterationCount="Infinite">
+                <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
+                <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
+            </Animation></Style.Animations>
+        </Style>
+        <Style Selector="TextBlock.streamcursor">
+            <Style.Animations><Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
+                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.15" /></KeyFrame>
+                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+            </Animation></Style.Animations>
+        </Style>
+        <Style Selector="Border.questionhint">
+            <Setter Property="Background" Value="#208A63F5" /><Setter Property="BorderBrush" Value="#4D8A63F5" /><Setter Property="BorderThickness" Value="1" />
+            <Style.Animations><Animation Duration="0:0:1.1" IterationCount="Infinite" PlaybackDirection="Alternate">
+                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.55" /></KeyFrame>
+                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+            </Animation></Style.Animations>
+        </Style>
+
+        <!-- Legacy dot styles retained for compatibility with older templates. -->
+        <Style Selector="Ellipse.dot">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+            <Setter Property="Fill" Value="#CCB3A6FF" />
+            <Setter Property="Opacity" Value="0.25" />
+        </Style>
+        <Style Selector="Ellipse.dot">
+            <Style.Animations>
+                <Animation Duration="0:0:1.2" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="25%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                    <KeyFrame Cue="55%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Ellipse.dot2">
+            <Style.Animations>
+                <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.18">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="25%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                    <KeyFrame Cue="55%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Ellipse.dot3">
+            <Style.Animations>
+                <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.36">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="25%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                    <KeyFrame Cue="55%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Chat bubbles. -->
+        <Style Selector="Border.bubble">
+            <Setter Property="Background" Value="#16FFFFFF" />
+            <Setter Property="BorderBrush" Value="#14FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13,13,13,4" />
+            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="MaxWidth" Value="336" />
+        </Style>
+        <Style Selector="Border.bubble">
+            <Style.Animations>
+                <!-- Keyframe animations need per-property animators; RenderTransform itself has
+                     none, so animate the transform's own property instead. -->
+                <Animation Duration="0:0:0.16" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="TranslateTransform.Y" Value="7" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                        <Setter Property="TranslateTransform.Y" Value="0" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.bubble.user">
+            <Setter Property="Background" Value="{StaticResource UserBubbleBrush}" />
+            <Setter Property="BorderBrush" Value="#00FFFFFF" />
+            <Setter Property="CornerRadius" Value="13,13,4,13" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+        <Style Selector="Border.bubble.error">
+            <Setter Property="Background" Value="#26FF5D6E" />
+            <Setter Property="BorderBrush" Value="#40FF5D6E" />
+        </Style>
+        <!-- Coding-task bubbles carry a diff review card, so they get more room than prose bubbles. -->
+        <Style Selector="Border.bubble.codecard">
+            <Setter Property="MaxWidth" Value="480" />
+        </Style>
+    </Application.Styles>
+</Application>
