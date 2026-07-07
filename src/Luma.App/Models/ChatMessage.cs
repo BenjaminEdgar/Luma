@@ -51,7 +51,7 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
 
 public enum AiProvider { Claude, Codex }
 
-public enum TaskKind { Chat, Email, Code, Generic, Shell, Browser }
+public enum TaskKind { Chat, Email, Code, Generic, Shell, Browser, Suggest }
 
 public sealed record TaskLaunchRequest(
     TaskKind Kind, string Prompt, AiProvider Provider, string? ImagePath, string? ContextImagePath);

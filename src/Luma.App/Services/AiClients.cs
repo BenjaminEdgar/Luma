@@ -152,7 +152,8 @@ public abstract class CliAiClient : IAiClient
     private static string BuildPrompt(AiRequest request)
     {
         var builder = new StringBuilder("You are helping inside Luma. Do not modify files or run commands.\n");
-        builder.AppendLine(
+        // Suggestion turns must produce machine-parsed lines only, so the ASK_USER escape hatch is withheld.
+        if (request.TaskKind != TaskKind.Suggest) builder.AppendLine(
             "If, and only if, giving a genuinely useful answer requires one specific piece of information you don't " +
             "already have (for example: the project directory or file path for a coding problem visible in the " +
             "screenshot, or the desired tone/recipient/key points for an email or message you're asked to draft), " +
@@ -175,6 +176,13 @@ public abstract class CliAiClient : IAiClient
                 break;
             case TaskKind.Browser:
                 builder.AppendLine("You are drafting a reply to paste into a web page (a form, comment box, or forum post). Ask one concise question only if needed. When ready, briefly explain the reply, then put the complete text after a line containing exactly DRAFT:.");
+                break;
+            case TaskKind.Suggest:
+                builder.AppendLine(
+                    $"Based on the full-screen screenshot, suggest up to {AppSettings.Current.SuggestionCount} short prompts (under nine words each) the " +
+                    "user is most likely to want help with right now - for example explaining an error that is visible, " +
+                    "summarizing an article, or replying to a message. Reply with only the suggestions, one per line, " +
+                    "with no numbering, bullets, or any other text.");
                 break;
         }
         if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Task context:\n{request.TaskContext}");
@@ -234,6 +242,14 @@ public sealed class CodexClient : CliAiClient
     {
         psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral"); psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("read-only");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
+        var model = request.TaskKind == TaskKind.Suggest
+            ? AppSettings.Current.CodexSuggestionModel
+            : AppSettings.Current.CodexChatModel;
+        if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Trim()); }
+        // Cheapest reasoning for the latency-sensitive suggestion garnish (user-overridable).
+        var effort = AppSettings.Current.CodexSuggestionReasoningEffort;
+        if (request.TaskKind == TaskKind.Suggest && !string.IsNullOrWhiteSpace(effort))
+        { psi.ArgumentList.Add("-c"); psi.ArgumentList.Add($"model_reasoning_effort=\"{effort.Trim()}\""); }
         if (request.ContextImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ContextImagePath); }
         if (request.ImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ImagePath); }
         psi.ArgumentList.Add("-");
@@ -249,5 +265,11 @@ public sealed class ClaudeClient : CliAiClient
         psi.ArgumentList.Add("--include-partial-messages"); psi.ArgumentList.Add("--verbose");
         psi.ArgumentList.Add("--tools"); psi.ArgumentList.Add("Read"); psi.ArgumentList.Add("--permission-mode"); psi.ArgumentList.Add("dontAsk");
         psi.ArgumentList.Add("--no-session-persistence");
+        // Suggestion chips are a latency-sensitive garnish, so they default to Haiku (the fast,
+        // cheap tier); chat uses the CLI's own default. Both are user-overridable in Settings.
+        var model = request.TaskKind == TaskKind.Suggest
+            ? AppSettings.Current.ClaudeSuggestionModel
+            : AppSettings.Current.ClaudeChatModel;
+        if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Trim()); }
     }
 }

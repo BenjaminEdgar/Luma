@@ -20,6 +20,12 @@
                 <GradientStop Color="#B38A63F5" Offset="0" />
                 <GradientStop Color="#B34F7CFF" Offset="1" />
             </LinearGradientBrush>
+            <!-- Panel edge: accent-tinted at the top, fading to neutral glass below. -->
+            <LinearGradientBrush x:Key="PanelBorderBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#668A63F5" Offset="0" />
+                <GradientStop Color="#2EFFFFFF" Offset="0.35" />
+                <GradientStop Color="#1FFFFFFF" Offset="1" />
+            </LinearGradientBrush>
             <ConicGradientBrush x:Key="ThinkingBrush" Center="50%,50%">
                 <GradientStop Color="#008A63F5" Offset="0" />
                 <GradientStop Color="#FF8A63F5" Offset="0.82" />
@@ -84,6 +90,27 @@
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#22FFFFFF" />
             <Setter Property="BorderBrush" Value="#4D8A7CFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Screen-suggestion chips shown in the empty state. -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="#12FFFFFF" />
+            <Setter Property="Foreground" Value="#D9FFFFFF" />
+            <Setter Property="BorderBrush" Value="#388A7CFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Padding" Value="13,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#298A63F5" />
+            <Setter Property="BorderBrush" Value="#738A7CFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#408A63F5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 

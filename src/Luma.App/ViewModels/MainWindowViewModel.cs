@@ -23,6 +23,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string _question = string.Empty;
     private bool _busy;
     private bool _refreshingContext;
+    private bool _suggesting;
+    private CancellationTokenSource? _suggestCts;
+    private DateTime _suggestionsAt = DateTime.MinValue;
     private int _selectedProviderIndex;
     private int _selectedModeIndex;
     private string? _workingDirectory;
@@ -40,6 +43,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         CopyMessageCommand = new ParameterCommand(CopyMessage);
         AnswerQuestionCommand = new AsyncParameterCommand(AnswerQuestionAsync);
         SkipQuestionCommand = new AsyncParameterCommand(SkipQuestionAsync);
+        UseSuggestionCommand = new AsyncParameterCommand(UseSuggestionAsync);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -53,6 +57,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ParameterCommand CopyMessageCommand { get; }
     public AsyncParameterCommand AnswerQuestionCommand { get; }
     public AsyncParameterCommand SkipQuestionCommand { get; }
+    public AsyncParameterCommand UseSuggestionCommand { get; }
+    /// <summary>Short prompt ideas derived from the ambient screen capture, shown as chips.</summary>
+    public ObservableCollection<string> Suggestions { get; } = [];
+    public bool IsSuggesting { get => _suggesting; private set => Set(ref _suggesting, value); }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
     public Func<Task<string?>>? WorkingDirectoryRequested { get; set; }
 
@@ -66,7 +74,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool HasCapture => _regionPath is not null || _contextPath is not null;
     public bool HasContext => _contextPath is not null;
     public bool HasRegion => _regionPath is not null;
-    public string PreviewLabel => _regionPath is not null ? "Selected region" : "Full screen";
+    public string PreviewLabel => _regionPath is not null ? "Selected region" : "Your screen";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
     public bool CanSend => !_busy && !string.IsNullOrWhiteSpace(Question);
@@ -81,10 +89,80 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var path = await _captureService.CaptureScreenAsync(_owner, _lifetime.Token);
             ReplaceCapture(ref _contextPath, path);
+            _ = GenerateSuggestionsAsync();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Messages.Add(new ChatMessage("assistant", $"Screen context capture failed: {ex.Message}") { IsError = true }); }
         finally { _refreshingContext = false; }
+    }
+
+    /// <summary>Asks the provider for a few short prompt ideas based on the ambient capture and
+    /// shows them as chips. The chips are a bonus, so failures stay silent and a newer request,
+    /// a send, or an existing conversation simply wins over the pending one.</summary>
+    private async Task GenerateSuggestionsAsync()
+    {
+        if (_contextPath is null || Messages.Count > 0 || _busy) return;
+        if (!AppSettings.Current.SuggestFromScreen) return;
+        // Chips regenerate on every open by default; a nonzero reuse window (Settings) keeps
+        // recent ones instead, saving a provider call.
+        if (Suggestions.Count > 0 &&
+            DateTime.UtcNow - _suggestionsAt < TimeSpan.FromSeconds(AppSettings.Current.SuggestionFreshSeconds)) return;
+        _suggestCts?.Cancel();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _suggestCts = cts;
+        // Existing chips (e.g. pre-warmed at launch) stay visible while the fresh batch loads.
+        IsSuggesting = true;
+        string? thumbnailPath = null;
+        try
+        {
+            var contextPath = _contextPath;
+            thumbnailPath = await Task.Run(() => CreateSuggestionThumbnail(contextPath), cts.Token);
+            var request = new AiRequest("What might I want to ask about this screen?", null, thumbnailPath ?? contextPath, [])
+            { TaskKind = TaskKind.Suggest };
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
+            if (cts.IsCancellationRequested || Messages.Count > 0 || _busy) return;
+            var parsed = SuggestionParser.Parse(text, AppSettings.Current.SuggestionCount);
+            if (parsed.Count == 0) return; // keep the old chips rather than blanking the panel
+            Suggestions.Clear();
+            foreach (var suggestion in parsed) Suggestions.Add(suggestion);
+            _suggestionsAt = DateTime.UtcNow;
+        }
+        catch { }
+        finally
+        {
+            if (thumbnailPath is not null) { try { File.Delete(thumbnailPath); } catch { } }
+            if (_suggestCts == cts) { _suggestCts = null; IsSuggesting = false; }
+            cts.Dispose();
+        }
+    }
+
+    /// <summary>Chips only need coarse legibility, so the suggestion request ships a downscaled
+    /// copy of the ambient capture instead of the full-resolution screen. Returns null (use the
+    /// original) when the capture is already small or downscaling fails.</summary>
+    private static string? CreateSuggestionThumbnail(string sourcePath)
+    {
+        var maxWidth = AppSettings.Current.SuggestionImageMaxWidth;
+        try
+        {
+            using var source = new Bitmap(sourcePath);
+            if (source.PixelSize.Width <= maxWidth) return null;
+            var height = (int)Math.Round(source.PixelSize.Height * (double)maxWidth / source.PixelSize.Width);
+            using var scaled = source.CreateScaledBitmap(new Avalonia.PixelSize(maxWidth, height));
+            var path = Path.Combine(Path.GetTempPath(), "Luma", $"suggest-{Guid.NewGuid():N}.png");
+            scaled.Save(path);
+            return path;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Runs a clicked suggestion chip as a plain chat turn regardless of the selected
+    /// mode - suggestions describe what is on screen, never code or shell work.</summary>
+    private async Task UseSuggestionAsync(object? parameter)
+    {
+        if (parameter is not string suggestion || _busy) return;
+        _suggestCts?.Cancel();
+        Suggestions.Clear();
+        await RunTurnAsync(suggestion);
     }
 
     private async Task CaptureAsync()
@@ -105,6 +183,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task SendAsync()
     {
+        _suggestCts?.Cancel();
+        Suggestions.Clear();
         var prompt = Question.Trim();
         Question = string.Empty;
         var kind = SelectedModeIndex switch { 1 => TaskKind.Code, 2 => TaskKind.Shell, _ => TaskKind.Chat };

@@ -5,7 +5,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Transformation;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using System.Text.Json;
 using Luma.App.Models;
 using Luma.App.Services;
 using Luma.App.ViewModels;
@@ -24,8 +23,6 @@ public partial class MainWindow : Window
     private Point _dockPressPoint;
     private int _snapAnimationId;
     private string? _lastCodeRepository;
-    private static readonly string SettingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma", "settings.json");
 
     public MainWindow()
     {
@@ -43,7 +40,14 @@ public partial class MainWindow : Window
             if (answer is null) _viewModel.SkipQuestionCommand.Execute(message);
             else { message.QuestionAnswer = answer; _viewModel.AnswerQuestionCommand.Execute(message); }
         };
-        DockButton.Click += (_, _) => SetExpanded(true);
+        // Capture ambient context while the window is still the tiny dock, so the panel
+        // itself never covers what the user was looking at; suggestions stream in after.
+        DockButton.Click += async (_, _) =>
+        {
+            if (AppSettings.Current.CaptureScreenOnOpen) await _viewModel.RefreshContextAsync();
+            SetExpanded(true);
+        };
+        SettingsButton.Click += async (_, _) => await new SettingsWindow().ShowDialog(this);
         // Button handles (and swallows) PointerPressed, so drag detection must tunnel in first.
         DockButton.AddHandler(PointerPressedEvent, OnDockPointerPressed, RoutingStrategies.Tunnel);
         DockButton.AddHandler(PointerMovedEvent, OnDockPointerMoved, RoutingStrategies.Tunnel);
@@ -52,7 +56,14 @@ public partial class MainWindow : Window
         LogoButton.Click += (_, _) => SetExpanded(false);
         ClosePanelButton.Click += (_, _) => SetExpanded(false);
         Closing += (_, _) => { SaveSettings(); _questionWindow.Close(); _viewModel.Dispose(); };
-        Opened += (_, _) => SnapToNearestEdge();
+        Opened += (_, _) =>
+        {
+            SnapToNearestEdge();
+            // Pre-warm the suggestion chips so the first dock click shows them instantly.
+            if (AppSettings.Current.CaptureScreenOnOpen && AppSettings.Current.SuggestFromScreen &&
+                AppSettings.Current.PrewarmOnLaunch)
+                _ = _viewModel.RefreshContextAsync();
+        };
         QuestionBox.AddHandler(KeyDownEvent, OnQuestionKeyDown, RoutingStrategies.Tunnel);
         KeyDown += (_, e) => { if (e.Key == Key.Escape && _expanded) SetExpanded(false); };
         _viewModel.Messages.CollectionChanged += (_, e) =>
@@ -128,31 +139,22 @@ public partial class MainWindow : Window
 
     private void LoadSettings()
     {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return;
-            var settings = JsonSerializer.Deserialize<UserSettings>(File.ReadAllText(SettingsPath));
-            if (settings is null) return;
-            _viewModel.SelectedProviderIndex = Math.Clamp(settings.Provider, 0, _viewModel.Providers.Count - 1);
-            _viewModel.SelectedModeIndex = Math.Clamp(settings.Mode, 0, _viewModel.Modes.Count - 1);
-            if (settings.WorkingDirectory is not null && Directory.Exists(settings.WorkingDirectory))
-                _viewModel.WorkingDirectory = _lastCodeRepository = settings.WorkingDirectory;
-        }
-        catch { }
+        AppSettings.Load();
+        var settings = AppSettings.Current;
+        _viewModel.SelectedProviderIndex = Math.Clamp(settings.Provider, 0, _viewModel.Providers.Count - 1);
+        _viewModel.SelectedModeIndex = Math.Clamp(settings.Mode, 0, _viewModel.Modes.Count - 1);
+        if (settings.WorkingDirectory is not null && Directory.Exists(settings.WorkingDirectory))
+            _viewModel.WorkingDirectory = _lastCodeRepository = settings.WorkingDirectory;
     }
 
     private void SaveSettings()
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new UserSettings(
-                _viewModel.SelectedProviderIndex, _viewModel.SelectedModeIndex, _viewModel.WorkingDirectory)));
-        }
-        catch { }
+        var settings = AppSettings.Current;
+        settings.Provider = _viewModel.SelectedProviderIndex;
+        settings.Mode = _viewModel.SelectedModeIndex;
+        settings.WorkingDirectory = _viewModel.WorkingDirectory;
+        settings.Save();
     }
-
-    private sealed record UserSettings(int Provider, int Mode, string? WorkingDirectory);
 
     private void ScrollChatToEnd() =>
         Dispatcher.UIThread.Post(ChatScroll.ScrollToEnd, DispatcherPriority.Loaded);
