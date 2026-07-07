@@ -109,6 +109,14 @@ public partial class MainWindow : Window
         return true;
     }
 
+    private void OnSuggestionClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: string suggestion }) return;
+        if (_viewModel.UseSuggestionCommand.CanExecute(suggestion))
+            _viewModel.UseSuggestionCommand.Execute(suggestion);
+        e.Handled = true;
+    }
+
     /// <summary>Reuses the repository from the last coding task this session (via a small confirm/change
     /// popup) instead of showing the OS folder picker every time; still lets you switch repos on demand.</summary>
     private async Task<string?> ResolveCodeRepositoryAsync()

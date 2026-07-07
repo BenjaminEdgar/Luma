@@ -116,13 +116,13 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Button Classes="chip" Content="{Binding}" HorizontalAlignment="Center"
-                          Command="{Binding $parent[ItemsControl].DataContext.UseSuggestionCommand}"
-                          CommandParameter="{Binding}" />
+                          Click="OnSuggestionClick" ToolTip.Tip="Ask Luma this question" />
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-          <ScrollViewer Name="ChatScroll" VerticalScrollBarVisibility="Auto">
+          <ScrollViewer Name="ChatScroll" VerticalScrollBarVisibility="Auto"
+                        IsVisible="{Binding Messages.Count}">
             <ItemsControl ItemsSource="{Binding Messages}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
