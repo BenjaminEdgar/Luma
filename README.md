@@ -8,7 +8,9 @@ When a fresh capture is substantially different from the previous screen and a c
 
 After each completed response, Luma uses the configured low-cost suggestion model to offer short one-click replies beneath the conversation. This follow-up pass runs separately and never delays the main answer.
 
-Everything above is configurable from the settings window (the sliders icon in the panel header): toggle screen capture, suggestions, and launch pre-warming entirely; choose how many suggestions to offer, how long to reuse them, and how much screenshot detail to send; and override the model used for chat and for suggestions per provider (any model or alias your `claude` or `codex` CLI accepts). Settings persist in `%LocalAppData%/Luma/settings.json`.
+Everything above is configurable from the settings window (the sliders icon in the panel header): toggle screen capture, suggestions, and launch pre-warming entirely; choose how many suggestions to offer, how long to reuse them, and how much screenshot detail to send; and override the model used for chat and suggestions per provider using model names accepted by the corresponding CLI. Settings persist in `%LocalAppData%/Luma/settings.json`.
+
+At startup Luma checks each installed provider. It keeps your preferred provider when available, otherwise selects the first authenticated provider automatically and generates screen suggestions only after that check completes.
 
 It can route email, terminal, web-reply, and longer requests into dedicated task workspaces, each confirmed before a window opens. Coding requests work differently: they stay right in the chat panel. Email tasks prepare an unsent reply in classic Outlook; coding tasks produce a reviewable Git diff, shown inline in the chat, and apply it only after explicit approval; terminal tasks show a proposed command and only run it after explicit approval; browser-reply tasks draft text you copy into the page yourself. Providers remain read-only and Luma never sends email, runs tests, commits, pushes, or executes commands automatically.
 
@@ -31,6 +33,11 @@ dotnet run --project src/Luma.App
 ```
 
 Click the floating ✦ dock: Luma grabs the screen for context, suggests a few prompts you can send with one click, and automatically routes each request to chat, coding, or command handling. Choose a project once for programming tasks; Luma remembers it. Snip a specific region when a close-up is more useful than the full screen. Captures and CLI sessions are temporary and deleted when cleared or the application exits.
+
+Use **Explain** to drag around any unfamiliar error, chart, control, message, or other screen region and receive an immediate contextual explanation without typing a prompt.
+Use **Explain this screen** from the empty panel for the same zero-input workflow across the full display.
+The persistent toolbar keeps full-screen explanation, context snipping, and select-and-explain available throughout a conversation; repository selection appears only when automatic routing detects a coding task.
+On Windows, **Ctrl+Shift+E** starts the select-and-explain flow globally from any application. The shortcut can be disabled in settings and is shown in Luma only when Windows registers it successfully.
 
 The provider CLI runs on your computer, but Claude and Codex process requests using their cloud services. Luma does not currently run an offline model.
 

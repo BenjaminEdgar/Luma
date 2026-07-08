@@ -12,6 +12,7 @@ public sealed class AppSettings
     public int Provider { get; set; }
     public int Mode { get; set; }
     public string? WorkingDirectory { get; set; }
+    public bool EnableGlobalExplainShortcut { get; set; } = true;
 
     // Ambient screen context and suggestion chips.
     public bool CaptureScreenOnOpen { get; set; } = true;

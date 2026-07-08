@@ -14,6 +14,29 @@ public sealed class CliParsingTests
     }
 
     [Fact]
+    public void ScreenPromptRequiresEvidenceFirstAnalysis()
+    {
+        var request = new AiRequest("What is wrong?", "region.png", "screen.png", []) { TaskKind = TaskKind.Chat };
+
+        var prompt = TestClient.Prompt(request);
+
+        Assert.Contains("primary evidence", prompt);
+        Assert.Contains("main focus", prompt);
+        Assert.Contains("transcribe visible text exactly", prompt);
+        Assert.Contains("distinguish what is visibly present from what you infer", prompt);
+        Assert.Contains("Never invent text", prompt);
+        Assert.Contains("most useful next action", prompt);
+    }
+
+    [Fact]
+    public void TextOnlyPromptDoesNotClaimVisualEvidence()
+    {
+        var request = new AiRequest("Explain dependency injection", null, null, []) { TaskKind = TaskKind.Chat };
+
+        Assert.DoesNotContain("primary evidence", TestClient.Prompt(request));
+    }
+
+    [Fact]
     public void ExtractsFinalTextFromJsonLines()
     {
         var client = new TestClient();
@@ -93,6 +116,7 @@ public sealed class CliParsingTests
         protected override string Command => "unused";
         protected override void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt) { }
         public string Parse(string value) => ParseOutput(value);
+        public static string Prompt(AiRequest request) => BuildPrompt(request);
         public static bool ReadStreamLine(string line, out string? delta, out string? final) => TryReadStreamLine(line, out delta, out final);
     }
 }

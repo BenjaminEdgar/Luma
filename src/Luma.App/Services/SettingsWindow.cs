@@ -14,6 +14,7 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _capture;
     private readonly CheckBox _suggest;
     private readonly CheckBox _prewarm;
+    private readonly CheckBox _globalShortcut;
     private readonly NumericUpDown _count;
     private readonly NumericUpDown _fresh;
     private readonly NumericUpDown _imageWidth;
@@ -31,6 +32,7 @@ public sealed class SettingsWindow : Window
         _capture = Toggle("Capture the screen when the panel opens", settings.CaptureScreenOnOpen);
         _suggest = Toggle("Suggest prompts from what's on screen", settings.SuggestFromScreen);
         _prewarm = Toggle("Prepare suggestions when Luma starts", settings.PrewarmOnLaunch);
+        _globalShortcut = Toggle("Global Ctrl+Shift+E explain shortcut", settings.EnableGlobalExplainShortcut);
         _count = Number(1, 5, settings.SuggestionCount);
         _fresh = Number(0, 3600, settings.SuggestionFreshSeconds);
         _imageWidth = Number(480, 7680, settings.SuggestionImageMaxWidth);
@@ -85,6 +87,8 @@ public sealed class SettingsWindow : Window
                             Children =
                             {
                                 Section("Screen context"),
+                                _globalShortcut,
+                                Hint("From any application, press Ctrl+Shift+E to select a region and explain it. Restart Luma after changing this."),
                                 _capture,
                                 Hint("Luma grabs a screenshot as ambient context so answers can see what you see."),
                                 _suggest,
@@ -129,6 +133,7 @@ public sealed class SettingsWindow : Window
         settings.CaptureScreenOnOpen = _capture.IsChecked ?? true;
         settings.SuggestFromScreen = _suggest.IsChecked ?? true;
         settings.PrewarmOnLaunch = _prewarm.IsChecked ?? true;
+        settings.EnableGlobalExplainShortcut = _globalShortcut.IsChecked ?? true;
         settings.SuggestionCount = (int)(_count.Value ?? 3);
         settings.SuggestionFreshSeconds = (int)(_fresh.Value ?? 90);
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);

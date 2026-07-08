@@ -18,7 +18,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService
     public async Task<string?> CaptureRegionAsync(Window owner, CancellationToken cancellationToken)
     {
         var selection = await SelectionWindow.SelectAsync(owner, cancellationToken);
-        if (selection is null || selection.Value.Width < 3 || selection.Value.Height < 3) return null;
+        if (selection is null || !SelectionRules.IsUsable(selection.Value)) return null;
         return await CaptureRectAsync(selection.Value, cancellationToken);
     }
 

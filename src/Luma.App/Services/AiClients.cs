@@ -160,9 +160,20 @@ public abstract class CliAiClient : IAiClient
         return destination;
     }
 
-    private static string BuildPrompt(AiRequest request)
+    protected static string BuildPrompt(AiRequest request)
     {
         var builder = new StringBuilder("You are helping inside Luma. Do not modify files or run commands.\n");
+        var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
+        if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        {
+            builder.AppendLine(
+                "Treat the supplied screenshot as primary evidence and inspect it before answering. " +
+                "If a selected-region image is present, it is the user's main focus; use the full-screen image only to understand surrounding context. " +
+                "Quote or transcribe visible text exactly when it matters. Clearly distinguish what is visibly present from what you infer. " +
+                "Never invent text, values, controls, or states that are cropped, blurred, or unreadable. " +
+                "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
+                "If an unreadable visual detail is essential, ask one multiple-choice question offering a tighter selection or a best-effort answer.");
+        }
         // Suggestion turns must produce machine-parsed lines only, so the ASK_USER escape hatch is withheld.
         if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route)) builder.AppendLine(
             "If, and only if, giving a genuinely useful answer requires one specific piece of information you don't " +

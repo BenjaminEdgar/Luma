@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly KillTargetWindow _killTarget = new();
     private readonly DispatcherTimer _killTargetTimer;
     private readonly QuestionPromptWindow _questionWindow = new();
+    private readonly GlobalShortcutService _globalShortcut = new();
     private ChatMessage? _pendingQuestion;
     private bool _expanded;
     private PointerPressedEventArgs? _dockPress;
@@ -38,9 +39,9 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
         _viewModel.TaskLaunchRequested = LaunchTaskAsync;
         _viewModel.NewChatConfirmationRequested = () => new ScreenChangeWindow().ShowDialog<bool>(this);
+        _viewModel.ScreenExplanationReadyToShow = () => SetExpanded(true);
         LoadSettings();
-        _viewModel.WorkingDirectoryRequested = ChooseWorkingDirectoryAsync;
-        ProjectButton.Click += async (_, _) => await ChooseWorkingDirectoryAsync();
+        _viewModel.WorkingDirectoryRequested = ResolveWorkingDirectoryAsync;
         _questionWindow.Answered += answer =>
         {
             var message = _pendingQuestion; _pendingQuestion = null;
@@ -63,10 +64,16 @@ public partial class MainWindow : Window
         DragHandle.PointerPressed += OnHeaderPressed;
         LogoButton.Click += (_, _) => SetExpanded(false);
         ClosePanelButton.Click += (_, _) => SetExpanded(false);
-        Closing += (_, _) => { SaveSettings(); _operations.CancelAll(); _killTarget.Close(); _questionWindow.Close(); _viewModel.Dispose(); };
+        Closing += (_, _) => { SaveSettings(); _globalShortcut.Dispose(); _operations.CancelAll(); _killTarget.Close(); _questionWindow.Close(); _viewModel.Dispose(); };
         Opened += (_, _) =>
         {
             SnapToNearestEdge();
+            if (AppSettings.Current.EnableGlobalExplainShortcut)
+                _viewModel.GlobalExplainShortcutAvailable = _globalShortcut.Start(() =>
+                {
+                    if (_viewModel.ExplainSelectionCommand.CanExecute(null))
+                        _viewModel.ExplainSelectionCommand.Execute(null);
+                });
             _ = _viewModel.InitializeDiagnosticsAsync();
             // Pre-warm the suggestion chips so the first dock click shows them instantly.
             if (AppSettings.Current.CaptureScreenOnOpen && AppSettings.Current.SuggestFromScreen &&
@@ -149,6 +156,15 @@ public partial class MainWindow : Window
         if (folders.Count == 0) return _viewModel.WorkingDirectory;
         var path = folders[0].Path.LocalPath;
         _lastCodeRepository = path;
+        _viewModel.WorkingDirectory = path;
+        SaveSettings();
+        return path;
+    }
+
+    private async Task<string?> ResolveWorkingDirectoryAsync()
+    {
+        var path = await ResolveCodeRepositoryAsync();
+        if (path is null) return null;
         _viewModel.WorkingDirectory = path;
         SaveSettings();
         return path;

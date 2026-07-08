@@ -62,6 +62,18 @@ public sealed class RunningOperationLease(RunningOperation operation, Cancellati
 
 public sealed record ProviderDiagnostic(bool IsAvailable, string Message);
 
+public static class ProviderAvailability
+{
+    public static int Select(int preferredIndex, IReadOnlyList<ProviderDiagnostic> diagnostics)
+    {
+        if (preferredIndex >= 0 && preferredIndex < diagnostics.Count && diagnostics[preferredIndex].IsAvailable)
+            return preferredIndex;
+        for (var index = 0; index < diagnostics.Count; index++)
+            if (diagnostics[index].IsAvailable) return index;
+        return Math.Clamp(preferredIndex, 0, Math.Max(0, diagnostics.Count - 1));
+    }
+}
+
 public sealed class ProviderDiagnostics
 {
     public async Task<ProviderDiagnostic> CheckAsync(string command, CancellationToken token)

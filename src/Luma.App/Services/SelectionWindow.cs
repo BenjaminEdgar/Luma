@@ -101,6 +101,7 @@ public sealed class SelectionWindow : Window
 
     private void OnPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.GetCurrentPoint(_canvas).Properties.IsLeftButtonPressed) return;
         _start = e.GetPosition(_canvas);
         _selection.IsVisible = true;
         _sizeBadge.IsVisible = true;
@@ -123,7 +124,17 @@ public sealed class SelectionWindow : Window
         var y = (int)Math.Min(_start.Y, end.Y);
         var w = (int)Math.Abs(end.X - _start.X);
         var h = (int)Math.Abs(end.Y - _start.Y);
-        Complete(new PixelRect(Position.X + x, Position.Y + y, w, h));
+        var result = new PixelRect(Position.X + x, Position.Y + y, w, h);
+        if (!SelectionRules.IsUsable(result))
+        {
+            _selection.IsVisible = false;
+            _sizeBadge.IsVisible = false;
+            _hint.IsVisible = true;
+            if (_hint.Child is StackPanel panel && panel.Children.LastOrDefault() is TextBlock text)
+                text.Text = $"Select at least {SelectionRules.MinimumWidth} x {SelectionRules.MinimumHeight} pixels - Esc to cancel";
+            return;
+        }
+        Complete(result);
     }
 
     private void Update(Point point)
@@ -137,8 +148,8 @@ public sealed class SelectionWindow : Window
         _selection.Width = w;
         _selection.Height = h;
         _sizeText.Text = $"{(int)w} x {(int)h}";
-        Canvas.SetLeft(_sizeBadge, point.X + 14);
-        Canvas.SetTop(_sizeBadge, point.Y + 14);
+        Canvas.SetLeft(_sizeBadge, Math.Clamp(point.X + 14, 8, Math.Max(8, _canvas.Bounds.Width - 96)));
+        Canvas.SetTop(_sizeBadge, Math.Clamp(point.Y + 14, 8, Math.Max(8, _canvas.Bounds.Height - 34)));
     }
 
     private void Complete(PixelRect? result)
@@ -146,4 +157,12 @@ public sealed class SelectionWindow : Window
         _completion.TrySetResult(result);
         Close();
     }
+}
+
+public static class SelectionRules
+{
+    public const int MinimumWidth = 24;
+    public const int MinimumHeight = 24;
+    public static bool IsUsable(PixelRect selection) =>
+        selection.Width >= MinimumWidth && selection.Height >= MinimumHeight;
 }
