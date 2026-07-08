@@ -93,6 +93,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool HasCapture => _regionPath is not null || _contextPath is not null;
     public bool HasContext => _contextPath is not null;
     public bool HasRegion => _regionPath is not null;
+    /// <summary>True when only the ambient full-screen capture is held - shown as a slim pill
+    /// rather than the image preview, which is reserved for regions the user snipped.</summary>
+    public bool HasContextOnly => _contextPath is not null && _regionPath is null;
     public string PreviewLabel => _regionPath is not null ? "Selected region" : "Your screen";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
@@ -573,6 +576,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var active = _regionPath ?? _contextPath;
         Preview = active is null ? null : new Bitmap(active);
         OnPropertyChanged(nameof(HasCapture)); OnPropertyChanged(nameof(HasRegion)); OnPropertyChanged(nameof(HasContext));
+        OnPropertyChanged(nameof(HasContextOnly));
         OnPropertyChanged(nameof(PreviewLabel)); OnPropertyChanged(nameof(CanSend));
         SendCommand.RaiseCanExecuteChanged();
         ExplainScreenCommand.RaiseCanExecuteChanged();

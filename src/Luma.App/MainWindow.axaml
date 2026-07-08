@@ -73,7 +73,9 @@
           </Border>
         </StackPanel>
 
-        <Border Grid.Row="2" Name="PreviewBorder" IsVisible="{Binding HasCapture}" Height="122"
+        <!-- Full image preview only for regions the user deliberately snipped; the ambient
+             full-screen capture collapses to the slim pill below so it never dominates the chat. -->
+        <Border Grid.Row="2" Name="PreviewBorder" IsVisible="{Binding HasRegion}" Height="122"
                 CornerRadius="11" ClipToBounds="True" Background="#26000000"
                 BorderBrush="#26FFFFFF" BorderThickness="1" Margin="0,0,0,10">
           <Grid>
@@ -88,14 +90,30 @@
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" />
           </Grid>
         </Border>
+        <Border Grid.Row="2" IsVisible="{Binding HasContextOnly}" Background="#10FFFFFF"
+                BorderBrush="#1CFFFFFF" BorderThickness="1" CornerRadius="9"
+                Padding="9,3" Margin="0,0,0,10">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Path Data="M4,5 L20,5 L20,15.5 L4,15.5 Z M9.5,19 L14.5,19 M12,15.5 L12,19"
+                  Stroke="#8CB3A6FF" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round"
+                  Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Luma can see your screen" FontSize="10.5" Opacity="0.55"
+                       VerticalAlignment="Center" Margin="8,0,0,0" />
+            <Button Grid.Column="2" Classes="ghost" Content="&#x00D7;" Width="20" Height="20"
+                    CornerRadius="7" FontSize="13" Padding="0" Command="{Binding ClearCaptureCommand}"
+                    ToolTip.Tip="Remove the screen context" />
+          </Grid>
+        </Border>
 
         <Grid Grid.Row="3" ColumnDefinitions="*,*,*" ColumnSpacing="8" Margin="0,0,0,10">
           <Button Grid.Column="0" Classes="outline" Command="{Binding ExplainScreenCommand}"
                   IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" Height="38"
                   ToolTip.Tip="Capture and explain the current full screen">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
-              <TextBlock Text="?" FontWeight="Bold" />
-              <TextBlock Text="Screen" FontSize="12.5" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="7">
+              <Path Data="M4,5 L20,5 L20,15.5 L4,15.5 Z M9.5,19 L14.5,19 M12,15.5 L12,19"
+                    Stroke="#B3A6FF" StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
+                    Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
+              <TextBlock Text="Screen" FontSize="12.5" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
           <Button Grid.Column="1" Classes="outline" Command="{Binding CaptureCommand}"
@@ -111,7 +129,7 @@
                   IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" Height="38"
                   CornerRadius="11" ToolTip.Tip="Select anything on screen and explain it">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="7">
-              <TextBlock Text="?" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
+              <TextBlock Text="&#x2726;" FontSize="13" VerticalAlignment="Center" />
               <TextBlock Text="Explain area" FontSize="12.5" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
@@ -127,8 +145,8 @@
             <Button Classes="accent" Command="{Binding ExplainScreenCommand}" Padding="16,8"
                     CornerRadius="14" ToolTip.Tip="Explain the current screen without typing">
               <StackPanel Orientation="Horizontal" Spacing="7">
-                <TextBlock Text="?" FontWeight="Bold" />
-                <TextBlock Text="Explain this screen" />
+                <TextBlock Text="&#x2726;" FontSize="13" VerticalAlignment="Center" />
+                <TextBlock Text="Explain this screen" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
             <TextBlock Text="Ctrl+Shift+E selects and explains from any app" FontSize="10.5" Opacity="0.45"
@@ -203,7 +221,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate>
                 <Button Classes="chip" Content="{Binding}" Click="OnSuggestionClick"
-                        Margin="0,0,0,4" ToolTip.Tip="Send this reply" />
+                        Margin="0,0,6,6" ToolTip.Tip="Send this reply" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

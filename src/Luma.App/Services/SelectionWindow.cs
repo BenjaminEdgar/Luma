@@ -26,13 +26,17 @@ public sealed class SelectionWindow : Window
     private readonly Border _sizeBadge;
     private readonly TextBlock _sizeText;
     private readonly Border _hint;
+    private readonly PixelRect _bounds;
     private Point _start;
 
-    private SelectionWindow(PixelRect bounds)
+    private SelectionWindow(PixelRect bounds, double scaling)
     {
+        // Screen bounds are physical pixels but Width/Height are logical units, so divide by
+        // the scale factor or the overlay overshoots the screen on scaled displays.
+        _bounds = bounds;
         Position = bounds.Position;
-        Width = bounds.Width;
-        Height = bounds.Height;
+        Width = bounds.Width / scaling;
+        Height = bounds.Height / scaling;
         WindowDecorations = WindowDecorations.None;
         WindowState = WindowState.Normal;
         Topmost = true;
@@ -82,6 +86,9 @@ public sealed class SelectionWindow : Window
         PointerReleased += OnReleased;
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Complete(null); };
         Closed += (_, _) => _completion.TrySetResult(null);
+        // The constructor's scaling is an estimate from screen metadata; once the window is
+        // actually on screen, RenderScaling is authoritative - re-fit the overlay with it.
+        Opened += (_, _) => { Width = _bounds.Width / RenderScaling; Height = _bounds.Height / RenderScaling; };
     }
 
     public static async Task<PixelRect?> SelectAsync(Window owner, CancellationToken token)
@@ -91,7 +98,10 @@ public sealed class SelectionWindow : Window
         var top = screens.Min(s => s.Bounds.Y);
         var right = screens.Max(s => s.Bounds.Right);
         var bottom = screens.Max(s => s.Bounds.Bottom);
-        var window = new SelectionWindow(new PixelRect(left, top, right - left, bottom - top));
+        var origin = new PixelPoint(left, top);
+        var scaling = screens.FirstOrDefault(s => s.Bounds.Contains(origin))?.Scaling
+            ?? owner.Screens.Primary?.Scaling ?? 1.0;
+        var window = new SelectionWindow(new PixelRect(left, top, right - left, bottom - top), scaling);
         using var registration = token.Register(() => Dispatcher.UIThread.Post(() => window.Complete(null)));
         window.Show();
         window.Activate();
@@ -120,11 +130,9 @@ public sealed class SelectionWindow : Window
         if (e.Pointer.Captured != _canvas) return;
         var end = e.GetPosition(_canvas);
         e.Pointer.Capture(null);
-        var x = (int)Math.Min(_start.X, end.X);
-        var y = (int)Math.Min(_start.Y, end.Y);
-        var w = (int)Math.Abs(end.X - _start.X);
-        var h = (int)Math.Abs(end.Y - _start.Y);
-        var result = new PixelRect(Position.X + x, Position.Y + y, w, h);
+        // Pointer positions are logical units; the capture pipeline (BitBlt & friends) works in
+        // physical pixels, so the selection must be scaled back up before leaving this window.
+        var result = SelectionRules.ToPhysicalRect(_start, end, Position, RenderScaling);
         if (!SelectionRules.IsUsable(result))
         {
             _selection.IsVisible = false;
@@ -147,7 +155,7 @@ public sealed class SelectionWindow : Window
         Canvas.SetTop(_selection, y);
         _selection.Width = w;
         _selection.Height = h;
-        _sizeText.Text = $"{(int)w} x {(int)h}";
+        _sizeText.Text = $"{(int)Math.Round(w * RenderScaling)} x {(int)Math.Round(h * RenderScaling)}";
         Canvas.SetLeft(_sizeBadge, Math.Clamp(point.X + 14, 8, Math.Max(8, _canvas.Bounds.Width - 96)));
         Canvas.SetTop(_sizeBadge, Math.Clamp(point.Y + 14, 8, Math.Max(8, _canvas.Bounds.Height - 34)));
     }
@@ -165,4 +173,20 @@ public static class SelectionRules
     public const int MinimumHeight = 24;
     public static bool IsUsable(PixelRect selection) =>
         selection.Width >= MinimumWidth && selection.Height >= MinimumHeight;
+
+    /// <summary>Converts a drag in window-logical units into the physical-pixel rect the
+    /// capture pipeline expects. origin is the overlay window's physical position.</summary>
+    public static PixelRect ToPhysicalRect(Point start, Point end, PixelPoint origin, double scaling)
+    {
+        var x = Math.Min(start.X, end.X) * scaling;
+        var y = Math.Min(start.Y, end.Y) * scaling;
+        var w = Math.Abs(end.X - start.X) * scaling;
+        var h = Math.Abs(end.Y - start.Y) * scaling;
+        // Away-from-zero so a half-pixel boundary grows the selection instead of shaving it.
+        return new PixelRect(
+            origin.X + (int)Math.Round(x, MidpointRounding.AwayFromZero),
+            origin.Y + (int)Math.Round(y, MidpointRounding.AwayFromZero),
+            (int)Math.Round(w, MidpointRounding.AwayFromZero),
+            (int)Math.Round(h, MidpointRounding.AwayFromZero));
+    }
 }
