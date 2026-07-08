@@ -18,9 +18,13 @@ public sealed class SettingsWindow : Window
     private readonly NumericUpDown _count;
     private readonly NumericUpDown _fresh;
     private readonly NumericUpDown _imageWidth;
+    private readonly CheckBox _skipUnchanged;
+    private readonly NumericUpDown _historyMessages;
+    private readonly NumericUpDown _historyChars;
     private readonly TextBox _claudeChat;
     private readonly TextBox _claudeSuggest;
     private readonly TextBox _codexChat;
+    private readonly TextBox _codexImage;
     private readonly TextBox _codexSuggest;
     private readonly TextBox _codexEffort;
     private readonly TextBox _grokChat;
@@ -36,10 +40,14 @@ public sealed class SettingsWindow : Window
         _count = Number(1, 5, settings.SuggestionCount);
         _fresh = Number(0, 3600, settings.SuggestionFreshSeconds);
         _imageWidth = Number(480, 7680, settings.SuggestionImageMaxWidth);
+        _skipUnchanged = Toggle("Skip suggestions when the screen is unchanged", settings.SkipSuggestionsWhenScreenUnchanged);
+        _historyMessages = Number(0, 500, settings.HistoryMessageLimit);
+        _historyChars = Number(0, 200_000, settings.HistoryCharacterLimit);
         _claudeChat = Text(settings.ClaudeChatModel, "CLI default");
         _claudeSuggest = Text(settings.ClaudeSuggestionModel, "CLI default (claude-haiku-4-5 recommended)");
-        _codexChat = Text(settings.CodexChatModel, "CLI default");
-        _codexSuggest = Text(settings.CodexSuggestionModel, "CLI default");
+        _codexChat = Text(settings.CodexChatModel, "gpt-5.4-mini");
+        _codexImage = Text(settings.CodexImageModel, "gpt-5.4-mini");
+        _codexSuggest = Text(settings.CodexSuggestionModel, "gpt-5.4-mini");
         _codexEffort = Text(settings.CodexSuggestionReasoningEffort, "CLI default (low recommended)");
         _grokChat = Text(settings.GrokChatModel, "grok-build");
         _grokSuggest = Text(settings.GrokSuggestionModel, "grok-composer-2.5-fast");
@@ -100,15 +108,22 @@ public sealed class SettingsWindow : Window
                                 Hint("0 regenerates suggestions every time the panel opens; higher values reuse recent chips to save calls."),
                                 Labeled("Suggestion screenshot max width (px)", _imageWidth),
                                 Hint("The suggestion request ships a downscaled copy; smaller is faster and cheaper."),
+                                Section("Token budget"),
+                                _skipUnchanged,
+                                Hint("If nothing on screen changed, existing chips are reused for free instead of asking again."),
+                                Labeled("History messages per request (0 = all)", _historyMessages),
+                                Labeled("Max characters per history message (0 = full)", _historyChars),
+                                Hint("Every request re-sends the conversation; trimming old or long messages cuts cost on long chats."),
                                 Section("Claude models"),
                                 Labeled("Questions and coding", _claudeChat),
                                 Labeled("Routing and suggestions", _claudeSuggest),
                                 Hint("Used for automatic routing, screen suggestions, and quick replies. Choose a cheap model such as Haiku."),
                                 Section("Codex models"),
                                 Labeled("Questions and coding", _codexChat),
+                                Labeled("Image/screenshot context", _codexImage),
                                 Labeled("Routing and suggestions", _codexSuggest),
                                 Labeled("Routing/suggestion reasoning effort", _codexEffort),
-                                Hint("Model names the codex CLI accepts; effort is minimal, low, medium, or high."),
+                                Hint("Screenshot requests fall back to the explicit configured image model instead of the Codex CLI default; effort is minimal, low, medium, or high."),
                                 Section("Grok models"),
                                 Labeled("Questions and coding", _grokChat),
                                 Labeled("Routing and suggestions", _grokSuggest),
@@ -137,9 +152,13 @@ public sealed class SettingsWindow : Window
         settings.SuggestionCount = (int)(_count.Value ?? 3);
         settings.SuggestionFreshSeconds = (int)(_fresh.Value ?? 90);
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);
+        settings.SkipSuggestionsWhenScreenUnchanged = _skipUnchanged.IsChecked ?? true;
+        settings.HistoryMessageLimit = (int)(_historyMessages.Value ?? 12);
+        settings.HistoryCharacterLimit = (int)(_historyChars.Value ?? 4000);
         settings.ClaudeChatModel = _claudeChat.Text?.Trim() ?? "";
         settings.ClaudeSuggestionModel = _claudeSuggest.Text?.Trim() ?? "";
         settings.CodexChatModel = _codexChat.Text?.Trim() ?? "";
+        settings.CodexImageModel = _codexImage.Text?.Trim() ?? "";
         settings.CodexSuggestionModel = _codexSuggest.Text?.Trim() ?? "";
         settings.CodexSuggestionReasoningEffort = _codexEffort.Text?.Trim() ?? "";
         settings.GrokChatModel = _grokChat.Text?.Trim() ?? "";

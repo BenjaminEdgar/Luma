@@ -4,7 +4,8 @@ namespace Luma.App.Services;
 
 /// <summary>Every user-tunable option, persisted to LocalApplicationData/Luma/settings.json.
 /// Loaded once at startup into the static Current instance; the settings window mutates and
-/// saves it. Blank model strings mean "let the provider CLI use its own default".</summary>
+/// saves it. Blank chat model strings mean "let the provider CLI use its own default"; Codex
+/// image-context requests still fall back to the explicit configured image model.</summary>
 public sealed class AppSettings
 {
     public static AppSettings Current { get; set; } = new();
@@ -22,12 +23,21 @@ public sealed class AppSettings
     /// <summary>0 regenerates suggestions on every panel open; higher values reuse recent chips.</summary>
     public int SuggestionFreshSeconds { get; set; } = 0;
     public int SuggestionImageMaxWidth { get; set; } = 1280;
+    /// <summary>Skips regenerating chips when the screen is visually unchanged - a free reuse.</summary>
+    public bool SkipSuggestionsWhenScreenUnchanged { get; set; } = true;
+
+    // Token budget: how much conversation history each provider call re-sends.
+    /// <summary>Only the most recent N messages are sent per request; 0 sends everything.</summary>
+    public int HistoryMessageLimit { get; set; } = 12;
+    /// <summary>Each history message is trimmed to this many characters; 0 disables trimming.</summary>
+    public int HistoryCharacterLimit { get; set; } = 4000;
 
     // Per-provider model overrides.
     public string ClaudeChatModel { get; set; } = "";
     public string ClaudeSuggestionModel { get; set; } = "claude-haiku-4-5";
-    public string CodexChatModel { get; set; } = "";
-    public string CodexSuggestionModel { get; set; } = "";
+    public string CodexChatModel { get; set; } = "gpt-5.4-mini";
+    public string CodexImageModel { get; set; } = "gpt-5.4-mini";
+    public string CodexSuggestionModel { get; set; } = "gpt-5.4-mini";
     public string CodexSuggestionReasoningEffort { get; set; } = "low";
     public string GrokChatModel { get; set; } = "grok-build";
     public string GrokSuggestionModel { get; set; } = "grok-composer-2.5-fast";
@@ -61,6 +71,8 @@ public sealed class AppSettings
         SuggestionCount = Math.Clamp(SuggestionCount, 1, 5);
         SuggestionFreshSeconds = Math.Clamp(SuggestionFreshSeconds, 0, 3600);
         SuggestionImageMaxWidth = Math.Clamp(SuggestionImageMaxWidth, 480, 7680);
+        HistoryMessageLimit = Math.Clamp(HistoryMessageLimit, 0, 500);
+        HistoryCharacterLimit = Math.Clamp(HistoryCharacterLimit, 0, 200_000);
     }
 
     private static string SettingsPath() => Path.Combine(

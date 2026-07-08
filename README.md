@@ -8,7 +8,7 @@ When a fresh capture is substantially different from the previous screen and a c
 
 After each completed response, Luma uses the configured low-cost suggestion model to offer short one-click replies beneath the conversation. This follow-up pass runs separately and never delays the main answer.
 
-Everything above is configurable from the settings window (the sliders icon in the panel header): toggle screen capture, suggestions, and launch pre-warming entirely; choose how many suggestions to offer, how long to reuse them, and how much screenshot detail to send; and override the model used for chat and suggestions per provider using model names accepted by the corresponding CLI. Settings persist in `%LocalAppData%/Luma/settings.json`.
+Everything above is configurable from the settings window (the sliders icon in the panel header): toggle screen capture, suggestions, and launch pre-warming entirely; choose how many suggestions to offer, how long to reuse them, and how much screenshot detail to send; and override the model used for chat and suggestions per provider using model names accepted by the corresponding CLI. Codex requests use `gpt-5.4-mini` by default, including screenshot-context requests, instead of the CLI default. Settings persist in `%LocalAppData%/Luma/settings.json`.
 
 At startup Luma checks each installed provider. It keeps your preferred provider when available, otherwise selects the first authenticated provider automatically and generates screen suggestions only after that check completes.
 

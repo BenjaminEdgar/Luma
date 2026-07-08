@@ -223,8 +223,21 @@ public abstract class CliAiClient : IAiClient
         if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Task context:\n{request.TaskContext}");
         if (request.History.Count > 0)
         {
-            builder.AppendLine("Conversation so far:");
-            foreach (var item in request.History) builder.AppendLine($"{item.Role}: {TextSanitizer.Clean(item.Text)}");
+            // Every call re-sends the conversation, so trim it to the configured token budget.
+            var messageLimit = AppSettings.Current.HistoryMessageLimit;
+            var characterLimit = AppSettings.Current.HistoryCharacterLimit;
+            var omitted = messageLimit > 0 && request.History.Count > messageLimit;
+            builder.AppendLine(omitted
+                ? $"Conversation so far (earlier messages omitted; only the latest {messageLimit} shown):"
+                : "Conversation so far:");
+            var items = omitted ? request.History.Skip(request.History.Count - messageLimit) : request.History;
+            foreach (var item in items)
+            {
+                var text = TextSanitizer.Clean(item.Text);
+                if (characterLimit > 0 && text.Length > characterLimit)
+                    text = text[..characterLimit] + " ...[trimmed]";
+                builder.AppendLine($"{item.Role}: {text}");
+            }
         }
         if (request.ContextImagePath is not null) builder.AppendLine($"Full-screen screenshot for overall context: {request.ContextImagePath}");
         if (request.ImagePath is not null) builder.AppendLine($"Close-up of the specific region the user is asking about (their focus): {request.ImagePath}");
@@ -277,9 +290,12 @@ public sealed class CodexClient(IRunningOperationCoordinator? operations = null)
     {
         psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral"); psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("read-only");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
+        var hasImage = request.ContextImagePath is not null || request.ImagePath is not null;
         var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
-            ? AppSettings.Current.CodexSuggestionModel
-            : AppSettings.Current.CodexChatModel;
+            ? FirstNonBlank(AppSettings.Current.CodexSuggestionModel, hasImage ? AppSettings.Current.CodexImageModel : null)
+            : hasImage
+                ? FirstNonBlank(AppSettings.Current.CodexImageModel, AppSettings.Current.CodexChatModel)
+                : AppSettings.Current.CodexChatModel;
         if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Trim()); }
         // Cheapest reasoning for the latency-sensitive suggestion garnish (user-overridable).
         var effort = AppSettings.Current.CodexSuggestionReasoningEffort;
@@ -289,6 +305,9 @@ public sealed class CodexClient(IRunningOperationCoordinator? operations = null)
         if (request.ImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ImagePath); }
         psi.ArgumentList.Add("-");
     }
+
+    private static string FirstNonBlank(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "gpt-5.4-mini";
 }
 
 public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)

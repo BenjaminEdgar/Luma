@@ -154,15 +154,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var path = await _captureService.CaptureScreenAsync(_owner, _lifetime.Token);
-            if (_contextPath is not null && Messages.Count > 0 &&
-                _screenDifference.Measure(_contextPath, path) >= .16 &&
+            var difference = _contextPath is null ? 1d : _screenDifference.Measure(_contextPath, path);
+            if (Messages.Count > 0 && difference >= .16 &&
                 NewChatConfirmationRequested is not null && await NewChatConfirmationRequested())
             {
                 Messages.Clear();
                 Suggestions.Clear();
             }
             ReplaceCapture(ref _contextPath, path);
-            _ = GenerateSuggestionsAsync();
+            _ = GenerateSuggestionsAsync(difference);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Messages.Add(new ChatMessage("assistant", $"Screen context capture failed: {ex.Message}") { IsError = true }); }
@@ -172,7 +172,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Asks the provider for a few short prompt ideas based on the ambient capture and
     /// shows them as chips. The chips are a bonus, so failures stay silent and a newer request,
     /// a send, or an existing conversation simply wins over the pending one.</summary>
-    private async Task GenerateSuggestionsAsync()
+    private async Task GenerateSuggestionsAsync(double screenDifference = 1d)
     {
         if (_contextPath is null || Messages.Count > 0 || _busy) return;
         if (!_diagnosticsReady) return;
@@ -181,6 +181,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // recent ones instead, saving a provider call.
         if (Suggestions.Count > 0 &&
             DateTime.UtcNow - _suggestionsAt < TimeSpan.FromSeconds(AppSettings.Current.SuggestionFreshSeconds)) return;
+        // If the screen looks the same as when the current chips were made, they're still
+        // accurate - skip the provider call (and its screenshot tokens) entirely.
+        if (Suggestions.Count > 0 && AppSettings.Current.SkipSuggestionsWhenScreenUnchanged &&
+            screenDifference < .05) return;
         _suggestCts?.Cancel();
         var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _suggestCts = cts;
