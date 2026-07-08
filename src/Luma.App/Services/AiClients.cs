@@ -162,7 +162,7 @@ public abstract class CliAiClient : IAiClient
 
     protected static string BuildPrompt(AiRequest request)
     {
-        var builder = new StringBuilder("You are helping inside Luma. Do not modify files or run commands.\n");
+        var builder = new StringBuilder("You are helping inside Luma. Be concise. Do not modify files or run commands. Ask one concise question at a time only when needed.\n");
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
         if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
         {
@@ -174,81 +174,106 @@ public abstract class CliAiClient : IAiClient
                 "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
                 "If an unreadable visual detail is essential, ask one multiple-choice question offering a tighter selection or a best-effort answer.");
         }
-        // Suggestion turns must produce machine-parsed lines only, so the ASK_USER escape hatch is withheld.
-        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route)) builder.AppendLine(
-            "If, and only if, giving a genuinely useful answer requires one specific piece of information you don't " +
-            "already have (for example: the project directory or file path for a coding problem visible in the " +
-            "screenshot, or the desired tone/recipient/key points for an email or message you're asked to draft), " +
-            "ask for exactly that by ending your ENTIRE reply with a single line formatted exactly as: " +
-            "ASK_USER: <your question> || <choice 1> || <choice 2>. Supply 2-4 short, mutually exclusive choices; " +
-            "never ask for typed input. Never use this for something already visible in the screenshot. Prefer " +
-            "answering directly whenever you reasonably can, and ask at most one question.");
         switch (request.TaskKind)
         {
             case TaskKind.Email:
-                builder.AppendLine("You are drafting an email reply. Ask one concise question at a time only when needed. When ready, briefly explain the draft, then put the complete reply after a line containing exactly DRAFT:. Never claim to send the email.");
+                builder.AppendLine("Draft the email reply. When ready, put the complete reply after a line containing exactly DRAFT:. Never claim to send the email.");
                 break;
             case TaskKind.Code:
-                builder.AppendLine("You are preparing a code change for approval. Inspect the repository using read-only tools. Do not edit or execute anything. Ask one concise question at a time if needed. When ready, explain the change and include one complete unified patch in a ```diff fenced block. Paths must be repository-relative.");
+                builder.AppendLine("Inspect the repository using read-only tools. Do not edit or execute anything. When ready, explain the change and include one complete unified patch in a ```diff fenced block. Paths must be repository-relative.");
                 break;
             case TaskKind.Generic:
-                builder.AppendLine("This is a complex task workspace. Work methodically, ask one concise question at a time when required, and finish with a useful deliverable.");
+                builder.AppendLine("Work methodically and finish with a useful deliverable.");
                 break;
             case TaskKind.Shell:
-                builder.AppendLine("You are proposing a shell command for approval. Do not execute anything yourself. Ask one concise question if needed. When ready, briefly explain what the command does, then include exactly one command in a fenced code block (```bash).");
+                builder.AppendLine("Propose exactly one shell command in a fenced code block (```bash). Do not execute anything yourself.");
                 break;
             case TaskKind.Browser:
-                builder.AppendLine("You are drafting a reply to paste into a web page (a form, comment box, or forum post). Ask one concise question only if needed. When ready, briefly explain the reply, then put the complete text after a line containing exactly DRAFT:.");
+                builder.AppendLine("Draft the reply to paste into the page. When ready, put the complete text after a line containing exactly DRAFT:.");
                 break;
             case TaskKind.Suggest:
                 builder.AppendLine(
-                    $"Based on the full-screen screenshot, suggest up to {AppSettings.Current.SuggestionCount} short prompts (under nine words each) the " +
-                    "user is most likely to want help with right now - for example explaining an error that is visible, " +
-                    "summarizing an article, or replying to a message. Reply with only the suggestions, one per line, " +
-                    "with no numbering, bullets, or any other text.");
+                    $"Suggest up to {AppSettings.Current.SuggestionCount} short action prompts (under nine words each) from the full-screen screenshot. " +
+                    "Prefer verb-led prompts. Reply with only the suggestions, one per line.");
                 break;
             case TaskKind.FollowUp:
                 builder.AppendLine(
-                    $"Based on the conversation, suggest up to {AppSettings.Current.SuggestionCount} short replies the user is most likely to send next. " +
-                    "Replies may answer a question, request the most useful next action, or ask a concise follow-up. " +
-                    "Keep each under nine words. Reply with only the replies, one per line, with no numbering, bullets, or other text.");
+                    $"Suggest up to {AppSettings.Current.SuggestionCount} short replies the user is likely to send next. " +
+                    "Prefer verb-led replies under nine words. Reply with only the replies, one per line.");
                 break;
             case TaskKind.Route:
-                builder.AppendLine(
-                    "Classify the user's request as exactly one of CHAT, CODE, or COMMAND. " +
-                    "Use CODE when repository inspection or file changes are needed. Use COMMAND when a terminal command should be proposed. " +
-                    "Use CHAT for explanations, writing, analysis, and everything else. Reply with only one classification word.");
+                builder.AppendLine("Classify the request as exactly one of CHAT, CODE, or COMMAND. Reply with one word only.");
                 break;
         }
-        if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Task context:\n{request.TaskContext}");
+        if (!string.IsNullOrWhiteSpace(AppSettings.Current.AssistantMemory))
+        {
+            var memory = AppSettings.Current.AssistantMemory.Trim();
+            var max = AppSettings.Current.AssistantMemoryCharacterLimit;
+            if (max > 0 && memory.Length > max) memory = memory[..max] + " ...[trimmed]";
+            builder.AppendLine($"Pinned memory:\n{memory}");
+        }
+        if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Context:\n{request.TaskContext}");
         if (request.History.Count > 0)
         {
             // Every call re-sends the conversation, so trim it to the configured token budget.
             var messageLimit = AppSettings.Current.HistoryMessageLimit;
             var characterLimit = AppSettings.Current.HistoryCharacterLimit;
             var omitted = messageLimit > 0 && request.History.Count > messageLimit;
-            builder.AppendLine(omitted
-                ? $"Conversation so far (earlier messages omitted; only the latest {messageLimit} shown):"
-                : "Conversation so far:");
+            builder.AppendLine(omitted ? $"Recent conversation (latest {messageLimit}):" : "Conversation:");
+            if (omitted)
+            {
+                var omittedItems = request.History.Take(request.History.Count - messageLimit).ToArray();
+                builder.AppendLine($"Earlier context summary: {SummarizeHistory(omittedItems)}");
+            }
             var items = omitted ? request.History.Skip(request.History.Count - messageLimit) : request.History;
             foreach (var item in items)
             {
                 var text = TextSanitizer.Clean(item.Text);
                 if (characterLimit > 0 && text.Length > characterLimit)
                     text = text[..characterLimit] + " ...[trimmed]";
-                builder.AppendLine($"{item.Role}: {text}");
+                builder.AppendLine($"{ShortRole(item.Role)}: {text}");
             }
         }
-        if (request.ContextImagePath is not null) builder.AppendLine($"Full-screen screenshot for overall context: {request.ContextImagePath}");
-        if (request.ImagePath is not null) builder.AppendLine($"Close-up of the specific region the user is asking about (their focus): {request.ImagePath}");
+        if (request.ContextImagePath is not null) builder.AppendLine($"Screen: {request.ContextImagePath}");
+        if (request.ImagePath is not null) builder.AppendLine($"Focus: {request.ImagePath}");
         builder.AppendLine($"User: {request.Question}");
         return builder.ToString();
+    }
+
+    private static string ShortRole(string role)
+    {
+        if (role.StartsWith("user", StringComparison.OrdinalIgnoreCase)) return "U";
+        if (role.StartsWith("assistant", StringComparison.OrdinalIgnoreCase)) return "A";
+        return string.IsNullOrWhiteSpace(role) ? "?" : role[..1].ToUpperInvariant();
+    }
+
+    private static string SummarizeHistory(IReadOnlyList<ChatMessage> history)
+    {
+        if (history.Count == 0) return "none";
+        var parts = new List<string>();
+        foreach (var item in history.Take(4))
+        {
+            var text = TextSanitizer.Clean(item.Text).Trim();
+            if (string.IsNullOrWhiteSpace(text)) continue;
+            if (text.Length > 90) text = text[..90].TrimEnd() + "…";
+            parts.Add($"{ShortRole(item.Role)}:{text}");
+        }
+        if (history.Count > 4) parts.Add("...");
+        return parts.Count == 0 ? "none" : string.Join(" | ", parts);
     }
 
     private static ProcessStartInfo BuildStartInfo(string executable, string workingDirectory)
     {
         return new ProcessStartInfo(executable)
-        { WorkingDirectory = workingDirectory, UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        {
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            CreateNoWindow = true
+        };
     }
 
     public static (string Executable, string[] PrefixArguments)? ResolveCommand(string command)

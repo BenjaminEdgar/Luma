@@ -93,6 +93,15 @@
             <Setter Property="Foreground" Value="White" />
         </Style>
 
+        <!-- Small status pill used in the header. -->
+        <Style Selector="Border.statuspill">
+            <Setter Property="Background" Value="#14FFFFFF" />
+            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+
         <!-- Screen-suggestion chips shown in the empty state. -->
         <Style Selector="Button.chip">
             <Setter Property="Background" Value="#12FFFFFF" />
@@ -237,14 +246,14 @@
 
         <!-- Chat bubbles. -->
         <Style Selector="Border.bubble">
-            <Setter Property="Background" Value="#16FFFFFF" />
-            <Setter Property="BorderBrush" Value="#14FFFFFF" />
+            <Setter Property="Background" Value="#18FFFFFF" />
+            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="13,13,13,4" />
-            <Setter Property="Padding" Value="11,8" />
-            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="CornerRadius" Value="14,14,14,4" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Margin" Value="0,4" />
             <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="MaxWidth" Value="336" />
+            <Setter Property="MaxWidth" Value="480" />
         </Style>
         <Style Selector="Border.bubble">
             <Style.Animations>
@@ -265,8 +274,18 @@
         <Style Selector="Border.bubble.user">
             <Setter Property="Background" Value="{StaticResource UserBubbleBrush}" />
             <Setter Property="BorderBrush" Value="#00FFFFFF" />
-            <Setter Property="CornerRadius" Value="13,13,4,13" />
+            <Setter Property="CornerRadius" Value="14,14,4,14" />
             <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+
+        <!-- Accent focus ring on text inputs so the compose box feels alive. -->
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#18FFFFFF" />
+            <Setter Property="BorderBrush" Value="#3FFFFFFF" />
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#918A63F5" />
         </Style>
         <Style Selector="Border.bubble.error">
             <Setter Property="Background" Value="#26FF5D6E" />
@@ -274,7 +293,7 @@
         </Style>
         <!-- Coding-task bubbles carry a diff review card, so they get more room than prose bubbles. -->
         <Style Selector="Border.bubble.codecard">
-            <Setter Property="MaxWidth" Value="480" />
+            <Setter Property="MaxWidth" Value="580" />
         </Style>
     </Application.Styles>
 </Application>

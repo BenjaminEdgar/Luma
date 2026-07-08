@@ -41,7 +41,7 @@ public sealed class TaskConfirmationWindow : Window
                 Spacing = 14,
                 Children =
                 {
-                    new TextBlock { Text = "* Dedicated workspace", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
+                    new TextBlock { Text = "✦ Dedicated workspace", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
                     new TextBlock { Text = $"This looks like an {label}.", FontSize = 18, FontWeight = FontWeight.SemiBold },
                     new TextBlock { Text = "Open a focused window with questions, progress, and an approval-ready result?", TextWrapping = TextWrapping.Wrap, Opacity = .72 },
                     new StackPanel
@@ -92,7 +92,7 @@ public sealed class RepositoryConfirmationWindow : Window
                 Spacing = 14,
                 Children =
                 {
-                    new TextBlock { Text = "* Coding task", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
+                    new TextBlock { Text = "✦ Coding task", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
                     new TextBlock { Text = "Use the same repository as last time?", FontSize = 18, FontWeight = FontWeight.SemiBold },
                     new TextBlock { Text = repository, TextWrapping = TextWrapping.Wrap, Opacity = .72, FontFamily = FontFamily.Parse("Consolas"), FontSize = 12.5 },
                     new StackPanel
@@ -328,7 +328,7 @@ public abstract class TaskWorkspaceWindow : Window
         var clean = TextSanitizer.Clean(value);
         Session.State = state;
         Session.AddStatus(clean);
-        _status.Text = $"* {clean}";
+        _status.Text = $"✦ {clean}";
     }
 
     protected void Fail(Exception ex)

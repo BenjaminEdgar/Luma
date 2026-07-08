@@ -21,6 +21,8 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _skipUnchanged;
     private readonly NumericUpDown _historyMessages;
     private readonly NumericUpDown _historyChars;
+    private readonly NumericUpDown _memoryChars;
+    private readonly TextBox _assistantMemory;
     private readonly TextBox _claudeChat;
     private readonly TextBox _claudeSuggest;
     private readonly TextBox _codexChat;
@@ -43,6 +45,8 @@ public sealed class SettingsWindow : Window
         _skipUnchanged = Toggle("Skip suggestions when the screen is unchanged", settings.SkipSuggestionsWhenScreenUnchanged);
         _historyMessages = Number(0, 500, settings.HistoryMessageLimit);
         _historyChars = Number(0, 200_000, settings.HistoryCharacterLimit);
+        _memoryChars = Number(0, 20_000, settings.AssistantMemoryCharacterLimit);
+        _assistantMemory = Multiline(settings.AssistantMemory, "Keep it short: repo path, preferences, goals, constraints");
         _claudeChat = Text(settings.ClaudeChatModel, "CLI default");
         _claudeSuggest = Text(settings.ClaudeSuggestionModel, "CLI default (claude-haiku-4-5 recommended)");
         _codexChat = Text(settings.CodexChatModel, "gpt-5.4-mini");
@@ -114,6 +118,10 @@ public sealed class SettingsWindow : Window
                                 Labeled("History messages per request (0 = all)", _historyMessages),
                                 Labeled("Max characters per history message (0 = full)", _historyChars),
                                 Hint("Every request re-sends the conversation; trimming old or long messages cuts cost on long chats."),
+                                Section("Assistant memory"),
+                                Labeled("Pinned memory max characters", _memoryChars),
+                                _assistantMemory,
+                                Hint("Use this for stable facts you want Luma to remember across launches, like a repo path, preferences, or a long-running goal."),
                                 Section("Claude models"),
                                 Labeled("Questions and coding", _claudeChat),
                                 Labeled("Routing and suggestions", _claudeSuggest),
@@ -155,6 +163,8 @@ public sealed class SettingsWindow : Window
         settings.SkipSuggestionsWhenScreenUnchanged = _skipUnchanged.IsChecked ?? true;
         settings.HistoryMessageLimit = (int)(_historyMessages.Value ?? 12);
         settings.HistoryCharacterLimit = (int)(_historyChars.Value ?? 4000);
+        settings.AssistantMemoryCharacterLimit = (int)(_memoryChars.Value ?? 2000);
+        settings.AssistantMemory = _assistantMemory.Text?.Trim() ?? "";
         settings.ClaudeChatModel = _claudeChat.Text?.Trim() ?? "";
         settings.ClaudeSuggestionModel = _claudeSuggest.Text?.Trim() ?? "";
         settings.CodexChatModel = _codexChat.Text?.Trim() ?? "";
@@ -191,6 +201,20 @@ public sealed class SettingsWindow : Window
     private static TextBox Text(string value, string placeholder) => new()
     {
         Text = value, PlaceholderText = placeholder, FontSize = 12.5, Width = 240,
+        HorizontalAlignment = HorizontalAlignment.Right,
+    };
+
+    private static TextBox Multiline(string value, string placeholder) => new()
+    {
+        Text = value,
+        PlaceholderText = placeholder,
+        FontSize = 12.5,
+        Width = 240,
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.Wrap,
+        MinLines = 4,
+        MaxLines = 8,
+        VerticalAlignment = VerticalAlignment.Center,
         HorizontalAlignment = HorizontalAlignment.Right,
     };
 

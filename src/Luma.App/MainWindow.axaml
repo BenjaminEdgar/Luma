@@ -3,7 +3,7 @@
         xmlns:c="using:Luma.App.Controls"
         x:Class="Luma.App.MainWindow"
         Width="52" Height="52" MinWidth="52" MinHeight="52"
-        CanResize="False" ShowInTaskbar="False" Topmost="True"
+        CanResize="True" ShowInTaskbar="False" Topmost="True"
         WindowDecorations="None" TransparencyLevelHint="Transparent"
         Background="Transparent" ExtendClientAreaToDecorationsHint="True">
   <Border Name="Shell" Background="Transparent">
@@ -35,26 +35,32 @@
           </Transitions>
         </Grid.Transitions>
         <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent"
-              ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,12">
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,12">
           <Button Name="LogoButton" Classes="accent" Width="30" Height="30" CornerRadius="10"
                   Padding="0" FontSize="14" Content="&#x2726;" VerticalAlignment="Center" Margin="0,0,9,0"
                   ToolTip.Tip="Minimize to dock" />
           <StackPanel Name="DragHandle" Grid.Column="1" VerticalAlignment="Center" Spacing="1">
             <TextBlock Text="Luma" FontSize="15" FontWeight="SemiBold" />
-            <TextBlock Text="Ask about anything on screen" FontSize="10.5" Opacity="0.55" />
+            <TextBlock Text="{Binding LandingTitle}" FontSize="10.5" Opacity="0.55" />
           </StackPanel>
-          <ComboBox Grid.Column="2" Width="86" FontSize="12" CornerRadius="10"
+          <Border Grid.Column="2" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,6,0">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse Width="8" Height="8" Fill="#8CB3A6FF" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding SurfaceStatus}" FontSize="10.5" />
+            </StackPanel>
+          </Border>
+          <ComboBox Grid.Column="3" Width="86" FontSize="12" CornerRadius="10"
                     Background="#14FFFFFF" BorderBrush="#26FFFFFF"
                     SelectedIndex="{Binding SelectedProviderIndex}"
                     ItemsSource="{Binding Providers}" Margin="6,0" VerticalAlignment="Center" />
-          <Button Grid.Column="3" Name="SettingsButton" Classes="ghost" Width="30" Height="30"
+          <Button Grid.Column="4" Name="SettingsButton" Classes="ghost" Width="30" Height="30"
                   CornerRadius="10" Padding="0" VerticalAlignment="Center" Margin="0,0,2,0"
                   ToolTip.Tip="Settings">
             <Path Data="M4,8 L20,8 M4,16 L20,16 M14,8 m-2.4,0 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0 M9,16 m-2.4,0 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0"
                   Stroke="#99FFFFFF" StrokeThickness="1.7" StrokeLineCap="Round" Fill="#FF1B1D28"
                   Width="14" Height="14" Stretch="Uniform" />
           </Button>
-          <Button Grid.Column="4" Name="ClosePanelButton" Classes="ghost" Content="&#x00D7;"
+          <Button Grid.Column="5" Name="ClosePanelButton" Classes="ghost" Content="&#x00D7;"
                   Width="30" Height="30" CornerRadius="10" FontSize="17" VerticalAlignment="Center"
                   ToolTip.Tip="Minimize to dock" />
         </Grid>
@@ -75,7 +81,7 @@
 
         <!-- Full image preview only for regions the user deliberately snipped; the ambient
              full-screen capture collapses to the slim pill below so it never dominates the chat. -->
-        <Border Grid.Row="2" Name="PreviewBorder" IsVisible="{Binding HasRegion}" Height="122"
+        <Border Grid.Row="2" Name="PreviewBorder" IsVisible="{Binding HasRegion}" Height="150"
                 CornerRadius="11" ClipToBounds="True" Background="#26000000"
                 BorderBrush="#26FFFFFF" BorderThickness="1" Margin="0,0,0,10">
           <Grid>
@@ -105,15 +111,15 @@
           </Grid>
         </Border>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,*,*" ColumnSpacing="8" Margin="0,0,0,10">
-          <Button Grid.Column="0" Classes="outline" Command="{Binding ExplainScreenCommand}"
+        <Grid Grid.Row="3" ColumnDefinitions="2*,*,Auto" ColumnSpacing="8" Margin="0,0,0,10">
+          <Button Grid.Column="0" Classes="accent" Command="{Binding ExplainScreenCommand}"
                   IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" Height="38"
                   ToolTip.Tip="Capture and explain the current full screen">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="7">
               <Path Data="M4,5 L20,5 L20,15.5 L4,15.5 Z M9.5,19 L14.5,19 M12,15.5 L12,19"
-                    Stroke="#B3A6FF" StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
+                    Stroke="White" StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
                     Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
-              <TextBlock Text="Screen" FontSize="12.5" VerticalAlignment="Center" />
+              <TextBlock Text="Explain this screen" FontSize="12.5" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
           <Button Grid.Column="1" Classes="outline" Command="{Binding CaptureCommand}"
@@ -122,43 +128,35 @@
               <Path Data="M9,4 L6,4 C4.9,4 4,4.9 4,6 L4,9 M15,4 L18,4 C19.1,4 20,4.9 20,6 L20,9 M9,20 L6,20 C4.9,20 4,19.1 4,18 L4,15 M15,20 L18,20 C19.1,20 20,19.1 20,18 L20,15"
                     Stroke="#B3A6FF" StrokeThickness="2" StrokeLineCap="Round"
                     Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
-              <TextBlock Text="Snip" FontSize="12.5" VerticalAlignment="Center" />
+              <TextBlock Text="Snip a region" FontSize="12.5" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <Button Grid.Column="2" Classes="accent" Command="{Binding ExplainSelectionCommand}"
-                  IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" Height="38"
-                  CornerRadius="11" ToolTip.Tip="Select anything on screen and explain it">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="7">
-              <TextBlock Text="&#x2726;" FontSize="13" VerticalAlignment="Center" />
-              <TextBlock Text="Explain area" FontSize="12.5" VerticalAlignment="Center" />
-            </StackPanel>
+          <Button Grid.Column="2" Classes="ghost" Command="{Binding ExplainSelectionCommand}"
+                  IsEnabled="{Binding IsIdle}" Width="38" Height="38" CornerRadius="12"
+                  ToolTip.Tip="Select an area and explain it">
+            <TextBlock Text="&#x2726;" FontSize="15" VerticalAlignment="Center" />
           </Button>
         </Grid>
 
         <Grid Grid.Row="4" Margin="0,0,0,10">
           <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10"
                       IsVisible="{Binding !Messages.Count}">
-            <TextBlock Text="&#x2726;" FontSize="26" Foreground="#59B3A6FF" HorizontalAlignment="Center" />
-            <TextBlock Text="Ask anything about what's on your screen."
+            <TextBlock Text="{Binding LandingTitle}"
                        FontSize="12" Opacity="0.45" TextAlignment="Center" TextWrapping="Wrap"
-                       MaxWidth="230" />
-            <Button Classes="accent" Command="{Binding ExplainScreenCommand}" Padding="16,8"
-                    CornerRadius="14" ToolTip.Tip="Explain the current screen without typing">
-              <StackPanel Orientation="Horizontal" Spacing="7">
-                <TextBlock Text="&#x2726;" FontSize="13" VerticalAlignment="Center" />
-                <TextBlock Text="Explain this screen" VerticalAlignment="Center" />
-              </StackPanel>
-            </Button>
+                       MaxWidth="260" />
+            <TextBlock Text="{Binding LandingSubtitle}"
+                       FontSize="11" Opacity="0.38" TextAlignment="Center" TextWrapping="Wrap"
+                       MaxWidth="270" />
             <TextBlock Text="Ctrl+Shift+E selects and explains from any app" FontSize="10.5" Opacity="0.45"
                        HorizontalAlignment="Center" IsVisible="{Binding GlobalExplainShortcutAvailable}" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
                         IsVisible="{Binding IsSuggesting}" Margin="0,6,0,0">
               <Ellipse Classes="thinkingring" />
-              <TextBlock Text="Looking at your screen..." FontSize="11.5" Opacity="0.5"
+              <TextBlock Text="{Binding SurfaceDetail}" FontSize="11.5" Opacity="0.5"
                          VerticalAlignment="Center" />
             </StackPanel>
             <ItemsControl ItemsSource="{Binding Suggestions}" HorizontalAlignment="Center"
-                          MaxWidth="320" Margin="0,6,0,0">
+                          MaxWidth="420" Margin="0,6,0,0">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <StackPanel Spacing="8" />
@@ -167,7 +165,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Button Classes="chip" Content="{Binding}" HorizontalAlignment="Center"
-                          Click="OnSuggestionClick" ToolTip.Tip="Ask Luma this question" />
+                          Click="OnSuggestionClick" ToolTip.Tip="Use this shortcut" />
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -188,6 +186,11 @@
                           <Ellipse Classes="thinkingring" IsVisible="{Binding IsPending}" />
                           <TextBlock Text="{Binding Elapsed}" FontSize="10.5" Foreground="#59FFFFFF"
                                      VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="7" IsVisible="{Binding IsPending}">
+                          <Ellipse Classes="thinkingring" Width="12" Height="12" />
+                          <TextBlock Text="{Binding Text}" FontSize="12.5" FontStyle="Italic"
+                                     Opacity="0.72" TextWrapping="Wrap" />
                         </StackPanel>
                         <c:MarkdownView Markdown="{Binding Text}" IsVisible="{Binding !IsPending}" />
                         <TextBlock Text="|" IsVisible="{Binding IsStreaming}" Classes="streamcursor"
@@ -212,7 +215,7 @@
         </Grid>
 
         <StackPanel Grid.Row="5" Margin="0,0,0,8" Spacing="6">
-          <TextBlock Text="Quick replies" FontSize="10.5" Opacity="0.5"
+          <TextBlock Text="Next steps" FontSize="10.5" Opacity="0.5"
                      IsVisible="{Binding Messages.Count}" />
           <ItemsControl ItemsSource="{Binding Suggestions}" IsVisible="{Binding Messages.Count}">
             <ItemsControl.ItemsPanel>
@@ -234,7 +237,7 @@
         <Grid Grid.Row="6" ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <TextBox Name="QuestionBox" Text="{Binding Question}" AcceptsReturn="True"
                    PlaceholderText="Ask about your screen, or anything else... (Enter to send)" CornerRadius="12"
-                   MinHeight="42" MaxHeight="92" TextWrapping="Wrap" FontSize="13"
+                   MinHeight="42" MaxHeight="120" TextWrapping="Wrap" FontSize="13"
                    Background="#14FFFFFF" BorderBrush="#26FFFFFF" />
           <Grid Grid.Column="1" VerticalAlignment="Bottom">
             <Button Classes="accent" Command="{Binding SendCommand}" IsEnabled="{Binding CanSend}"
@@ -250,6 +253,13 @@
           </Grid>
         </Grid>
       </Grid>
+
+      <Border Name="ResizeGrip" Width="18" Height="18" Background="Transparent" IsVisible="False"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,5"
+              Cursor="BottomRightCorner" ToolTip.Tip="Drag to resize">
+        <Path Data="M12,4 L4,12 M12,8 L8,12" Stroke="#59FFFFFF" StrokeThickness="1.5"
+              StrokeLineCap="Round" />
+      </Border>
     </Grid>
   </Border>
 </Window>

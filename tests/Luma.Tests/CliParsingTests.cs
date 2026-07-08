@@ -37,6 +37,33 @@ public sealed class CliParsingTests
     }
 
     [Fact]
+    public void PromptIncludesCompactSummaryForTrimmedHistory()
+    {
+        ChatMessage Make(string role, string text) => new(role, text);
+        var history = new[]
+        {
+            Make("user", "The app feels slow when I send a message."),
+            Make("assistant", "That is probably the route call."),
+            Make("user", "Can we keep the assistant fast?"),
+            Make("assistant", "Yes, we can skip the extra route step."),
+            Make("user", "Also keep the loading state obvious."),
+            Make("assistant", "I added a pending bubble and spinner."),
+            Make("user", "Can we make the assistant more useful?"),
+            Make("assistant", "We can add a compact memory summary."),
+            Make("user", "What else can we trim?"),
+            Make("assistant", "We can shorten prompt boilerplate."),
+        };
+
+        var prompt = TestClient.Prompt(new AiRequest("What should we do next?", null, null, history)
+        { TaskKind = TaskKind.Chat });
+
+        Assert.Contains("Earlier context summary:", prompt);
+        Assert.Contains("U:The app feels slow when I send a message.", prompt);
+        Assert.Contains("A:That is probably the route call.", prompt);
+        Assert.Contains("Recent conversation (latest 8):", prompt);
+    }
+
+    [Fact]
     public void ExtractsFinalTextFromJsonLines()
     {
         var client = new TestClient();

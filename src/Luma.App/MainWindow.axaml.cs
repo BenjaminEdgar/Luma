@@ -56,7 +56,19 @@ public partial class MainWindow : Window
             if (AppSettings.Current.CaptureScreenOnOpen) await _viewModel.RefreshContextAsync();
             SetExpanded(true);
         };
-        SettingsButton.Click += async (_, _) => await new SettingsWindow().ShowDialog(this);
+        SettingsButton.Click += async (_, _) =>
+        {
+            await new SettingsWindow().ShowDialog(this);
+            _viewModel.NotifySettingsChanged();
+        };
+        ResizeGrip.PointerPressed += (_, e) =>
+        {
+            if (!_expanded || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            BeginResizeDrag(WindowEdge.SouthEast, e); // blocks until the drag ends on Windows
+            AppSettings.Current.PanelWidth = (int)Width;
+            AppSettings.Current.PanelHeight = (int)Height;
+            e.Handled = true;
+        };
         // Button handles (and swallows) PointerPressed, so drag detection must tunnel in first.
         DockButton.AddHandler(PointerPressedEvent, OnDockPointerPressed, RoutingStrategies.Tunnel);
         DockButton.AddHandler(PointerMovedEvent, OnDockPointerMoved, RoutingStrategies.Tunnel);
@@ -240,8 +252,11 @@ public partial class MainWindow : Window
         DockGlow.IsVisible = !expanded;
         PanelBackground.IsVisible = expanded;
         Panel.IsVisible = expanded;
-        Width = expanded ? 540 : 52;
-        Height = expanded ? 660 : 52;
+        ResizeGrip.IsVisible = expanded;
+        MinWidth = expanded ? 480 : 52;
+        MinHeight = expanded ? 520 : 52;
+        Width = expanded ? AppSettings.Current.PanelWidth : 52;
+        Height = expanded ? AppSettings.Current.PanelHeight : 52;
         if (expanded)
         {
             PositionPanelOnScreen();

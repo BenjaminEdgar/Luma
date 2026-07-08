@@ -14,6 +14,11 @@ public sealed class AppSettings
     public int Mode { get; set; }
     public string? WorkingDirectory { get; set; }
     public bool EnableGlobalExplainShortcut { get; set; } = true;
+    // Expanded panel size; user-resizable via the corner grip and remembered across runs.
+    public int PanelWidth { get; set; } = 640;
+    public int PanelHeight { get; set; } = 800;
+    /// <summary>Short persistent notes the assistant should always remember.</summary>
+    public string AssistantMemory { get; set; } = "";
 
     // Ambient screen context and suggestion chips.
     public bool CaptureScreenOnOpen { get; set; } = true;
@@ -28,9 +33,11 @@ public sealed class AppSettings
 
     // Token budget: how much conversation history each provider call re-sends.
     /// <summary>Only the most recent N messages are sent per request; 0 sends everything.</summary>
-    public int HistoryMessageLimit { get; set; } = 12;
+    public int HistoryMessageLimit { get; set; } = 8;
     /// <summary>Each history message is trimmed to this many characters; 0 disables trimming.</summary>
-    public int HistoryCharacterLimit { get; set; } = 4000;
+    public int HistoryCharacterLimit { get; set; } = 2200;
+    /// <summary>Caps the pinned memory text so the assistant stays concise.</summary>
+    public int AssistantMemoryCharacterLimit { get; set; } = 2000;
 
     // Per-provider model overrides.
     public string ClaudeChatModel { get; set; } = "";
@@ -71,8 +78,14 @@ public sealed class AppSettings
         SuggestionCount = Math.Clamp(SuggestionCount, 1, 5);
         SuggestionFreshSeconds = Math.Clamp(SuggestionFreshSeconds, 0, 3600);
         SuggestionImageMaxWidth = Math.Clamp(SuggestionImageMaxWidth, 480, 7680);
+        PanelWidth = Math.Clamp(PanelWidth, 480, 3000);
+        PanelHeight = Math.Clamp(PanelHeight, 520, 3000);
         HistoryMessageLimit = Math.Clamp(HistoryMessageLimit, 0, 500);
         HistoryCharacterLimit = Math.Clamp(HistoryCharacterLimit, 0, 200_000);
+        AssistantMemoryCharacterLimit = Math.Clamp(AssistantMemoryCharacterLimit, 0, 20_000);
+        AssistantMemory = AssistantMemory.Length > AssistantMemoryCharacterLimit && AssistantMemoryCharacterLimit > 0
+            ? AssistantMemory[..AssistantMemoryCharacterLimit]
+            : AssistantMemory;
     }
 
     private static string SettingsPath() => Path.Combine(

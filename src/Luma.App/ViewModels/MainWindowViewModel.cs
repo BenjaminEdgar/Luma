@@ -79,7 +79,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public AsyncParameterCommand UseSuggestionCommand { get; }
     /// <summary>Short prompt ideas derived from the ambient screen capture, shown as chips.</summary>
     public ObservableCollection<string> Suggestions { get; } = [];
-    public bool IsSuggesting { get => _suggesting; private set => Set(ref _suggesting, value); }
+    public bool IsSuggesting
+    {
+        get => _suggesting;
+        private set
+        {
+            Set(ref _suggesting, value);
+            NotifySurfaceStateChanged();
+        }
+    }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
     public Func<Task<string?>>? WorkingDirectoryRequested { get; set; }
     public Func<Task<bool>>? NewChatConfirmationRequested { get; set; }
@@ -97,6 +105,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     /// rather than the image preview, which is reserved for regions the user snipped.</summary>
     public bool HasContextOnly => _contextPath is not null && _regionPath is null;
     public string PreviewLabel => _regionPath is not null ? "Selected region" : "Your screen";
+    public bool HasAssistantMemory => !string.IsNullOrWhiteSpace(AppSettings.Current.AssistantMemory);
+    public string AssistantMemoryPreview => MemoryPreview(AppSettings.Current.AssistantMemory);
+    public string SurfaceStatus => _refreshingContext ? "Capturing" : _busy ? "Working" : IsSuggesting ? "Preparing shortcuts" : HasRegion ? "Region ready" : HasContext ? "Screen ready" : "Ready";
+    public string SurfaceDetail => _refreshingContext ? "Refreshing screen context" : _busy ? (HasRunningOperations ? RunningStatus : "Waiting for the provider") : IsSuggesting ? "Generating quick actions" : HasRegion ? "Selected area stays in focus until you clear it" : HasContext ? "Screen context loaded" : "No screen context yet";
+    public string LandingTitle => HasCapture ? "Ask about what is on your screen." : "Start with the screen.";
+    public string LandingSubtitle => HasCapture ? "Use a shortcut chip, type a question, or snip a tighter region." : "Explain the screen, snip a region, or just ask.";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
     public bool CanSend => !_busy && !string.IsNullOrWhiteSpace(Question) && SelectedDiagnostic?.IsAvailable != false;
@@ -126,6 +140,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             [_claudeDiagnostic, _codexDiagnostic, _grokDiagnostic]);
         OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); OnPropertyChanged(nameof(CanSend));
         SendCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged();
+        NotifySurfaceStateChanged();
         if (_contextPath is not null && Messages.Count == 0) _ = GenerateSuggestionsAsync();
     }
 
@@ -135,6 +150,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (HasRunningOperations) _operationTicker.Start(); else _operationTicker.Stop();
         OnPropertyChanged(nameof(HasRunningOperations));
         StopCommand.RaiseCanExecuteChanged();
+        NotifySurfaceStateChanged();
     });
 
     private void RefreshOperationStatus()
@@ -143,6 +159,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         RunningStatus = active.Count == 0 ? string.Empty : active.Count == 1
             ? $"{active[0].Name} - {(DateTimeOffset.UtcNow - active[0].StartedAt).TotalSeconds:0}s"
             : $"{active.Count} processes running - {(DateTimeOffset.UtcNow - active[0].StartedAt).TotalSeconds:0}s";
+        NotifySurfaceStateChanged();
     }
 
     /// <summary>Grabs the whole screen as background context. Called when the panel opens, while
@@ -166,7 +183,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Messages.Add(new ChatMessage("assistant", $"Screen context capture failed: {ex.Message}") { IsError = true }); }
-        finally { _refreshingContext = false; }
+        finally
+        {
+            _refreshingContext = false;
+            NotifySurfaceStateChanged();
+        }
     }
 
     /// <summary>Asks the provider for a few short prompt ideas based on the ambient capture and
@@ -345,9 +366,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Suggestions.Clear();
         var prompt = Question.Trim();
         Question = string.Empty;
-        TaskKind kind;
-        try { kind = await RoutePromptAsync(prompt); }
-        catch (OperationCanceledException) { Question = prompt; return; }
+        var kind = TaskRouter.Classify(prompt);
         if (kind == TaskKind.Code)
         {
             var repository = WorkingDirectoryRequested is null ? WorkingDirectory : await WorkingDirectoryRequested();
@@ -359,31 +378,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (kind == TaskKind.Shell && TaskLaunchRequested is not null &&
             await TaskLaunchRequested(new TaskLaunchRequest(kind, prompt, (AiProvider)SelectedProviderIndex, _regionPath, _contextPath))) return;
         await RunTurnAsync(prompt);
-    }
-
-    private async Task<TaskKind> RoutePromptAsync(string prompt)
-    {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _requestCts = cts;
-        SetBusy(true);
-        try
-        {
-            var request = new AiRequest(prompt, null, null, []) { TaskKind = TaskKind.Route };
-            var result = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
-            var route = result.Trim().ToUpperInvariant();
-            if (route.Contains("CODE", StringComparison.Ordinal)) return TaskKind.Code;
-            if (route.Contains("COMMAND", StringComparison.Ordinal)) return TaskKind.Shell;
-            if (route.Contains("CHAT", StringComparison.Ordinal)) return TaskKind.Chat;
-            var fallback = TaskRouter.Classify(prompt);
-            return fallback is TaskKind.Code or TaskKind.Shell ? fallback : TaskKind.Chat;
-        }
-        catch (OperationCanceledException) { throw; }
-        catch
-        {
-            var fallback = TaskRouter.Classify(prompt);
-            return fallback is TaskKind.Code or TaskKind.Shell ? fallback : TaskKind.Chat;
-        }
-        finally { _requestCts = null; SetBusy(false); }
     }
 
     /// <summary>Sends the user's typed reply to a pending clarifying question as the next turn.</summary>
@@ -419,6 +413,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
             Caption = HasCapture ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
+            Text = HasCapture ? "Reading screen…" : "Thinking…",
         };
         Messages.Add(answer);
         SetBusy(true);
@@ -437,22 +432,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 {
                     answer.IsPending = false;
                     answer.IsStreaming = true;
-                    answer.Caption = $"* {providerName}";
+                    answer.Caption = $"✦ {providerName}";
                     ApplyAnswerText(answer, partial);
                 }), cts.Token);
             ApplyAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
-            answer.Caption = $"* {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
             _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
         {
-            answer.Caption = $"* {providerName} - stopped";
+            answer.Caption = $"✦ {providerName} - stopped";
             if (string.IsNullOrWhiteSpace(answer.Text)) answer.Text = "*Stopped.*";
         }
         catch (Exception ex)
         {
             answer.IsError = true;
-            answer.Caption = $"* {providerName} - error";
+            answer.Caption = $"✦ {providerName} - error";
             answer.Text = ex.Message;
         }
         finally
@@ -477,7 +472,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Messages.Add(new ChatMessage("user", prompt));
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
-            Caption = $"* {providerName} is inspecting the repository",
+            Caption = $"✦ {providerName} is inspecting the repository",
+            Text = "Inspecting repository…",
         };
         Messages.Add(answer);
         SetBusy(true);
@@ -492,18 +488,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
-            answer.Caption = $"* {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
             _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
         {
-            answer.Caption = $"* {providerName} - stopped";
+            answer.Caption = $"✦ {providerName} - stopped";
             if (string.IsNullOrWhiteSpace(answer.Text)) answer.Text = "*Stopped.*";
         }
         catch (Exception ex)
         {
             answer.IsError = true;
-            answer.Caption = $"* {providerName} - error";
+            answer.Caption = $"✦ {providerName} - error";
             answer.Text = ex.Message;
         }
         finally
@@ -531,7 +527,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             (_, _) => answer.Elapsed = $"{stopwatch.Elapsed.TotalSeconds:0.0} s");
         ticker.Start();
         try { await session.ContinueAsync(reply, cts.Token); _ = GenerateFollowUpSuggestionsAsync(); }
-        catch (OperationCanceledException) { answer.Caption = "* stopped"; }
+        catch (OperationCanceledException) { answer.Caption = "✦ stopped"; }
         catch (Exception ex) { answer.IsError = true; answer.Text = ex.Message; }
         finally
         {
@@ -582,6 +578,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(HasCapture)); OnPropertyChanged(nameof(HasRegion)); OnPropertyChanged(nameof(HasContext));
         OnPropertyChanged(nameof(HasContextOnly));
         OnPropertyChanged(nameof(PreviewLabel)); OnPropertyChanged(nameof(CanSend));
+        NotifySurfaceStateChanged();
         SendCommand.RaiseCanExecuteChanged();
         ExplainScreenCommand.RaiseCanExecuteChanged();
     }
@@ -590,12 +587,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         _busy = value;
         OnPropertyChanged(nameof(IsIdle)); OnPropertyChanged(nameof(IsBusy)); OnPropertyChanged(nameof(CanSend));
+        NotifySurfaceStateChanged();
         CaptureCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged(); SendCommand.RaiseCanExecuteChanged(); StopCommand.RaiseCanExecuteChanged();
     }
 
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return; field = value; OnPropertyChanged(name); }
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
+    private void NotifySurfaceStateChanged()
+    {
+        OnPropertyChanged(nameof(SurfaceStatus));
+        OnPropertyChanged(nameof(SurfaceDetail));
+        OnPropertyChanged(nameof(LandingTitle));
+        OnPropertyChanged(nameof(LandingSubtitle));
+    }
+
+    public void NotifySettingsChanged()
+    {
+        OnPropertyChanged(nameof(HasAssistantMemory));
+        OnPropertyChanged(nameof(AssistantMemoryPreview));
+    }
+
+    private static string MemoryPreview(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var firstLine = text.Replace("\r", string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? string.Empty;
+        if (firstLine.Length > 140) firstLine = firstLine[..140].TrimEnd() + "…";
+        return firstLine;
+    }
     public void Dispose()
     {
         _operations.Changed -= OnOperationsChanged;
