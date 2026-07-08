@@ -156,7 +156,7 @@ public abstract class TaskWorkspaceWindow : Window
         ShowInTaskbar = false;
         Topmost = true;
         Background = Brushes.Transparent;
-        TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
+        TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
 
         _questionCard = new Border
         {

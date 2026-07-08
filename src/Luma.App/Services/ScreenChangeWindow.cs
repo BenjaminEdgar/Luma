@@ -18,7 +18,7 @@ public sealed class ScreenChangeWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowDecorations = WindowDecorations.None;
         Background = Brushes.Transparent;
-        TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
+        TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
 
         var keep = ActionButton("Keep this chat", "outline", false);
         var startNew = ActionButton("Start new chat", "accent", true);

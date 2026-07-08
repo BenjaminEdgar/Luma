@@ -4,7 +4,7 @@
         x:Class="Luma.App.MainWindow"
         Width="52" Height="52" MinWidth="52" MinHeight="52"
         CanResize="False" ShowInTaskbar="False" Topmost="True"
-        WindowDecorations="None" TransparencyLevelHint="AcrylicBlur"
+        WindowDecorations="None" TransparencyLevelHint="Transparent"
         Background="Transparent" ExtendClientAreaToDecorationsHint="True">
   <Border Name="Shell" Background="Transparent">
     <Grid>
