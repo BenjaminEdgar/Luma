@@ -8,6 +8,12 @@ namespace Luma.Tests;
 public sealed class CliParsingTests
 {
     [Fact]
+    public void FactoryCreatesGrokClient()
+    {
+        Assert.IsType<GrokClient>(new AiClientFactory().Create(AiProvider.Grok));
+    }
+
+    [Fact]
     public void ExtractsFinalTextFromJsonLines()
     {
         var client = new TestClient();
@@ -85,7 +91,7 @@ public sealed class CliParsingTests
     private sealed class TestClient : CliAiClient
     {
         protected override string Command => "unused";
-        protected override void AddArguments(ProcessStartInfo startInfo, AiRequest request) { }
+        protected override void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt) { }
         public string Parse(string value) => ParseOutput(value);
         public static bool ReadStreamLine(string line, out string? delta, out string? final) => TryReadStreamLine(line, out delta, out final);
     }

@@ -9,7 +9,7 @@ namespace Luma.App.Services;
 public sealed class QuestionPromptWindow : Window
 {
     private readonly TextBlock _question = new() { TextWrapping = TextWrapping.Wrap, FontSize = 16, FontWeight = FontWeight.SemiBold };
-    private readonly TextBox _answer = new() { PlaceholderText = "Type your answer...", MinHeight = 42, TextWrapping = TextWrapping.Wrap };
+    private readonly StackPanel _choices = new() { Spacing = 8 };
 
     public event Action<string?>? Answered;
 
@@ -50,29 +50,27 @@ public sealed class QuestionPromptWindow : Window
                         VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
                         Content = _question,
                     },
-                    _answer,
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8,
-                        Children = { MakeButton("Skip", "ghost", () => Complete(null)), MakeButton("Answer", "accent", () => Complete(_answer.Text?.Trim())) },
-                    },
+                    _choices,
                 },
             },
         };
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { Complete(null); e.Handled = true; }
-            else if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) { Complete(_answer.Text?.Trim()); e.Handled = true; }
         };
     }
 
-    public void Show(Window owner, string question)
+    public void Show(Window owner, string question, IReadOnlyList<string> choices)
     {
-        _question.Text = TextSanitizer.Clean(question); _answer.Text = string.Empty;
+        _question.Text = TextSanitizer.Clean(question);
+        _choices.Children.Clear();
+        foreach (var choice in choices.Take(4))
+            _choices.Children.Add(MakeButton(TextSanitizer.Clean(choice), "outline", () => Complete(choice)));
+        _choices.Children.Add(MakeButton("Continue without it", "ghost", () => Complete(null)));
         var area = owner.Screens.ScreenFromWindow(owner)?.WorkingArea ?? owner.Screens.Primary?.WorkingArea;
         if (area is { } bounds) Position = new PixelPoint(bounds.X + (bounds.Width - (int)Width) / 2, bounds.Y + Math.Max(40, (bounds.Height - 260) / 2));
         if (!IsVisible) base.Show(owner);
-        Activate(); _answer.Focus();
+        Activate();
     }
 
     private void Complete(string? answer)

@@ -16,6 +16,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly Window _owner;
     private readonly IScreenCaptureService _captureService;
     private readonly IAiClientFactory _clientFactory;
+    private readonly IRunningOperationCoordinator _operations;
+    private readonly ProviderDiagnostics _diagnostics;
+    private readonly IScreenDifferenceService _screenDifference;
+    private readonly DispatcherTimer _operationTicker;
     private readonly CancellationTokenSource _lifetime = new();
     private string? _regionPath;
     private string? _contextPath;
@@ -27,29 +31,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private CancellationTokenSource? _suggestCts;
     private DateTime _suggestionsAt = DateTime.MinValue;
     private int _selectedProviderIndex;
-    private int _selectedModeIndex;
     private string? _workingDirectory;
     private CancellationTokenSource? _requestCts;
+    private ProviderDiagnostic? _claudeDiagnostic;
+    private ProviderDiagnostic? _codexDiagnostic;
+    private ProviderDiagnostic? _grokDiagnostic;
+    private string _runningStatus = string.Empty;
 
-    public MainWindowViewModel(Window owner, IScreenCaptureService captureService, IAiClientFactory clientFactory)
+    public MainWindowViewModel(Window owner, IScreenCaptureService captureService, IAiClientFactory clientFactory,
+        IRunningOperationCoordinator operations, ProviderDiagnostics diagnostics, IScreenDifferenceService screenDifference)
     {
         _owner = owner;
         _captureService = captureService;
         _clientFactory = clientFactory;
+        _operations = operations;
+        _diagnostics = diagnostics;
+        _screenDifference = screenDifference;
+        _operationTicker = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
+            (_, _) => RefreshOperationStatus());
         CaptureCommand = new AsyncCommand(CaptureAsync, () => IsIdle);
         SendCommand = new AsyncCommand(SendAsync, () => CanSend);
         ClearCaptureCommand = new RelayCommand(ClearCapture);
-        StopCommand = new RelayCommand(() => _requestCts?.Cancel(), () => IsBusy);
+        StopCommand = new RelayCommand(_operations.CancelAll, () => HasRunningOperations);
         CopyMessageCommand = new ParameterCommand(CopyMessage);
         AnswerQuestionCommand = new AsyncParameterCommand(AnswerQuestionAsync);
         SkipQuestionCommand = new AsyncParameterCommand(SkipQuestionAsync);
         UseSuggestionCommand = new AsyncParameterCommand(UseSuggestionAsync);
+        _operations.Changed += OnOperationsChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<ChatMessage> Messages { get; } = [];
-    public IReadOnlyList<string> Providers { get; } = ["Claude", "Codex"];
-    public IReadOnlyList<string> Modes { get; } = ["Ask", "Code", "Command"];
+    public IReadOnlyList<string> Providers { get; } = ["Claude", "Codex", "Grok"];
     public AsyncCommand CaptureCommand { get; }
     public AsyncCommand SendCommand { get; }
     public RelayCommand ClearCaptureCommand { get; }
@@ -63,11 +76,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool IsSuggesting { get => _suggesting; private set => Set(ref _suggesting, value); }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
     public Func<Task<string?>>? WorkingDirectoryRequested { get; set; }
+    public Func<Task<bool>>? NewChatConfirmationRequested { get; set; }
 
-    public int SelectedProviderIndex { get => _selectedProviderIndex; set { Set(ref _selectedProviderIndex, value); OnPropertyChanged(nameof(CanSend)); } }
-    public int SelectedModeIndex { get => _selectedModeIndex; set { Set(ref _selectedModeIndex, value); OnPropertyChanged(nameof(IsCodeMode)); OnPropertyChanged(nameof(WorkingDirectoryLabel)); } }
+    public int SelectedProviderIndex { get => _selectedProviderIndex; set { Set(ref _selectedProviderIndex, value); OnPropertyChanged(nameof(CanSend)); OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); SendCommand.RaiseCanExecuteChanged(); } }
     public string? WorkingDirectory { get => _workingDirectory; set { Set(ref _workingDirectory, value); OnPropertyChanged(nameof(WorkingDirectoryLabel)); } }
-    public bool IsCodeMode => SelectedModeIndex == 1;
     public string WorkingDirectoryLabel => WorkingDirectory is null ? "Choose project..." : Path.GetFileName(WorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string Question { get => _question; set { Set(ref _question, value); OnPropertyChanged(nameof(CanSend)); SendCommand.RaiseCanExecuteChanged(); } }
     public Bitmap? Preview { get => _preview; private set => Set(ref _preview, value); }
@@ -77,7 +89,46 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string PreviewLabel => _regionPath is not null ? "Selected region" : "Your screen";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
-    public bool CanSend => !_busy && !string.IsNullOrWhiteSpace(Question);
+    public bool CanSend => !_busy && !string.IsNullOrWhiteSpace(Question) && SelectedDiagnostic?.IsAvailable != false;
+    public bool HasProviderProblem => SelectedDiagnostic?.IsAvailable == false;
+    public string ProviderStatus => SelectedDiagnostic?.Message ?? string.Empty;
+    public bool HasRunningOperations => _operations.Active.Count > 0;
+    public string RunningStatus { get => _runningStatus; private set => Set(ref _runningStatus, value); }
+    private ProviderDiagnostic? SelectedDiagnostic => SelectedProviderIndex switch
+    {
+        0 => _claudeDiagnostic,
+        1 => _codexDiagnostic,
+        _ => _grokDiagnostic
+    };
+
+    public async Task InitializeDiagnosticsAsync()
+    {
+        var claude = _diagnostics.CheckAsync("claude", _lifetime.Token);
+        var codex = _diagnostics.CheckAsync("codex", _lifetime.Token);
+        var grok = _diagnostics.CheckAsync("grok", _lifetime.Token);
+        await Task.WhenAll(claude, codex, grok);
+        _claudeDiagnostic = await claude;
+        _codexDiagnostic = await codex;
+        _grokDiagnostic = await grok;
+        OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); OnPropertyChanged(nameof(CanSend));
+        SendCommand.RaiseCanExecuteChanged();
+    }
+
+    private void OnOperationsChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        RefreshOperationStatus();
+        if (HasRunningOperations) _operationTicker.Start(); else _operationTicker.Stop();
+        OnPropertyChanged(nameof(HasRunningOperations));
+        StopCommand.RaiseCanExecuteChanged();
+    });
+
+    private void RefreshOperationStatus()
+    {
+        var active = _operations.Active;
+        RunningStatus = active.Count == 0 ? string.Empty : active.Count == 1
+            ? $"{active[0].Name} - {(DateTimeOffset.UtcNow - active[0].StartedAt).TotalSeconds:0}s"
+            : $"{active.Count} processes running - {(DateTimeOffset.UtcNow - active[0].StartedAt).TotalSeconds:0}s";
+    }
 
     /// <summary>Grabs the whole screen as background context. Called when the panel opens, while
     /// the window is still the small collapsed dock, so there's no need to hide it first.</summary>
@@ -88,6 +139,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var path = await _captureService.CaptureScreenAsync(_owner, _lifetime.Token);
+            if (_contextPath is not null && Messages.Count > 0 &&
+                _screenDifference.Measure(_contextPath, path) >= .16 &&
+                NewChatConfirmationRequested is not null && await NewChatConfirmationRequested())
+            {
+                Messages.Clear();
+                Suggestions.Clear();
+            }
             ReplaceCapture(ref _contextPath, path);
             _ = GenerateSuggestionsAsync();
         }
@@ -131,6 +189,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             if (thumbnailPath is not null) { try { File.Delete(thumbnailPath); } catch { } }
+            if (_suggestCts == cts) { _suggestCts = null; IsSuggesting = false; }
+            cts.Dispose();
+        }
+    }
+
+    private async Task GenerateFollowUpSuggestionsAsync()
+    {
+        _suggestCts?.Cancel();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _suggestCts = cts;
+        IsSuggesting = true;
+        try
+        {
+            var history = Messages.ToArray();
+            var request = new AiRequest("Suggest likely next replies.", null, null, history)
+            { TaskKind = TaskKind.FollowUp };
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
+            if (cts.IsCancellationRequested) return;
+            var parsed = SuggestionParser.Parse(text, AppSettings.Current.SuggestionCount);
+            Suggestions.Clear();
+            foreach (var suggestion in parsed) Suggestions.Add(suggestion);
+        }
+        catch (OperationCanceledException) { }
+        catch { Suggestions.Clear(); }
+        finally
+        {
             if (_suggestCts == cts) { _suggestCts = null; IsSuggesting = false; }
             cts.Dispose();
         }
@@ -187,7 +271,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Suggestions.Clear();
         var prompt = Question.Trim();
         Question = string.Empty;
-        var kind = SelectedModeIndex switch { 1 => TaskKind.Code, 2 => TaskKind.Shell, _ => TaskKind.Chat };
+        TaskKind kind;
+        try { kind = await RoutePromptAsync(prompt); }
+        catch (OperationCanceledException) { Question = prompt; return; }
         if (kind == TaskKind.Code)
         {
             WorkingDirectory ??= WorkingDirectoryRequested is null ? null : await WorkingDirectoryRequested();
@@ -198,6 +284,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (kind == TaskKind.Shell && TaskLaunchRequested is not null &&
             await TaskLaunchRequested(new TaskLaunchRequest(kind, prompt, (AiProvider)SelectedProviderIndex, _regionPath, _contextPath))) return;
         await RunTurnAsync(prompt);
+    }
+
+    private async Task<TaskKind> RoutePromptAsync(string prompt)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _requestCts = cts;
+        SetBusy(true);
+        try
+        {
+            var request = new AiRequest(prompt, null, null, []) { TaskKind = TaskKind.Route };
+            var result = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
+            var route = result.Trim().ToUpperInvariant();
+            if (route.Contains("CODE", StringComparison.Ordinal)) return TaskKind.Code;
+            if (route.Contains("COMMAND", StringComparison.Ordinal)) return TaskKind.Shell;
+            if (route.Contains("CHAT", StringComparison.Ordinal)) return TaskKind.Chat;
+            var fallback = TaskRouter.Classify(prompt);
+            return fallback is TaskKind.Code or TaskKind.Shell ? fallback : TaskKind.Chat;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch
+        {
+            var fallback = TaskRouter.Classify(prompt);
+            return fallback is TaskKind.Code or TaskKind.Shell ? fallback : TaskKind.Chat;
+        }
+        finally { _requestCts = null; SetBusy(false); }
     }
 
     /// <summary>Sends the user's typed reply to a pending clarifying question as the next turn.</summary>
@@ -256,6 +367,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 }), cts.Token);
             ApplyAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
             answer.Caption = $"* {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
         {
@@ -302,10 +414,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ticker.Start();
         try
         {
-            var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(), repository, _regionPath, _contextPath);
+            var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
             answer.Caption = $"* {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
         {
@@ -342,7 +455,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background,
             (_, _) => answer.Elapsed = $"{stopwatch.Elapsed.TotalSeconds:0.0} s");
         ticker.Start();
-        try { await session.ContinueAsync(reply, cts.Token); }
+        try { await session.ContinueAsync(reply, cts.Token); _ = GenerateFollowUpSuggestionsAsync(); }
         catch (OperationCanceledException) { answer.Caption = "* stopped"; }
         catch (Exception ex) { answer.IsError = true; answer.Text = ex.Message; }
         finally
@@ -359,11 +472,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private static void ApplyAnswerText(ChatMessage answer, string rawText)
     {
-        var (text, question) = ClarifyingQuestionParser.Extract(TextSanitizer.Clean(rawText));
-        answer.Text = TextSanitizer.Clean(text);
-        if (question is not null)
+        var clarification = ClarifyingQuestionParser.ExtractDetailed(TextSanitizer.Clean(rawText));
+        answer.Text = TextSanitizer.Clean(clarification.Text);
+        if (clarification.Question is not null)
         {
-            answer.Question = TextSanitizer.Clean(question);
+            answer.Question = TextSanitizer.Clean(clarification.Question);
+            answer.QuestionChoices = clarification.Choices;
             answer.IsQuestion = true;
         }
     }
@@ -407,6 +521,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     public void Dispose()
     {
+        _operations.Changed -= OnOperationsChanged;
+        _operationTicker.Stop();
         _lifetime.Cancel();
         ReplaceCapture(ref _regionPath, null);
         ReplaceCapture(ref _contextPath, null);

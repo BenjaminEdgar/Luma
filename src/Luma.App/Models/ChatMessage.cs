@@ -14,6 +14,7 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     private bool _isQuestion;
     private string? _question;
     private string _questionAnswer = string.Empty;
+    private IReadOnlyList<string> _questionChoices = [];
     private bool _isStreaming;
     private CodeChatSession? _codeSession;
 
@@ -32,6 +33,7 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     public bool IsQuestion { get => _isQuestion; set => Set(ref _isQuestion, value); }
     public string? Question { get => _question; set => Set(ref _question, value); }
     public string QuestionAnswer { get => _questionAnswer; set => Set(ref _questionAnswer, value); }
+    public IReadOnlyList<string> QuestionChoices { get => _questionChoices; set => Set(ref _questionChoices, value); }
     public bool IsStreaming { get => _isStreaming; set => Set(ref _isStreaming, value); }
     /// <summary>Present when this assistant message carries a coding-task diff review card.</summary>
     public CodeChatSession? CodeSession
@@ -49,9 +51,9 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     }
 }
 
-public enum AiProvider { Claude, Codex }
+public enum AiProvider { Claude, Codex, Grok }
 
-public enum TaskKind { Chat, Email, Code, Generic, Shell, Browser, Suggest }
+public enum TaskKind { Chat, Email, Code, Generic, Shell, Browser, Suggest, FollowUp, Route }
 
 public sealed record TaskLaunchRequest(
     TaskKind Kind, string Prompt, AiProvider Provider, string? ImagePath, string? ContextImagePath);

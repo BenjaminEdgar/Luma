@@ -30,13 +30,15 @@ public static partial class TaskRouter
     private static partial Regex GenericWords();
 }
 
-public sealed record TaskResponse(string Text, string? Question, string? Artifact);
+public sealed record TaskResponse(string Text, string? Question, string? Artifact, IReadOnlyList<string> Choices);
 
 public static partial class TaskResponseParser
 {
     public static TaskResponse Parse(string raw, TaskKind kind)
     {
-        var (text, question) = ClarifyingQuestionParser.Extract(TextSanitizer.Clean(raw));
+        var clarification = ClarifyingQuestionParser.ExtractDetailed(TextSanitizer.Clean(raw));
+        var text = clarification.Text;
+        var question = clarification.Question;
         string? artifact = null;
         if (kind == TaskKind.Code)
         {
@@ -82,7 +84,7 @@ public static partial class TaskResponseParser
         {
             artifact = TextSanitizer.Clean(text.Trim());
         }
-        return new TaskResponse(TextSanitizer.Clean(text), question is null ? null : TextSanitizer.Clean(question), artifact);
+        return new TaskResponse(TextSanitizer.Clean(text), question is null ? null : TextSanitizer.Clean(question), artifact, clarification.Choices);
     }
 
     /// <summary>A unified diff's last content line must be newline-terminated or git apply rejects
@@ -248,7 +250,7 @@ public interface IShellService
     Task<ShellResult> RunAsync(string workingDirectory, string command, CancellationToken token);
 }
 
-public sealed class ShellService : IShellService
+public sealed class ShellService(IRunningOperationCoordinator? operations = null) : IShellService
 {
     public async Task<ShellResult> RunAsync(string workingDirectory, string command, CancellationToken token)
     {
@@ -260,10 +262,17 @@ public sealed class ShellService : IShellService
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
         psi.CreateNoWindow = true;
+        using var operation = operations?.Begin("Shell command", token);
+        var processToken = operation?.Token ?? token;
         using var process = Process.Start(psi) ?? throw new InvalidOperationException("Could not start a shell.");
-        var output = process.StandardOutput.ReadToEndAsync(token);
-        var error = process.StandardError.ReadToEndAsync(token);
-        await process.WaitForExitAsync(token);
+        using var killRegistration = processToken.Register(() =>
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+        });
+        var output = process.StandardOutput.ReadToEndAsync(processToken);
+        var error = process.StandardError.ReadToEndAsync(processToken);
+        await process.WaitForExitAsync(processToken);
+        processToken.ThrowIfCancellationRequested();
         return new ShellResult(process.ExitCode, await output, await error);
     }
 }

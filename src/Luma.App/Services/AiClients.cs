@@ -12,15 +12,23 @@ public interface IAiClient
 }
 public interface IAiClientFactory { IAiClient Create(AiProvider provider); }
 
-public sealed class AiClientFactory : IAiClientFactory
+public sealed class AiClientFactory(IRunningOperationCoordinator? operations = null) : IAiClientFactory
 {
-    public IAiClient Create(AiProvider provider) => provider == AiProvider.Claude ? new ClaudeClient() : new CodexClient();
+    public IAiClient Create(AiProvider provider) => provider switch
+    {
+        AiProvider.Claude => new ClaudeClient(operations),
+        AiProvider.Grok => new GrokClient(operations),
+        _ => new CodexClient(operations)
+    };
 }
 
 public abstract class CliAiClient : IAiClient
 {
+    private readonly IRunningOperationCoordinator? _operations;
+    protected CliAiClient(IRunningOperationCoordinator? operations = null) => _operations = operations;
     protected abstract string Command { get; }
-    protected abstract void AddArguments(ProcessStartInfo startInfo, AiRequest request);
+    protected virtual bool PromptViaStandardInput => true;
+    protected abstract void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt);
 
     public async Task<string> AskAsync(AiRequest request, Action<string>? onPartialText, CancellationToken cancellationToken)
     {
@@ -37,24 +45,27 @@ public abstract class CliAiClient : IAiClient
             var workingDirectory = localRequest.WorkingDirectory ?? sessionDirectory;
             var psi = BuildStartInfo(launch.Executable, workingDirectory);
             foreach (var argument in launch.PrefixArguments) psi.ArgumentList.Add(argument);
-            AddArguments(psi, localRequest);
+            var prompt = BuildPrompt(localRequest);
+            AddArguments(psi, localRequest, prompt);
+            using var operation = _operations?.Begin($"{Command} request", cancellationToken);
+            var processToken = operation?.Token ?? cancellationToken;
             using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Could not start {Command}.");
-            using var killRegistration = cancellationToken.Register(() =>
+            using var killRegistration = processToken.Register(() =>
             {
                 try { process.Kill(entireProcessTree: true); } catch { }
             });
             try
             {
-                await process.StandardInput.WriteAsync(BuildPrompt(localRequest));
+                if (PromptViaStandardInput) await process.StandardInput.WriteAsync(prompt);
                 process.StandardInput.Close();
             }
-            catch (IOException) { cancellationToken.ThrowIfCancellationRequested(); throw; }
+            catch (IOException) { processToken.ThrowIfCancellationRequested(); throw; }
 
             var errorTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
             var streamed = new StringBuilder();
             var raw = new StringBuilder();
             string? final = null;
-            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+            while (await process.StandardOutput.ReadLineAsync(processToken) is { } line)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 raw.Append(line).Append('\n');
@@ -66,8 +77,8 @@ public abstract class CliAiClient : IAiClient
                 }
                 if (result is not null) final = result;
             }
-            await process.WaitForExitAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
+            await process.WaitForExitAsync(processToken);
+            processToken.ThrowIfCancellationRequested();
             var error = await errorTask;
             if (process.ExitCode != 0)
                 throw new InvalidOperationException(FriendlyError(error, process.ExitCode));
@@ -153,12 +164,13 @@ public abstract class CliAiClient : IAiClient
     {
         var builder = new StringBuilder("You are helping inside Luma. Do not modify files or run commands.\n");
         // Suggestion turns must produce machine-parsed lines only, so the ASK_USER escape hatch is withheld.
-        if (request.TaskKind != TaskKind.Suggest) builder.AppendLine(
+        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route)) builder.AppendLine(
             "If, and only if, giving a genuinely useful answer requires one specific piece of information you don't " +
             "already have (for example: the project directory or file path for a coding problem visible in the " +
             "screenshot, or the desired tone/recipient/key points for an email or message you're asked to draft), " +
             "ask for exactly that by ending your ENTIRE reply with a single line formatted exactly as: " +
-            "ASK_USER: <your question>. Never use this for something already visible in the screenshot. Prefer " +
+            "ASK_USER: <your question> || <choice 1> || <choice 2>. Supply 2-4 short, mutually exclusive choices; " +
+            "never ask for typed input. Never use this for something already visible in the screenshot. Prefer " +
             "answering directly whenever you reasonably can, and ask at most one question.");
         switch (request.TaskKind)
         {
@@ -184,6 +196,18 @@ public abstract class CliAiClient : IAiClient
                     "summarizing an article, or replying to a message. Reply with only the suggestions, one per line, " +
                     "with no numbering, bullets, or any other text.");
                 break;
+            case TaskKind.FollowUp:
+                builder.AppendLine(
+                    $"Based on the conversation, suggest up to {AppSettings.Current.SuggestionCount} short replies the user is most likely to send next. " +
+                    "Replies may answer a question, request the most useful next action, or ask a concise follow-up. " +
+                    "Keep each under nine words. Reply with only the replies, one per line, with no numbering, bullets, or other text.");
+                break;
+            case TaskKind.Route:
+                builder.AppendLine(
+                    "Classify the user's request as exactly one of CHAT, CODE, or COMMAND. " +
+                    "Use CODE when repository inspection or file changes are needed. Use COMMAND when a terminal command should be proposed. " +
+                    "Use CHAT for explanations, writing, analysis, and everything else. Reply with only one classification word.");
+                break;
         }
         if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Task context:\n{request.TaskContext}");
         if (request.History.Count > 0)
@@ -203,7 +227,7 @@ public abstract class CliAiClient : IAiClient
         { WorkingDirectory = workingDirectory, UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
     }
 
-    private static (string Executable, string[] PrefixArguments)? ResolveCommand(string command)
+    public static (string Executable, string[] PrefixArguments)? ResolveCommand(string command)
     {
         var names = OperatingSystem.IsWindows() ? new[] { $"{command}.exe", $"{command}.cmd", command } : new[] { command };
         foreach (var folder in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator))
@@ -235,20 +259,20 @@ public abstract class CliAiClient : IAiClient
     }
 }
 
-public sealed class CodexClient : CliAiClient
+public sealed class CodexClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)
 {
     protected override string Command => "codex";
-    protected override void AddArguments(ProcessStartInfo psi, AiRequest request)
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
     {
         psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral"); psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("read-only");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
-        var model = request.TaskKind == TaskKind.Suggest
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
             ? AppSettings.Current.CodexSuggestionModel
             : AppSettings.Current.CodexChatModel;
         if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Trim()); }
         // Cheapest reasoning for the latency-sensitive suggestion garnish (user-overridable).
         var effort = AppSettings.Current.CodexSuggestionReasoningEffort;
-        if (request.TaskKind == TaskKind.Suggest && !string.IsNullOrWhiteSpace(effort))
+        if (request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route && !string.IsNullOrWhiteSpace(effort))
         { psi.ArgumentList.Add("-c"); psi.ArgumentList.Add($"model_reasoning_effort=\"{effort.Trim()}\""); }
         if (request.ContextImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ContextImagePath); }
         if (request.ImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ImagePath); }
@@ -256,10 +280,10 @@ public sealed class CodexClient : CliAiClient
     }
 }
 
-public sealed class ClaudeClient : CliAiClient
+public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)
 {
     protected override string Command => "claude";
-    protected override void AddArguments(ProcessStartInfo psi, AiRequest request)
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
     {
         psi.ArgumentList.Add("--print"); psi.ArgumentList.Add("--output-format"); psi.ArgumentList.Add("stream-json");
         psi.ArgumentList.Add("--include-partial-messages"); psi.ArgumentList.Add("--verbose");
@@ -267,9 +291,40 @@ public sealed class ClaudeClient : CliAiClient
         psi.ArgumentList.Add("--no-session-persistence");
         // Suggestion chips are a latency-sensitive garnish, so they default to Haiku (the fast,
         // cheap tier); chat uses the CLI's own default. Both are user-overridable in Settings.
-        var model = request.TaskKind == TaskKind.Suggest
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
             ? AppSettings.Current.ClaudeSuggestionModel
             : AppSettings.Current.ClaudeChatModel;
         if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Trim()); }
     }
+}
+
+public sealed class GrokClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)
+{
+    protected override string Command => "grok";
+    protected override bool PromptViaStandardInput => false;
+
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
+    {
+        psi.ArgumentList.Add("--single");
+        psi.ArgumentList.Add(prompt);
+        psi.ArgumentList.Add("--output-format");
+        psi.ArgumentList.Add("plain");
+        psi.ArgumentList.Add("--permission-mode");
+        psi.ArgumentList.Add("plan");
+        psi.ArgumentList.Add("--tools");
+        psi.ArgumentList.Add("Read");
+        psi.ArgumentList.Add("--disable-web-search");
+        psi.ArgumentList.Add("--no-memory");
+        psi.ArgumentList.Add("--no-subagents");
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
+            ? AppSettings.Current.GrokSuggestionModel
+            : AppSettings.Current.GrokChatModel;
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            psi.ArgumentList.Add("--model");
+            psi.ArgumentList.Add(model.Trim());
+        }
+    }
+
+    protected override string ParseOutput(string output) => output.Trim();
 }

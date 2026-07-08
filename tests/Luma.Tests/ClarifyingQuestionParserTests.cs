@@ -5,6 +5,15 @@ namespace Luma.Tests;
 public sealed class ClarifyingQuestionParserTests
 {
     [Fact]
+    public void ExtractsMultipleChoiceQuestion()
+    {
+        var result = ClarifyingQuestionParser.ExtractDetailed("Need one detail.\nASK_USER: Which approach? || Minimal fix || Full refactor");
+
+        Assert.Equal("Which approach?", result.Question);
+        Assert.Equal(["Minimal fix", "Full refactor"], result.Choices);
+    }
+
+    [Fact]
     public void PlainAnswerHasNoQuestion()
     {
         var (text, question) = ClarifyingQuestionParser.Extract("This button opens the settings panel.");

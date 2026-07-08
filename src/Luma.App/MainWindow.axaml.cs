@@ -16,6 +16,9 @@ public partial class MainWindow : Window
     private const double DragThreshold = 5;
 
     private readonly MainWindowViewModel _viewModel;
+    private readonly RunningOperationCoordinator _operations = new();
+    private readonly KillTargetWindow _killTarget = new();
+    private readonly DispatcherTimer _killTargetTimer;
     private readonly QuestionPromptWindow _questionWindow = new();
     private ChatMessage? _pendingQuestion;
     private bool _expanded;
@@ -27,9 +30,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _viewModel = new MainWindowViewModel(this, new ScreenCaptureService(), new AiClientFactory());
+        var clients = new AiClientFactory(_operations);
+        _viewModel = new MainWindowViewModel(this, new ScreenCaptureService(), clients, _operations,
+            new ProviderDiagnostics(), new ScreenDifferenceService());
+        _killTargetTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(40), DispatcherPriority.Input,
+            (_, _) => _killTarget.SetHot(_killTarget.Contains(Position, new PixelSize((int)Width, (int)Height))));
         DataContext = _viewModel;
         _viewModel.TaskLaunchRequested = LaunchTaskAsync;
+        _viewModel.NewChatConfirmationRequested = () => new ScreenChangeWindow().ShowDialog<bool>(this);
         LoadSettings();
         _viewModel.WorkingDirectoryRequested = ChooseWorkingDirectoryAsync;
         ProjectButton.Click += async (_, _) => await ChooseWorkingDirectoryAsync();
@@ -55,10 +63,11 @@ public partial class MainWindow : Window
         DragHandle.PointerPressed += OnHeaderPressed;
         LogoButton.Click += (_, _) => SetExpanded(false);
         ClosePanelButton.Click += (_, _) => SetExpanded(false);
-        Closing += (_, _) => { SaveSettings(); _questionWindow.Close(); _viewModel.Dispose(); };
+        Closing += (_, _) => { SaveSettings(); _operations.CancelAll(); _killTarget.Close(); _questionWindow.Close(); _viewModel.Dispose(); };
         Opened += (_, _) =>
         {
             SnapToNearestEdge();
+            _ = _viewModel.InitializeDiagnosticsAsync();
             // Pre-warm the suggestion chips so the first dock click shows them instantly.
             if (AppSettings.Current.CaptureScreenOnOpen && AppSettings.Current.SuggestFromScreen &&
                 AppSettings.Current.PrewarmOnLaunch)
@@ -74,7 +83,7 @@ public partial class MainWindow : Window
                     {
                         if (args.PropertyName == nameof(ChatMessage.Text)) ScrollChatToEnd();
                         if (args.PropertyName == nameof(ChatMessage.IsQuestion) && message.IsQuestion && message.Question is not null)
-                        { _pendingQuestion = message; _questionWindow.Show(this, TextSanitizer.Clean(message.Question)); }
+                        { _pendingQuestion = message; _questionWindow.Show(this, TextSanitizer.Clean(message.Question), message.QuestionChoices); }
                     };
             ScrollChatToEnd();
         };
@@ -95,16 +104,16 @@ public partial class MainWindow : Window
 
         Window taskWindow;
         if (request.Kind == TaskKind.Email)
-            taskWindow = new EmailTaskWindow(request, new AiClientFactory(), new OutlookService());
+            taskWindow = new EmailTaskWindow(request, new AiClientFactory(_operations), new OutlookService());
         else if (request.Kind == TaskKind.Shell)
         {
             var workingDirectory = _viewModel.WorkingDirectory ?? await ChooseWorkingDirectoryAsync();
             if (workingDirectory is null) return false;
-            taskWindow = new ShellTaskWindow(request, new AiClientFactory(), new ShellService(), workingDirectory);
+            taskWindow = new ShellTaskWindow(request, new AiClientFactory(_operations), new ShellService(_operations), workingDirectory);
         }
         else if (request.Kind == TaskKind.Browser)
-            taskWindow = new BrowserTaskWindow(request, new AiClientFactory());
-        else taskWindow = new GenericTaskWindow(request, new AiClientFactory());
+            taskWindow = new BrowserTaskWindow(request, new AiClientFactory(_operations));
+        else taskWindow = new GenericTaskWindow(request, new AiClientFactory(_operations));
         taskWindow.Show(this);
         return true;
     }
@@ -150,7 +159,6 @@ public partial class MainWindow : Window
         AppSettings.Load();
         var settings = AppSettings.Current;
         _viewModel.SelectedProviderIndex = Math.Clamp(settings.Provider, 0, _viewModel.Providers.Count - 1);
-        _viewModel.SelectedModeIndex = Math.Clamp(settings.Mode, 0, _viewModel.Modes.Count - 1);
         if (settings.WorkingDirectory is not null && Directory.Exists(settings.WorkingDirectory))
             _viewModel.WorkingDirectory = _lastCodeRepository = settings.WorkingDirectory;
     }
@@ -159,7 +167,6 @@ public partial class MainWindow : Window
     {
         var settings = AppSettings.Current;
         settings.Provider = _viewModel.SelectedProviderIndex;
-        settings.Mode = _viewModel.SelectedModeIndex;
         settings.WorkingDirectory = _viewModel.WorkingDirectory;
         settings.Save();
     }
@@ -188,8 +195,19 @@ public partial class MainWindow : Window
         if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold) return;
         var press = _dockPress;
         _dockPress = null;
+        var screen = Screens.ScreenFromWindow(this);
+        var canKill = screen is not null && _operations.Active.Count > 0;
+        if (canKill)
+        {
+            _killTarget.ShowFor(screen!);
+            _killTargetTimer.Start();
+        }
         BeginMoveDrag(press); // on Windows this blocks until the drag ends
-        SnapToNearestEdge(animate: true);
+        _killTargetTimer.Stop();
+        var droppedOnTarget = canKill && _killTarget.Contains(Position, new PixelSize((int)Width, (int)Height));
+        _killTarget.Hide();
+        if (droppedOnTarget) _operations.CancelAll();
+        SnapToNearestEdge(animate: !droppedOnTarget);
     }
 
     private void OnHeaderPressed(object? sender, PointerPressedEventArgs e)

@@ -28,6 +28,8 @@ public sealed class AppSettings
     public string CodexChatModel { get; set; } = "";
     public string CodexSuggestionModel { get; set; } = "";
     public string CodexSuggestionReasoningEffort { get; set; } = "low";
+    public string GrokChatModel { get; set; } = "grok-build";
+    public string GrokSuggestionModel { get; set; } = "grok-composer-2.5-fast";
 
     public static void Load()
     {

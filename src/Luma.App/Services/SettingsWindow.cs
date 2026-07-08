@@ -22,6 +22,8 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _codexChat;
     private readonly TextBox _codexSuggest;
     private readonly TextBox _codexEffort;
+    private readonly TextBox _grokChat;
+    private readonly TextBox _grokSuggest;
 
     public SettingsWindow()
     {
@@ -37,6 +39,8 @@ public sealed class SettingsWindow : Window
         _codexChat = Text(settings.CodexChatModel, "CLI default");
         _codexSuggest = Text(settings.CodexSuggestionModel, "CLI default");
         _codexEffort = Text(settings.CodexSuggestionReasoningEffort, "CLI default (low recommended)");
+        _grokChat = Text(settings.GrokChatModel, "grok-build");
+        _grokSuggest = Text(settings.GrokSuggestionModel, "grok-composer-2.5-fast");
 
         Width = 470; SizeToContent = SizeToContent.Height; CanResize = false;
         WindowDecorations = WindowDecorations.None; Topmost = true; ShowInTaskbar = false;
@@ -94,13 +98,17 @@ public sealed class SettingsWindow : Window
                                 Hint("The suggestion request ships a downscaled copy; smaller is faster and cheaper."),
                                 Section("Claude models"),
                                 Labeled("Questions and coding", _claudeChat),
-                                Labeled("Screen suggestions", _claudeSuggest),
-                                Hint("Any model or alias the claude CLI accepts (opus, sonnet, claude-haiku-4-5, ...). Blank uses the CLI's own default."),
+                                Labeled("Routing and suggestions", _claudeSuggest),
+                                Hint("Used for automatic routing, screen suggestions, and quick replies. Choose a cheap model such as Haiku."),
                                 Section("Codex models"),
                                 Labeled("Questions and coding", _codexChat),
-                                Labeled("Screen suggestions", _codexSuggest),
-                                Labeled("Suggestion reasoning effort", _codexEffort),
+                                Labeled("Routing and suggestions", _codexSuggest),
+                                Labeled("Routing/suggestion reasoning effort", _codexEffort),
                                 Hint("Model names the codex CLI accepts; effort is minimal, low, medium, or high."),
+                                Section("Grok models"),
+                                Labeled("Questions and coding", _grokChat),
+                                Labeled("Routing and suggestions", _grokSuggest),
+                                Hint("Model names the Grok Code CLI accepts. The fast composer model is used for low-cost background requests."),
                             },
                         },
                     },
@@ -129,6 +137,8 @@ public sealed class SettingsWindow : Window
         settings.CodexChatModel = _codexChat.Text?.Trim() ?? "";
         settings.CodexSuggestionModel = _codexSuggest.Text?.Trim() ?? "";
         settings.CodexSuggestionReasoningEffort = _codexEffort.Text?.Trim() ?? "";
+        settings.GrokChatModel = _grokChat.Text?.Trim() ?? "";
+        settings.GrokSuggestionModel = _grokSuggest.Text?.Trim() ?? "";
         settings.Save();
         Close();
     }

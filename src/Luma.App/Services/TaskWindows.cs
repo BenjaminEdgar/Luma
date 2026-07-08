@@ -124,7 +124,7 @@ public abstract class TaskWorkspaceWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private readonly TextBlock _status = new() { FontSize = 12, Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")) };
     private readonly TextBlock _question = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
-    private readonly TextBox _answer = new() { PlaceholderText = "Type your answer...", MinHeight = 42, TextWrapping = TextWrapping.Wrap };
+    private readonly StackPanel _questionChoices = new() { Spacing = 8 };
     private readonly Border _questionCard;
     protected readonly TextBox ArtifactBox = new()
     {
@@ -138,7 +138,6 @@ public abstract class TaskWorkspaceWindow : Window
     protected readonly TextBlock Summary = new() { TextWrapping = TextWrapping.Wrap, Opacity = .76 };
     protected readonly TaskSession Session;
     protected string? WorkingDirectory;
-    private Button? _answerButton;
     private string? _persistentContext;
 
     protected TaskWorkspaceWindow(TaskLaunchRequest request, IAiClientFactory clients, string title, string subtitle)
@@ -167,7 +166,7 @@ public abstract class TaskWorkspaceWindow : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(14),
-            Child = new StackPanel { Spacing = 9, Children = { _question, _answer, BuildQuestionButtons() } },
+            Child = new StackPanel { Spacing = 9, Children = { _question, _questionChoices } },
         };
 
         PrimaryButton.Classes.Add("accent");
@@ -228,23 +227,21 @@ public abstract class TaskWorkspaceWindow : Window
     protected virtual void OnArtifactReady(string artifact) { }
     protected CancellationToken Lifetime => _lifetime.Token;
 
-    private StackPanel BuildQuestionButtons()
+    private void ShowQuestionChoices(IReadOnlyList<string> choices)
     {
-        var skip = new Button { Content = "Continue without it", Padding = new Thickness(12, 7) };
-        skip.Classes.Add("ghost");
-        _answerButton = new Button { Content = "Continue", Padding = new Thickness(14, 7) };
-        _answerButton.Classes.Add("accent");
-        skip.Click += async (_, _) => await ContinueAsync("I don't have that information. Continue with your best judgement.");
-        _answerButton.Click += async (_, _) => await ContinueAsync(_answer.Text?.Trim() ?? string.Empty);
-        _answer.KeyDown += async (_, e) =>
+        _questionChoices.Children.Clear();
+        foreach (var choice in choices.Take(4))
         {
-            if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-            {
-                e.Handled = true;
-                await ContinueAsync(_answer.Text?.Trim() ?? string.Empty);
-            }
-        };
-        return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { skip, _answerButton } };
+            var selected = choice;
+            var button = new Button { Content = TextSanitizer.Clean(selected), Padding = new Thickness(12, 7), HorizontalAlignment = HorizontalAlignment.Stretch };
+            button.Classes.Add("outline");
+            button.Click += async (_, _) => await ContinueAsync(selected);
+            _questionChoices.Children.Add(button);
+        }
+        var skip = new Button { Content = "Continue without it", Padding = new Thickness(12, 7), HorizontalAlignment = HorizontalAlignment.Right };
+        skip.Classes.Add("ghost");
+        skip.Click += async (_, _) => await ContinueAsync("I don't have that information. Continue with your best judgement.");
+        _questionChoices.Children.Add(skip);
     }
 
     private async Task BeginAsync()
@@ -266,7 +263,6 @@ public abstract class TaskWorkspaceWindow : Window
         if (string.IsNullOrWhiteSpace(answer)) return;
         RetryCount = 0;
         _questionCard.IsVisible = false;
-        _answer.Text = string.Empty;
         await RunTurnAsync(answer, null);
     }
 
@@ -294,9 +290,9 @@ public abstract class TaskWorkspaceWindow : Window
         {
             Session.Question = parsed.Question;
             _question.Text = TextSanitizer.Clean(parsed.Question);
+            ShowQuestionChoices(parsed.Choices);
             _questionCard.IsVisible = true;
             SetStatus("Waiting for your answer", TaskSessionState.Asking);
-            _answer.Focus();
             return;
         }
         if (!string.IsNullOrWhiteSpace(parsed.Artifact))
