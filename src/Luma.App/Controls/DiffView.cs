@@ -18,14 +18,14 @@ public sealed class DiffView : ContentControl
     public event Action? SelectionChanged;
 
     private static readonly FontFamily Mono = new("Cascadia Mono,Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,monospace");
-    private static readonly IBrush AddedBg = new SolidColorBrush(Color.Parse("#1E3B2A"));
-    private static readonly IBrush AddedFg = new SolidColorBrush(Color.Parse("#FF8FE8AE"));
-    private static readonly IBrush RemovedBg = new SolidColorBrush(Color.Parse("#3B1E22"));
-    private static readonly IBrush RemovedFg = new SolidColorBrush(Color.Parse("#FFFF9AA6"));
-    private static readonly IBrush ContextFg = new SolidColorBrush(Color.Parse("#99FFFFFF"));
-    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#99FFFFFF"));
-    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#66090A10"));
-    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#22FFFFFF"));
+    private static readonly IBrush AddedBg = new SolidColorBrush(Color.Parse("#D8F5E6"));
+    private static readonly IBrush AddedFg = new SolidColorBrush(Color.Parse("#FF0A6B3C"));
+    private static readonly IBrush RemovedBg = new SolidColorBrush(Color.Parse("#FCE4E7"));
+    private static readonly IBrush RemovedFg = new SolidColorBrush(Color.Parse("#FFB02030"));
+    private static readonly IBrush ContextFg = new SolidColorBrush(Color.Parse("#FF2E2850"));
+    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#64748B"));
+    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#F2FFFFFF"));
+    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#887C5CFF"));
 
     private readonly HashSet<DiffFile> _collapsed = [];
 

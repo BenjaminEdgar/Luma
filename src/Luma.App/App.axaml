@@ -1,70 +1,119 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Luma.App.Controls"
              x:Class="Luma.App.App"
-             RequestedThemeVariant="Dark">
-    <!-- Luma Violet Glass: the familiar violet→blue accent, tuned for clarity, motion, and delight. -->
+             RequestedThemeVariant="Light">
+    <!-- Luma Aurora: brand boards — violet → cyan, soft mist, star mark. -->
 
     <Application.Resources>
         <ResourceDictionary>
-            <Color x:Key="AccentStart">#8A63F5</Color>
-            <Color x:Key="AccentEnd">#4F7CFF</Color>
-            <Color x:Key="AccentSoft">#B3A6FF</Color>
-            <Color x:Key="InkPanel">#14161E</Color>
-            <Color x:Key="TextBright">#F7F6FF</Color>
-            <Color x:Key="TextBody">#E4E2F0</Color>
-            <Color x:Key="TextMuted">#A8A4BE</Color>
+            <!-- Brand palette: Aurora Violet, Luma Blue, Electric Cyan, Mist, Deep Space. -->
+            <Color x:Key="AccentStart">#7C4DFF</Color>
+            <Color x:Key="AccentEnd">#00E5FF</Color>
+            <Color x:Key="AccentSoft">#2563FF</Color>
+            <Color x:Key="InkPanel">#F2F4FF</Color>
+            <Color x:Key="TextBright">#080F23</Color>
+            <Color x:Key="TextBody">#1E293B</Color>
+            <Color x:Key="TextMuted">#6B7280</Color>
 
-            <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="{StaticResource AccentStart}" Offset="0" />
-                <GradientStop Color="{StaticResource AccentEnd}" Offset="1" />
+            <!-- Primary CTA: violet → cyan (brand board primary button). -->
+            <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#7C4DFF" Offset="0" />
+                <GradientStop Color="#2563FF" Offset="0.45" />
+                <GradientStop Color="#00E5FF" Offset="1" />
             </LinearGradientBrush>
-            <LinearGradientBrush x:Key="AccentGradientBright" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#A07BFF" Offset="0" />
-                <GradientStop Color="#6B92FF" Offset="1" />
+            <LinearGradientBrush x:Key="AccentGradientBright" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#9470FF" Offset="0" />
+                <GradientStop Color="#3B82F6" Offset="0.45" />
+                <GradientStop Color="#22EEFF" Offset="1" />
+            </LinearGradientBrush>
+            <!-- Soft aurora wash for marks / send. -->
+            <LinearGradientBrush x:Key="StarMarkBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="#A78BFF" Offset="0" />
+                <GradientStop Color="#7C4DFF" Offset="0.4" />
+                <GradientStop Color="#2563FF" Offset="0.75" />
+                <GradientStop Color="#00E5FF" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="UserBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#C48A63F5" Offset="0" />
-                <GradientStop Color="#B34F7CFF" Offset="1" />
+                <GradientStop Color="#FBFAFF" Offset="0" />
+                <GradientStop Color="#F3F0FF" Offset="1" />
             </LinearGradientBrush>
+            <LinearGradientBrush x:Key="AssistantBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="#FFFFFFFF" Offset="0" />
+                <GradientStop Color="#F8F7FF" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="StreamEnergyBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#007C4DFF" Offset="0" />
+                <GradientStop Color="#FF7C4DFF" Offset="0.35" />
+                <GradientStop Color="#FF00E5FF" Offset="0.75" />
+                <GradientStop Color="#0000E5FF" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="ModuleInsetBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#88FFFFFF" Offset="0" />
+                <GradientStop Color="#00FFFFFF" Offset="0.4" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="SplitBrainBorderBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#AA7C4DFF" Offset="0" />
+                <GradientStop Color="#AA00E5FF" Offset="1" />
+            </LinearGradientBrush>
+            <!-- Mist panel: soft white → lavender haze. -->
             <LinearGradientBrush x:Key="PanelFillBrush" StartPoint="0%,0%" EndPoint="50%,100%">
-                <GradientStop Color="#F5181A24" Offset="0" />
-                <GradientStop Color="#F214161E" Offset="0.55" />
-                <GradientStop Color="#F010121A" Offset="1" />
+                <GradientStop Color="#FFFFFEFF" Offset="0" />
+                <GradientStop Color="#FFF2F4FF" Offset="0.55" />
+                <GradientStop Color="#FFF8F0FF" Offset="1" />
             </LinearGradientBrush>
-            <LinearGradientBrush x:Key="PanelBorderBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Color="#998A63F5" Offset="0" />
-                <GradientStop Color="#44FFFFFF" Offset="0.28" />
-                <GradientStop Color="#22FFFFFF" Offset="1" />
-            </LinearGradientBrush>
+            <SolidColorBrush x:Key="SurfaceGlassBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="QuietGlassBrush" Color="#F8F7FF" />
+            <SolidColorBrush x:Key="ComposeFillBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="PanelBorderBrush" Color="#E8E4F8" />
+            <SolidColorBrush x:Key="PanelBorderBusyBrush" Color="#B8A6FF" />
+            <SolidColorBrush x:Key="PanelBorderWritingBrush" Color="#7FFFDA" />
             <LinearGradientBrush x:Key="HeaderSheenBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#668A63F5" Offset="0" />
-                <GradientStop Color="#334F7CFF" Offset="0.55" />
-                <GradientStop Color="#228A63F5" Offset="1" />
+                <GradientStop Color="#007C4DFF" Offset="0" />
+                <GradientStop Color="#887C4DFF" Offset="0.35" />
+                <GradientStop Color="#8800E5FF" Offset="0.7" />
+                <GradientStop Color="#0000E5FF" Offset="1" />
             </LinearGradientBrush>
-            <LinearGradientBrush x:Key="ComposeBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#778A63F5" Offset="0" />
-                <GradientStop Color="#554F7CFF" Offset="1" />
+            <LinearGradientBrush x:Key="PrismEdgeBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#007C4DFF" Offset="0" />
+                <GradientStop Color="#CC7C4DFF" Offset="0.3" />
+                <GradientStop Color="#AA00E5FF" Offset="0.7" />
+                <GradientStop Color="#0000E5FF" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PrismEdgeVerticalBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#887C4DFF" Offset="0" />
+                <GradientStop Color="#00E8E4F8" Offset="1" />
+            </LinearGradientBrush>
+            <!-- Compose: soft border; listening = brand gradient (periwinkle→lavender→peach). -->
+            <SolidColorBrush x:Key="ComposeBorderBrush" Color="#E0DCF5" />
+            <LinearGradientBrush x:Key="ComposeBorderListeningBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#7A7BFF" Offset="0" />
+                <GradientStop Color="#C08CFF" Offset="0.5" />
+                <GradientStop Color="#FFC7A3" Offset="1" />
             </LinearGradientBrush>
             <RadialGradientBrush x:Key="DockGlowBrush" Center="50%,50%" GradientOrigin="45%,40%">
-                <GradientStop Color="#E08A63F5" Offset="0" />
-                <GradientStop Color="#904F7CFF" Offset="0.55" />
+                <GradientStop Color="#CC7C4DFF" Offset="0" />
+                <GradientStop Color="#882563FF" Offset="0.45" />
+                <GradientStop Color="#4400E5FF" Offset="0.7" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
-            <RadialGradientBrush x:Key="OrbTopBrush" Center="18%,12%" GradientOrigin="18%,12%">
-                <GradientStop Color="#558A63F5" Offset="0" />
-                <GradientStop Color="#188A63F5" Offset="0.45" />
+            <RadialGradientBrush x:Key="OrbTopBrush" Center="15%,10%" GradientOrigin="15%,10%">
+                <GradientStop Color="#557C4DFF" Offset="0" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
-            <RadialGradientBrush x:Key="OrbBottomBrush" Center="88%,88%" GradientOrigin="88%,88%">
-                <GradientStop Color="#404F7CFF" Offset="0" />
-                <GradientStop Color="#144F7CFF" Offset="0.5" />
+            <RadialGradientBrush x:Key="OrbMidBrush" Center="80%,40%" GradientOrigin="80%,40%">
+                <GradientStop Color="#3300E5FF" Offset="0" />
+                <GradientStop Color="#00000000" Offset="1" />
+            </RadialGradientBrush>
+            <RadialGradientBrush x:Key="OrbBottomBrush" Center="50%,95%" GradientOrigin="50%,95%">
+                <GradientStop Color="#28FFB6C7" Offset="0" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
             <ConicGradientBrush x:Key="ThinkingBrush" Center="50%,50%">
-                <GradientStop Color="#008A63F5" Offset="0" />
-                <GradientStop Color="#FF8A63F5" Offset="0.72" />
-                <GradientStop Color="#FFB3A6FF" Offset="0.92" />
-                <GradientStop Color="#008A63F5" Offset="1" />
+                <GradientStop Color="#007C4DFF" Offset="0" />
+                <GradientStop Color="#FF7C4DFF" Offset="0.45" />
+                <GradientStop Color="#FF00E5FF" Offset="0.85" />
+                <GradientStop Color="#007C4DFF" Offset="1" />
             </ConicGradientBrush>
         </ResourceDictionary>
     </Application.Resources>
@@ -72,7 +121,7 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- Primary actions: white on violet — high contrast, familiar Luma feel. -->
+        <!-- Primary: brand gradient (violet → cyan), flat interaction. -->
         <Style Selector="Button.accent">
             <Setter Property="Background" Value="{StaticResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
@@ -81,11 +130,6 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource AccentGradientBright}" />
@@ -94,131 +138,103 @@
         <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.accent:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-        </Style>
-        <Style Selector="Button.accent:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)" />
+            <Setter Property="Opacity" Value="0.92" />
         </Style>
         <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#28FFFFFF" />
-            <Setter Property="Foreground" Value="#66FFFFFF" />
+            <Setter Property="Background" Value="#D4D0F0" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
         </Style>
 
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#B8B4CC" />
+            <Setter Property="Foreground" Value="#6B7280" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#24FFFFFF" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#F2F4FF" />
+            <Setter Property="Foreground" Value="#080F23" />
         </Style>
-        <Style Selector="Button.ghost:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        <Style Selector="Button.ghost:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E8E4F8" />
         </Style>
 
+        <!-- Secondary: white + soft violet rim (brand board secondary button). -->
         <Style Selector="Button.outline">
-            <Setter Property="Background" Value="#16FFFFFF" />
-            <Setter Property="Foreground" Value="#F0EEF8" />
-            <Setter Property="BorderBrush" Value="#3AFFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#288A63F5" />
-            <Setter Property="BorderBrush" Value="#888A63F5" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#F8F7FF" />
+            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="Foreground" Value="#080F23" />
         </Style>
-        <Style Selector="Button.outline:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.03)" />
-        </Style>
-        <Style Selector="Button.outline:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        <Style Selector="Button.outline:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F2F4FF" />
         </Style>
 
         <Style Selector="Border.statuspill">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#368A63F5" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E8E4F8" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="11,5" />
         </Style>
 
-        <!-- Suggestion chips: inviting, readable, playful on hover. -->
+        <!-- Soft pill chips. -->
         <Style Selector="Button.chip">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="Foreground" Value="#F0EEF8" />
-            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="MaxWidth" Value="420" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="BorderBrush" Value="#E8E4F8" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="14,7" />
-            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#3D8A63F5" />
-            <Setter Property="BorderBrush" Value="#A08A63F5" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.chip:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
+            <Setter Property="Background" Value="#F2F4FF" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Foreground" Value="#080F23" />
         </Style>
         <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#558A63F5" />
+            <Setter Property="Background" Value="#7C4DFF" />
+            <Setter Property="BorderBrush" Value="#7C4DFF" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.chip:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)" />
-        </Style>
 
+        <!-- Halt square: flat danger fill. -->
         <Style Selector="Button.stop">
-            <Setter Property="Background" Value="#33FF5D6E" />
-            <Setter Property="Foreground" Value="#FFFFB0B8" />
-            <Setter Property="BorderBrush" Value="#66FF5D6E" />
+            <Setter Property="Background" Value="#FFE8EA" />
+            <Setter Property="Foreground" Value="#C42B3A" />
+            <Setter Property="BorderBrush" Value="#EE8890" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.stop:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#55FF5D6E" />
+            <Setter Property="Background" Value="#FF5D6E" />
+            <Setter Property="BorderBrush" Value="#FF5D6E" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.stop:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        <Style Selector="Button.stop:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E5455A" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
 
         <Style Selector="Button.msgcopy">
-            <Setter Property="Background" Value="#66000000" />
-            <Setter Property="Foreground" Value="#E8E4F8" />
-            <Setter Property="BorderBrush" Value="#448A63F5" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#7C4DFF" />
+            <Setter Property="BorderBrush" Value="#E8E4F8" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -228,8 +244,7 @@
             <Setter Property="Opacity" Value="0" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
                 </Transitions>
             </Setter>
         </Style>
@@ -237,16 +252,14 @@
             <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="Button.msgcopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#8A63F5" />
+            <Setter Property="Background" Value="#7C4DFF" />
+            <Setter Property="BorderBrush" Value="#7C4DFF" />
             <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.msgcopy:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.06)" />
         </Style>
 
         <Style Selector="Button.codecopy">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#B0A8C8" />
+            <Setter Property="Foreground" Value="#64748B" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Padding" Value="7,2" />
@@ -254,47 +267,60 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.codecopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2AFFFFFF" />
+            <Setter Property="Background" Value="#7C4DFF" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
-        <!-- Living dock: soft violet breath. -->
+        <!-- Dock: soft restrained breath. -->
         <Style Selector="Border.dockglow">
-            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Opacity" Value="0.4" />
             <Setter Property="Effect"><BlurEffect Radius="12" /></Setter>
             <Style.Animations>
-                <Animation Duration="0:0:2.2" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.32" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.88" /></KeyFrame>
+                <Animation Duration="0:0:3.2" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.28" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.55" /></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
         <Style Selector="Border.dockring">
-            <Setter Property="Opacity" Value="0.65" />
+            <Setter Property="Opacity" Value="0.85" />
+        </Style>
+
+        <!-- Dual geometric lattice: different speeds for parallax (phase loop = CellSize). -->
+        <Style Selector="c|GeometricPattern.geopattern">
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+        <!-- Far layer: large diagonal hatch, slow crawl. -->
+        <Style Selector="c|GeometricPattern.geopattern.slow">
             <Style.Animations>
-                <Animation Duration="0:0:2.8" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.95" /></KeyFrame>
+                <Animation Duration="0:1:12" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="Phase" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Phase" Value="32" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <!-- Near layer: denser dots, faster opposite shear. -->
+        <Style Selector="c|GeometricPattern.geopattern.fast">
+            <Style.Animations>
+                <Animation Duration="0:0:36" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="Phase" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Phase" Value="18" /></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
 
         <Style Selector="Border.ambientorb">
             <Setter Property="IsHitTestVisible" Value="False" />
-            <Style.Animations>
-                <Animation Duration="0:0:6" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.85" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Opacity" Value="0.5" />
+            <Setter Property="Effect"><BlurEffect Radius="32" /></Setter>
         </Style>
-        <Style Selector="Border.ambientorb.slow">
-            <Style.Animations>
-                <Animation Duration="0:0:8" IterationCount="Infinite" PlaybackDirection="Alternate" Delay="0:0:1" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.7" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Border.prismrim">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="Border.prismrim.busy">
+            <Setter Property="Opacity" Value="0.9" />
         </Style>
 
         <Style Selector="Ellipse.thinkingring">
@@ -309,27 +335,100 @@
                 </Animation>
             </Style.Animations>
         </Style>
+        <!-- Energy stream caret (kept class streamcursor for product DNA). -->
         <Style Selector="TextBlock.streamcursor">
+            <Setter Property="Foreground" Value="#FF7C5CFF" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,1,0,0" />
             <Style.Animations>
-                <Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.15" /></KeyFrame>
+                <Animation Duration="0:0:0.55" IterationCount="Infinite" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
                     <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
-        <!-- Clarifying question: soft violet card nested in the assistant bubble. -->
+        <Style Selector="Border.streamcursor">
+            <Setter Property="Background" Value="{StaticResource StreamEnergyBrush}" />
+            <Setter Property="CornerRadius" Value="1.5" />
+            <Setter Property="Width" Value="3" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Margin" Value="1,2,0,0" />
+            <Setter Property="BoxShadow" Value="0 0 14 0 #A5B4FC" />
+            <Style.Animations>
+                <Animation Duration="0:0:0.55" IterationCount="Infinite" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <!-- The Luma loading line: aurora energy bar that breathes under streaming content. -->
+        <Style Selector="Border.streamshimmer">
+            <Setter Property="Height" Value="3" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Background" Value="{StaticResource StreamEnergyBrush}" />
+            <Setter Property="Margin" Value="0,8,0,2" />
+            <Setter Property="BoxShadow" Value="0 0 12 0 #2E7C4DFF" />
+            <Setter Property="Opacity" Value="0.8" />
+            <Style.Animations>
+                <Animation Duration="0:0:1.1" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.9" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.turnmeta">
+            <Setter Property="Background" Value="#CCFFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="MaxWidth" Value="360" />
+        </Style>
+        <Style Selector="Border.turnrail">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Padding" Value="0,3,0,0" />
+        </Style>
+        <Style Selector="Ellipse.raildot">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+            <Setter Property="Fill" Value="#4F46E5" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Opacity" Value="0.95" />
+        </Style>
+        <Style Selector="TextBlock.raillabel">
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="Foreground" Value="#64748B" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MaxWidth" Value="42" />
+            <Setter Property="LineHeight" Value="11" />
+        </Style>
+
+        <!-- Shared module chrome (question / split / audit / live pair). -->
+        <Style Selector="Border.module">
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="BoxShadow" Value="0 8 22 0 #22000000, 0 0 18 0 #1A000000, inset 0 1 0 0 #AAFFFFFF" />
+        </Style>
+
+        <!-- Clarifying question: violet module nested in the assistant bubble. -->
         <Style Selector="Border.questioncard">
-            <Setter Property="Background" Value="#2A1E2A44" />
-            <Setter Property="BorderBrush" Value="#7A8A63F5" />
+            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="BorderBrush" Value="#C7D2FE" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Padding" Value="14,12" />
-            <Setter Property="BoxShadow" Value="0 0 24 0 #338A63F5, inset 0 1 0 0 #33FFFFFF" />
+            <Setter Property="Padding" Value="13,11" />
+            <Setter Property="BoxShadow" Value="0 10 28 0 #EEF2FF, inset 0 1 0 0 #CCFFFFFF" />
             <Style.Animations>
-                <Animation Duration="0:0:0.28" Easing="CubicEaseOut">
+                <Animation Duration="0:0:0.22" Easing="CubicEaseOut">
                     <KeyFrame Cue="0%">
                         <Setter Property="Opacity" Value="0" />
-                        <Setter Property="TranslateTransform.Y" Value="6" />
+                        <Setter Property="TranslateTransform.Y" Value="4" />
                     </KeyFrame>
                     <KeyFrame Cue="100%">
                         <Setter Property="Opacity" Value="1" />
@@ -340,18 +439,18 @@
         </Style>
         <Style Selector="Border.questionbadge">
             <Setter Property="Background" Value="{StaticResource AccentGradient}" />
-            <Setter Property="BoxShadow" Value="0 4 12 0 #558A63F5" />
+            <Setter Property="BoxShadow" Value="0 4 14 0 #E2E8F0" />
         </Style>
         <Style Selector="TextBlock.questionprompt">
-            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontSize" Value="15.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#F7F6FF" />
-            <Setter Property="LineHeight" Value="22" />
+            <Setter Property="Foreground" Value="#0F172A" />
+            <Setter Property="LineHeight" Value="23" />
         </Style>
         <Style Selector="Button.qchoice">
-            <Setter Property="Background" Value="#24FFFFFF" />
-            <Setter Property="Foreground" Value="#F0EEF8" />
-            <Setter Property="BorderBrush" Value="#708A63F5" />
+            <Setter Property="Background" Value="#EEFFFFFF" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="14,9" />
@@ -360,61 +459,49 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="MaxWidth" Value="280" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.qchoice:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4D8A63F5" />
-            <Setter Property="BorderBrush" Value="#B08A63F5" />
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Foreground" Value="#0F172A" />
+        </Style>
+        <Style Selector="Button.qchoice:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4F46E5" />
+            <Setter Property="BorderBrush" Value="#4F46E5" />
             <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.qchoice:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.04)" />
-        </Style>
-        <Style Selector="Button.qchoice:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)" />
         </Style>
         <Style Selector="TextBox.qanswer">
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="#F7F6FF" />
-            <Setter Property="CaretBrush" Value="#B3A6FF" />
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="Foreground" Value="#0F172A" />
+            <Setter Property="CaretBrush" Value="#4F46E5" />
+            <Setter Property="Background" Value="#F8FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="12,10" />
         </Style>
         <Style Selector="Button.qskip">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#A8A4BE" />
+            <Setter Property="Foreground" Value="#64748B" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.qskip:pointerover">
-            <Setter Property="Foreground" Value="#E4E2F0" />
+            <Setter Property="Foreground" Value="#334155" />
         </Style>
-        <Style Selector="Border.bubble.question">
-            <Setter Property="BorderBrush" Value="#888A63F5" />
-            <Setter Property="BoxShadow" Value="0 8 28 0 #448A63F5" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-        </Style>
-
         <!-- In-chat screenshot chip (keep small — full-size previews look oversized in bubbles). -->
         <Style Selector="Border.chatimage">
-            <Setter Property="Background" Value="#22000000" />
-            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="Background" Value="#EEFFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="ClipToBounds" Value="True" />
             <Setter Property="MaxWidth" Value="128" />
             <Setter Property="MaxHeight" Value="80" />
-            <Setter Property="BoxShadow" Value="0 3 10 0 #30000000" />
+            <Setter Property="BoxShadow" Value="0 4 14 0 #1A000000" />
         </Style>
         <Style Selector="Border.chatimagelabel">
-            <Setter Property="Background" Value="#C014161E" />
-            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="Background" Value="#EEFFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="6,2" />
@@ -425,15 +512,15 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.actioncard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2E8A63F5" />
-            <Setter Property="BorderBrush" Value="#A08A63F5" />
+            <Setter Property="Background" Value="#E0E7FF" />
+            <Setter Property="BorderBrush" Value="#A5B4FC" />
         </Style>
 
-        <!-- Bouncing thinking dots for pending messages. -->
+        <!-- Signal thinking dots for pending messages. -->
         <Style Selector="Ellipse.thinkdot">
-            <Setter Property="Width" Value="6" />
-            <Setter Property="Height" Value="6" />
-            <Setter Property="Fill" Value="#CCB3A6FF" />
+            <Setter Property="Width" Value="7" />
+            <Setter Property="Height" Value="7" />
+            <Setter Property="Fill" Value="#FF7C5CFF" />
             <Setter Property="Opacity" Value="0.35" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -471,7 +558,7 @@
         <!-- Legacy dots kept for older templates. -->
         <Style Selector="Ellipse.dot">
             <Setter Property="Width" Value="6" /><Setter Property="Height" Value="6" />
-            <Setter Property="Fill" Value="#CCB3A6FF" /><Setter Property="Opacity" Value="0.25" />
+            <Setter Property="Fill" Value="#A5B4FC" /><Setter Property="Opacity" Value="0.25" />
         </Style>
         <Style Selector="Ellipse.dot">
             <Style.Animations>
@@ -504,25 +591,24 @@
             </Style.Animations>
         </Style>
 
-        <!-- Chat bubbles: frosted glass. Width is constrained by the chat ScrollViewer
-             (HorizontalScrollBarVisibility=Disabled + MaxWidth binding in the template). -->
+        <!-- Chat cards: clean white assistant / lavender-tinted user, soft asymmetric tails. -->
         <Style Selector="Border.bubble">
-            <Setter Property="Background" Value="#22FFFFFF" />
-            <Setter Property="BorderBrush" Value="#28FFFFFF" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#ECE8FA" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16,16,16,5" />
-            <Setter Property="Padding" Value="13,10" />
+            <Setter Property="CornerRadius" Value="18,18,18,6" />
+            <Setter Property="Padding" Value="15,12" />
             <Setter Property="Margin" Value="0,5" />
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="ClipToBounds" Value="True" />
-            <Setter Property="BoxShadow" Value="0 6 16 0 #40000000" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #0E7C4DFF, 0 1 2 0 #06080F23" />
         </Style>
         <Style Selector="Border.bubble">
             <Style.Animations>
-                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                <Animation Duration="0:0:0.16" Easing="CubicEaseOut">
                     <KeyFrame Cue="0%">
                         <Setter Property="Opacity" Value="0" />
-                        <Setter Property="TranslateTransform.Y" Value="8" />
+                        <Setter Property="TranslateTransform.Y" Value="4" />
                     </KeyFrame>
                     <KeyFrame Cue="100%">
                         <Setter Property="Opacity" Value="1" />
@@ -533,149 +619,201 @@
         </Style>
         <Style Selector="Border.bubble.user">
             <Setter Property="Background" Value="{StaticResource UserBubbleBrush}" />
-            <Setter Property="BorderBrush" Value="#558A63F5" />
-            <Setter Property="CornerRadius" Value="16,16,5,16" />
+            <Setter Property="BorderBrush" Value="#E4DDFB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18,18,6,18" />
             <Setter Property="HorizontalAlignment" Value="Right" />
-            <Setter Property="BoxShadow" Value="0 8 20 0 #408A63F5" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #0E7C4DFF, 0 1 2 0 #06080F23" />
         </Style>
         <Style Selector="Border.bubble.error">
-            <Setter Property="Background" Value="#33FF5D6E" />
-            <Setter Property="BorderBrush" Value="#55FF5D6E" />
+            <Setter Property="Background" Value="#FEF2F2" />
+            <Setter Property="BorderBrush" Value="#FECACA" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 1 2 0 #0A0F172A" />
         </Style>
         <Style Selector="Border.bubble.codecard">
-            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="#F8FAFC" />
+        </Style>
+        <Style Selector="Border.bubble.question">
+            <Setter Property="BorderBrush" Value="#C7D2FE" />
+            <Setter Property="BoxShadow" Value="0 1 2 0 #0A0F172A" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
         </Style>
 
-        <!-- Keep long suggestion chips from blowing out the panel width. -->
-        <Style Selector="Button.chip">
-            <Setter Property="MaxWidth" Value="420" />
-        </Style>
-
         <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#1CFFFFFF" />
-            <Setter Property="BorderBrush" Value="#50FFFFFF" />
+            <Setter Property="Background" Value="#F8FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
         </Style>
         <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#1EFFFFFF" />
-            <Setter Property="BorderBrush" Value="#A08A63F5" />
+            <Setter Property="Background" Value="#FFFFFFFF" />
+            <Setter Property="BorderBrush" Value="#A5B4FC" />
         </Style>
 
         <Style Selector="TextBlock.brandmark">
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="LetterSpacing" Value="0.3" />
-            <Setter Property="Foreground" Value="#F7F6FF" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable Display, Segoe UI, Inter, sans-serif" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="-0.2" />
+            <Setter Property="Foreground" Value="#080F23" />
+        </Style>
+        <!-- Brand tagline: letter-spaced caps under the hero mark. -->
+        <Style Selector="TextBlock.tagline">
+            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="3.4" />
+            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Opacity" Value="0.85" />
+        </Style>
+        <!-- Satellite dot slowly circles the hero mark (animates a plain double — keyframe-safe). -->
+        <Style Selector="c|LumaLogo.orbitspin">
+            <Style.Animations>
+                <Animation Duration="0:0:9" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="OrbitAngle" Value="-55" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="OrbitAngle" Value="305" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
         <Style Selector="TextBlock.sectionlabel">
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LetterSpacing" Value="1.1" />
-            <Setter Property="Foreground" Value="#B3A6FF" />
-            <Setter Property="Opacity" Value="0.95" />
+            <Setter Property="LetterSpacing" Value="0.6" />
+            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="TextBlock.muted">
-            <Setter Property="Foreground" Value="#A8A4BE" />
+            <Setter Property="Foreground" Value="#6B7280" />
         </Style>
         <Style Selector="TextBlock.body">
-            <Setter Property="Foreground" Value="#E4E2F0" />
+            <Setter Property="Foreground" Value="#1E293B" />
         </Style>
 
         <Style Selector="Border.panelshell">
             <Setter Property="Background" Value="{StaticResource PanelFillBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="20" />
-            <Setter Property="BoxShadow" Value="0 18 52 0 #99000000, 0 0 32 0 #338A63F5" />
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 40 0 #227C4DFF" />
             <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.panelshell.busy">
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBusyBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 48 0 #447C4DFF, 0 0 24 0 #2200E5FF" />
+        </Style>
+        <Style Selector="Border.panelshell.writing">
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderWritingBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 36 0 #337FFFDA" />
+        </Style>
+        <Style Selector="Border.panelshell.busy.writing">
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderWritingBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 40 0 #447FFFDA" />
+        </Style>
+        <Style Selector="Border.panelshell.flash">
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBusyBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 56 0 #667C4DFF" />
         </Style>
 
         <Style Selector="Border.infostrip">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#368A63F5" />
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
-            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,6" />
         </Style>
         <Style Selector="Border.warnstrip">
-            <Setter Property="Background" Value="#28FFB347" />
-            <Setter Property="BorderBrush" Value="#66FFB347" />
+            <Setter Property="Background" Value="#FFFBEB" />
+            <Setter Property="BorderBrush" Value="#FCD34D" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
-            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,6" />
         </Style>
         <Style Selector="Border.runstrip">
-            <Setter Property="Background" Value="#288A63F5" />
-            <Setter Property="BorderBrush" Value="#668A63F5" />
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="#C7D2FE" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
-            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,6" />
         </Style>
-        <Style Selector="Border.memorystrip">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+        <Style Selector="Border.memorychip">
+            <Setter Property="Background" Value="{StaticResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
-            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
-
-        <!-- Compose + menu trigger (bottom-left). -->
+        <!-- Compose + menu trigger: soft violet coin, bottom-left of the capsule. -->
         <Style Selector="Button.composemore">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="Background" Value="#F5F2FF" />
+            <Setter Property="BorderBrush" Value="#E6DEFC" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
-                </Transitions>
-            </Setter>
         </Style>
         <Style Selector="Button.composemore:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#3D8A63F5" />
-            <Setter Property="BorderBrush" Value="#A08A63F5" />
+            <Setter Property="Background" Value="#EDE7FF" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
         </Style>
-        <Style Selector="Button.composemore:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        <Style Selector="Button.composemore:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E1D8FF" />
+            <Setter Property="BorderBrush" Value="#A78BFF" />
         </Style>
-        <Style Selector="Button.composemore:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.96)" />
-        </Style>
+        <!-- Context tokens: violet-tinted pills that sit inside the compose capsule. -->
         <Style Selector="Border.cwdchip">
-            <Setter Property="Background" Value="#228A63F5" />
-            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="Background" Value="#F6F4FF" />
+            <Setter Property="BorderBrush" Value="#E6DEFC" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Padding" Value="10,5" />
         </Style>
+        <!-- Write audit: cool lilac module. -->
         <Style Selector="Border.writeaudit">
-            <Setter Property="Background" Value="#1A1E2A44" />
-            <Setter Property="BorderBrush" Value="#668A63F5" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="12,10" />
-        </Style>
-        <Style Selector="Border.auditrow.focused">
-            <Setter Property="Background" Value="#448A63F5" />
-            <Setter Property="BoxShadow" Value="0 0 0 1 #AA8A63F5" />
-        </Style>
-        <Style Selector="Border.livepair">
-            <Setter Property="Background" Value="#22161A28" />
-            <Setter Property="BorderBrush" Value="#668A63F5" />
+            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12,10" />
-            <Setter Property="BoxShadow" Value="0 6 18 0 #33000000" />
-            <Setter Property="MaxHeight" Value="168" />
+            <Setter Property="BoxShadow" Value="0 8 22 0 #1A000000, inset 0 1 0 0 #AAFFFFFF" />
+        </Style>
+        <Style Selector="Border.auditrow">
+            <Setter Property="Background" Value="#88FFFFFF" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.auditrow.focused">
+            <Setter Property="Background" Value="#C7D2FE" />
+            <Setter Property="BoxShadow" Value="0 0 0 1.5 #A5B4FC, 0 0 18 0 #E2E8F0" />
+        </Style>
+        <Style Selector="Border.kindbadge">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Background" Value="#E2E8F0" />
+        </Style>
+        <!-- Live pair signal rail. -->
+        <Style Selector="Border.livepair">
+            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="11,9" />
+            <Setter Property="BoxShadow" Value="0 8 22 0 #1A000000, inset 0 1 0 0 #AAFFFFFF" />
+            <Setter Property="MaxHeight" Value="160" />
         </Style>
         <Style Selector="Border.livepairbadge">
-            <Setter Property="Background" Value="#3346E87A" />
-            <Setter Property="BorderBrush" Value="#6646E87A" />
+            <Setter Property="Background" Value="#5512B86A" />
+            <Setter Property="BorderBrush" Value="#AA12B86A" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="Opacity" Value="0.95" />
         </Style>
         <Style Selector="Button.livepairrow">
             <Setter Property="Background" Value="Transparent" />
@@ -685,59 +823,133 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.livepairrow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#228A63F5" />
+            <Setter Property="Background" Value="#EEF2FF" />
         </Style>
         <Style Selector="Border.fresh">
-            <Setter Property="Background" Value="#5546E87A" />
+            <Setter Property="Background" Value="#7712B86A" />
+            <Setter Property="BoxShadow" Value="0 0 12 0 #5512B86A" />
         </Style>
+        <!-- Heat filaments (add green / del red). -->
+        <Style Selector="Border.heatadd">
+            <Setter Property="Height" Value="5" />
+            <Setter Property="CornerRadius" Value="2.5" />
+            <Setter Property="Background" Value="#CC12B86A" />
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <Style Selector="Border.heatdel">
+            <Setter Property="Height" Value="5" />
+            <Setter Property="CornerRadius" Value="2.5" />
+            <Setter Property="Background" Value="#CCFF6B7A" />
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <!-- Chaos mode chips: flat glass. -->
         <Style Selector="Button.chaoschip">
-            <Setter Property="Background" Value="#33FF5D6E" />
-            <Setter Property="Foreground" Value="#FFE8E2FF" />
-            <Setter Property="BorderBrush" Value="#88FF5D6E" />
+            <Setter Property="Background" Value="#EEFFFFFF" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Padding" Value="10,5" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.chaoschip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#55FF5D6E" />
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Foreground" Value="#0F172A" />
+        </Style>
+        <Style Selector="Button.chaoschip:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4F46E5" />
+            <Setter Property="BorderBrush" Value="#4F46E5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <!-- Split-brain: dual-energy module. -->
         <Style Selector="Border.splitbrain">
-            <Setter Property="Background" Value="#221E2A44" />
-            <Setter Property="BorderBrush" Value="#778A63F5" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource SplitBrainBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BoxShadow" Value="0 10 24 0 #E0E7FF, inset 0 1 0 0 #CCFFFFFF" />
+        </Style>
+        <Style Selector="TextBlock.splitvs">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#4338CA" />
+            <Setter Property="Opacity" Value="0.9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2,0" />
         </Style>
 
+        <!-- Compose: seamless floating capsule — the shell IS the input (no inner box).
+             Rest = quiet white float; listening = aurora ring + lift. -->
         <Style Selector="Border.composeshell">
-            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Background" Value="{StaticResource ComposeFillBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource ComposeBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="6" />
-            <Setter Property="BoxShadow" Value="0 8 24 0 #44000000" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="26" />
+            <Setter Property="Padding" Value="9,8" />
+            <Setter Property="BoxShadow" Value="0 10 30 0 #147C4DFF, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.16" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.16" />
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Border.composeshell:pointerover">
-            <Setter Property="BoxShadow" Value="0 10 28 0 #558A63F5" />
+            <Setter Property="BoxShadow" Value="0 12 34 0 #1C7C4DFF, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
+        </Style>
+        <Style Selector="Border.composeshell.listening">
+            <Setter Property="BorderBrush" Value="{StaticResource ComposeBorderListeningBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BoxShadow" Value="0 0 0 1 #447C4DFF, 0 12 34 0 #267C4DFF, 0 0 24 0 #1AFFC7A3, inset 0 1 0 0 #CCFFFFFF" />
+        </Style>
+        <!-- Inside the capsule the TextBox draws no chrome of its own, in any state. -->
+        <Style Selector="Border.composeshell TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.composeshell TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.composeshell TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <!-- Send orb halo: quiet by default, aurora glow when a message is ready. -->
+        <Style Selector="Border.sendhalo">
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="BoxShadow" Value="0 2 8 0 #10080F23" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.sendhalo.lit">
+            <Setter Property="BoxShadow" Value="0 5 16 0 #4D7C4DFF, 0 0 20 0 #2600E5FF" />
+        </Style>
+        <Style Selector="Border.livepair.writing">
+            <Setter Property="BorderBrush" Value="#7FFFDA" />
+            <Setter Property="BoxShadow" Value="0 4 16 0 #227FFFDA" />
         </Style>
 
-        <!-- Empty-state hero mark gently floats. -->
         <Style Selector="Border.heromark">
-            <Style.Animations>
-                <Animation Duration="0:0:3.6" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="TranslateTransform.Y" Value="-4" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <Setter Property="Background" Value="{StaticResource StarMarkBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BoxShadow" Value="0 12 36 0 #447C4DFF, 0 0 28 0 #3300E5FF" />
+        </Style>
+        <Style Selector="Border.heroground">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="4" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Background" Value="#E2E8F0" />
+            <Setter Property="Opacity" Value="0.5" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,0,2" />
         </Style>
     </Application.Styles>
 </Application>

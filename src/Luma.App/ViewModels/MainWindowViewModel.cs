@@ -39,6 +39,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _diagnosticsReady;
     private bool _globalExplainShortcutAvailable;
     private string _runningStatus = string.Empty;
+    private string _activityStatus = "Working";
+    private string _activityDetail = "Waiting for the provider";
     private string? _clipboardSnippet;
     private readonly List<string> _attachedFilePaths = [];
     private DateTimeOffset? _focusUntilUtc;
@@ -76,6 +78,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         AnswerQuestionCommand = new AsyncParameterCommand(AnswerQuestionAsync);
         SkipQuestionCommand = new AsyncParameterCommand(SkipQuestionAsync);
         UseSuggestionCommand = new AsyncParameterCommand(UseSuggestionAsync);
+        UseCodeActionCommand = new AsyncParameterCommand(UseCodeActionAsync);
         UseClipboardCommand = new AsyncCommand(UseClipboardAsync, () => IsIdle);
         ClearClipboardCommand = new RelayCommand(ClearClipboardSnippet, () => HasClipboardSnippet);
         ClearAttachedFilesCommand = new RelayCommand(ClearAttachedFiles, () => HasAttachedFiles);
@@ -94,6 +97,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Messages.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(CanStartNewChat));
+            OnPropertyChanged(nameof(ShowScreenLandingActions));
+            OnPropertyChanged(nameof(ShowRepoLandingActions));
             NewChatCommand.RaiseCanExecuteChanged();
         };
     }
@@ -112,6 +117,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public AsyncParameterCommand AnswerQuestionCommand { get; }
     public AsyncParameterCommand SkipQuestionCommand { get; }
     public AsyncParameterCommand UseSuggestionCommand { get; }
+    public AsyncParameterCommand UseCodeActionCommand { get; }
     public AsyncCommand UseClipboardCommand { get; }
     public RelayCommand ClearClipboardCommand { get; }
     public RelayCommand ClearAttachedFilesCommand { get; }
@@ -220,6 +226,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(WorkingDirectoryLabel));
             OnPropertyChanged(nameof(HasWorkingDirectory));
             OnPropertyChanged(nameof(WorkingDirectoryTip));
+            OnPropertyChanged(nameof(ComposePlaceholder));
+            OnPropertyChanged(nameof(ShowScreenLandingActions));
+            OnPropertyChanged(nameof(ShowRepoLandingActions));
+            OnPropertyChanged(nameof(ShowGlobalExplainHint));
+            NotifySurfaceStateChanged();
         }
     }
     public bool HasWorkingDirectory => !string.IsNullOrWhiteSpace(WorkingDirectory);
@@ -230,6 +241,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string WorkingDirectoryTip => WorkingDirectory is null
         ? "Set a project folder so Luma can read local files"
         : WorkingDirectory;
+    public string ComposePlaceholder => HasWorkingDirectory
+        ? "Describe a code change…  @file to pin  ·  Enter to send"
+        : "Ask anything…  @file to pin  ·  Enter to send";
+    public bool ShowScreenLandingActions => Messages.Count == 0 && !HasWorkingDirectory;
+    public bool ShowRepoLandingActions => Messages.Count == 0 && HasWorkingDirectory;
+    /// <summary>Compact busy strip when there is detail beyond the header status pill.</summary>
+    public bool ShowBusyDetail => IsBusy && !string.IsNullOrWhiteSpace(SurfaceDetail);
+    /// <summary>Shortcut tip only on screen landing — hide in repo mode to cut empty-state noise.</summary>
+    public bool ShowGlobalExplainHint => GlobalExplainShortcutAvailable && ShowScreenLandingActions;
     public string Question { get => _question; set { Set(ref _question, value); OnPropertyChanged(nameof(CanSend)); SendCommand.RaiseCanExecuteChanged(); } }
     public Bitmap? Preview { get => _preview; private set => Set(ref _preview, value); }
     public bool HasCapture => _regionPath is not null || _contextPath is not null;
@@ -244,7 +264,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string SurfaceStatus =>
         IsFocusLocked ? PomodoroLabel
         : _refreshingContext ? "Capturing"
-        : _busy ? "Working"
+        : _busy ? _activityStatus
         : IsSuggesting ? "Preparing shortcuts"
         : ChaosModeEnabled ? "Chaos"
         : HasRegion ? "Region ready"
@@ -253,20 +273,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string SurfaceDetail =>
         IsFocusLocked ? ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow)
         : _refreshingContext ? "Refreshing screen context"
-        : _busy ? (HasRunningOperations ? RunningStatus : "Waiting for the provider")
+        : _busy ? (HasRunningOperations ? RunningStatus : _activityDetail)
         : IsSuggesting ? "Generating quick actions"
         : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
         : HasRegion ? "Selected area stays in focus until you clear it"
         : HasContext ? "Screen context loaded"
         : "No screen context yet";
     public string LandingTitle => ChaosModeEnabled
-        ? "Chaos Mode is on. Behave irresponsibly (with taste)."
-        : HasCapture ? "Ask about what is on your screen." : "Start with the screen.";
+        ? "Chaos Mode is on."
+        : HasWorkingDirectory ? "What should change?"
+        : HasCapture ? "Ask about your screen." : "Start with the screen.";
     public string LandingSubtitle => ChaosModeEnabled
-        ? "Roast the UI, flip tone, or make two models argue. Focus lock can freeze Explain for evil productivity."
+        ? "Roast, debate, flip tone, or focus-lock Explain."
+        : HasWorkingDirectory
+            ? "Type a change, or pick a chip below."
         : HasCapture
-            ? "Use a shortcut chip, type a question, or explain part of the screen."
-            : "Explain the whole screen, pick a part to focus on, or just ask.";
+            ? "Use a chip, type a question, or explain a region."
+            : "Explain the screen, pick a region, or just ask.";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
     public bool CanStartNewChat => !_busy && Messages.Count > 0;
@@ -274,8 +297,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool HasProviderProblem => SelectedDiagnostic?.IsAvailable == false;
     public string ProviderStatus => SelectedDiagnostic?.Message ?? string.Empty;
     public bool HasRunningOperations => _operations.Active.Count > 0;
-    public bool GlobalExplainShortcutAvailable { get => _globalExplainShortcutAvailable; set => Set(ref _globalExplainShortcutAvailable, value); }
+    public bool GlobalExplainShortcutAvailable
+    {
+        get => _globalExplainShortcutAvailable;
+        set
+        {
+            Set(ref _globalExplainShortcutAvailable, value);
+            OnPropertyChanged(nameof(ShowGlobalExplainHint));
+        }
+    }
     public string RunningStatus { get => _runningStatus; private set => Set(ref _runningStatus, value); }
+    public string ActivityStatus { get => _activityStatus; private set => Set(ref _activityStatus, value); }
+    public string ActivityDetail { get => _activityDetail; private set => Set(ref _activityDetail, value); }
     private ProviderDiagnostic? SelectedDiagnostic => SelectedProviderIndex switch
     {
         0 => _claudeDiagnostic,
@@ -394,42 +427,57 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>Asks the provider for a few short prompt ideas based on the ambient capture and
-    /// shows them as chips. The chips are a bonus, so failures stay silent and a newer request,
-    /// a send, or an existing conversation simply wins over the pending one.</summary>
+    /// shows them as chips. Seeds appear instantly; AI refines them. Failures stay silent.</summary>
     private async Task GenerateSuggestionsAsync(double screenDifference = 1d)
     {
         if (_contextPath is null || Messages.Count > 0 || _busy) return;
         if (!_diagnosticsReady) return;
         if (!AppSettings.Current.SuggestFromScreen) return;
-        // Chips regenerate on every open by default; a nonzero reuse window (Settings) keeps
-        // recent ones instead, saving a provider call.
-        if (Suggestions.Count > 0 &&
+        // Fresh window: reuse recent AI chips (not mere seeds) to keep reopening snappy.
+        if (Suggestions.Count > 0 && !SuggestionParser.IsOnlySeeds(Suggestions) &&
             DateTime.UtcNow - _suggestionsAt < TimeSpan.FromSeconds(AppSettings.Current.SuggestionFreshSeconds)) return;
         // If the screen looks the same as when the current chips were made, they're still
         // accurate - skip the provider call (and its screenshot tokens) entirely.
-        if (Suggestions.Count > 0 && AppSettings.Current.SkipSuggestionsWhenScreenUnchanged &&
+        if (Suggestions.Count > 0 && !SuggestionParser.IsOnlySeeds(Suggestions) &&
+            AppSettings.Current.SkipSuggestionsWhenScreenUnchanged &&
             screenDifference < .05) return;
+
         _suggestCts?.Cancel();
         var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _suggestCts = cts;
-        // Existing chips (e.g. pre-warmed at launch) stay visible while the fresh batch loads.
+        // Instant seeds so the empty landing never waits on the model.
+        if (Suggestions.Count == 0 || SuggestionParser.IsOnlySeeds(Suggestions))
+            ApplySuggestionChips(SuggestionPrompts.InstantSeeds, markFresh: false);
         IsSuggesting = true;
         string? thumbnailPath = null;
         try
         {
             var contextPath = _contextPath;
             thumbnailPath = await Task.Run(() => CreateSuggestionThumbnail(contextPath), cts.Token);
-            var request = new AiRequest("What might I want to ask about this screen?", null, thumbnailPath ?? contextPath, [])
+            var count = AppSettings.Current.SuggestionCount;
+            var request = new AiRequest(SuggestionPrompts.FromScreen(count), null, thumbnailPath ?? contextPath, [])
             { TaskKind = TaskKind.Suggest };
-            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
+            // Progressive: as stream lines arrive, promote the first usable chips early.
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(
+                request,
+                partial =>
+                {
+                    if (cts.IsCancellationRequested || Messages.Count > 0 || _busy) return;
+                    var early = SuggestionParser.Parse(partial, count);
+                    if (early.Count > 0)
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (cts.IsCancellationRequested || Messages.Count > 0 || _busy) return;
+                            ApplySuggestionChips(early, markFresh: false);
+                        });
+                },
+                cts.Token);
             if (cts.IsCancellationRequested || Messages.Count > 0 || _busy) return;
-            var parsed = SuggestionParser.Parse(text, AppSettings.Current.SuggestionCount);
-            if (parsed.Count == 0) return; // keep the old chips rather than blanking the panel
-            Suggestions.Clear();
-            foreach (var suggestion in parsed) Suggestions.Add(suggestion);
-            _suggestionsAt = DateTime.UtcNow;
+            var parsed = SuggestionParser.Parse(text, count);
+            if (parsed.Count == 0) return; // keep seeds / early chips rather than blanking
+            ApplySuggestionChips(parsed, markFresh: true);
         }
-        catch { }
+        catch { /* keep seeds */ }
         finally
         {
             if (thumbnailPath is not null) { try { File.Delete(thumbnailPath); } catch { } }
@@ -447,21 +495,43 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var history = Messages.ToArray();
-            var request = new AiRequest("Suggest likely next replies.", null, null, history)
+            var count = AppSettings.Current.SuggestionCount;
+            var request = new AiRequest(SuggestionPrompts.FollowUp(count), null, null, history)
             { TaskKind = TaskKind.FollowUp };
-            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, cts.Token);
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(
+                request,
+                partial =>
+                {
+                    if (cts.IsCancellationRequested) return;
+                    var early = SuggestionParser.Parse(partial, count);
+                    if (early.Count > 0)
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (cts.IsCancellationRequested) return;
+                            ApplySuggestionChips(early, markFresh: false);
+                        });
+                },
+                cts.Token);
             if (cts.IsCancellationRequested) return;
-            var parsed = SuggestionParser.Parse(text, AppSettings.Current.SuggestionCount);
-            Suggestions.Clear();
-            foreach (var suggestion in parsed) Suggestions.Add(suggestion);
+            var parsed = SuggestionParser.Parse(text, count);
+            if (parsed.Count == 0) return;
+            ApplySuggestionChips(parsed, markFresh: true);
         }
         catch (OperationCanceledException) { }
-        catch { Suggestions.Clear(); }
+        catch { /* leave whatever chips we had */ }
         finally
         {
             if (_suggestCts == cts) { _suggestCts = null; IsSuggesting = false; }
             cts.Dispose();
         }
+    }
+
+    private void ApplySuggestionChips(IReadOnlyList<string> chips, bool markFresh)
+    {
+        if (chips.Count == 0) return;
+        Suggestions.Clear();
+        foreach (var chip in chips) Suggestions.Add(chip);
+        if (markFresh) _suggestionsAt = DateTime.UtcNow;
     }
 
     /// <summary>Chips only need coarse legibility, so the suggestion request ships a downscaled
@@ -504,6 +574,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             prompt = "Do this again carefully: " + prompt["Retry: ".Length..];
         // Chips are derived from the ambient capture — attach screen on the first request.
         await RunTurnAsync(prompt, displayPrompt: suggestion, attachCaptures: true);
+    }
+
+    private async Task UseCodeActionAsync(object? parameter)
+    {
+        if (parameter is not string prompt || _busy) return;
+        var repository = WorkingDirectoryRequested is null ? WorkingDirectory : await WorkingDirectoryRequested();
+        if (repository is null) return;
+        _suggestCts?.Cancel();
+        Suggestions.Clear();
+        WorkingDirectory = repository;
+        await RunCodeTurnAsync(prompt, repository);
     }
 
     private void ForceNewChat()
@@ -677,10 +758,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
             Caption = sentVisual ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
+            TurnMeta = BuildTurnMeta(providerName, "Chat", sentVisual, WorkingDirectory),
             Text = sentVisual ? "Reading screen…" : "Thinking…",
         };
         Messages.Add(answer);
         SetBusy(true);
+        SetActivity(sentVisual ? "Reading screen" : "Thinking",
+            sentVisual ? "Screen context attached to this turn" : "Waiting for the provider to answer");
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _requestCts = cts;
         var stopwatch = Stopwatch.StartNew();
@@ -706,10 +790,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             };
             var text = await client.AskAsync(request, streamBridge.OnPartial, cts.Token);
             streamBridge.SealPartials();
+            SetActivity("Streaming", "Receiving the answer");
             // Text-first turn: if the model needs the screen, capture once and retry with it.
             if (!sentVisual && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
             {
                 answer.Caption = $"* {providerName} is reading the screen";
+                answer.TurnMeta = BuildTurnMeta(providerName, "Chat", hasVisual: true, WorkingDirectory);
+                SetActivity("Reading screen", string.IsNullOrWhiteSpace(reason) ? "The provider requested visual context" : reason);
                 answer.Text = string.IsNullOrWhiteSpace(reason) ? "Reading screen…" : $"Reading screen: {reason}";
                 answer.IsStreaming = false;
                 answer.IsPending = true;
@@ -734,6 +821,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                 };
                 text = await client.AskAsync(screenRequest, streamBridge.OnPartial, cts.Token);
                 streamBridge.SealPartials();
+                SetActivity("Streaming", "Receiving the screen-aware answer");
             }
             text = ClarifyingQuestionParser.RemoveScreenRereadDirective(text);
             if (string.IsNullOrWhiteSpace(text))
@@ -789,8 +877,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             Caption = $"✦ {providerName} is inspecting the repository",
             Text = "Inspecting repository…",
         };
+        answer.TurnMeta = BuildTurnMeta(providerName, "Code", ChatCaptureAttachment.HasVisual(_regionPath, _contextPath), repository);
         Messages.Add(answer);
         SetBusy(true);
+        SetActivity("Inspecting repo", "Preparing a coding turn");
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _requestCts = cts;
         var stopwatch = Stopwatch.StartNew();
@@ -804,6 +894,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
+            SetActivity("Writing files", "Auditing workspace changes");
             answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
             AttachWriteAudit(answer, writeSnapshot);
             ConsumeEphemeralAttachments();
@@ -1535,6 +1626,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged();
     }
 
+    private void SetActivity(string status, string detail)
+    {
+        ActivityStatus = status;
+        ActivityDetail = detail;
+        NotifySurfaceStateChanged();
+    }
+
+    private static string BuildTurnMeta(string provider, string mode, bool hasVisual, string? workingDirectory)
+    {
+        var context = new List<string>();
+        if (!string.IsNullOrWhiteSpace(workingDirectory)) context.Add("project");
+        if (hasVisual) context.Add("screen");
+        return $"Provider: {provider} | Mode: {mode} | Context: {(context.Count == 0 ? "text" : string.Join(" + ", context))}";
+    }
+
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return; field = value; OnPropertyChanged(name); }
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
@@ -1542,8 +1648,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         OnPropertyChanged(nameof(SurfaceStatus));
         OnPropertyChanged(nameof(SurfaceDetail));
+        OnPropertyChanged(nameof(ShowBusyDetail));
         OnPropertyChanged(nameof(LandingTitle));
         OnPropertyChanged(nameof(LandingSubtitle));
+        OnPropertyChanged(nameof(ComposePlaceholder));
+        OnPropertyChanged(nameof(ShowScreenLandingActions));
+        OnPropertyChanged(nameof(ShowRepoLandingActions));
+        OnPropertyChanged(nameof(ShowGlobalExplainHint));
     }
 
     private static string MemoryPreview(string? text)

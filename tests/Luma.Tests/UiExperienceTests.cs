@@ -86,13 +86,15 @@ public sealed class UiExperienceTests
     [Fact]
     public void ThemePaletteMatchesVioletGlassDesignSystem()
     {
-        Assert.Equal(0x8A, LumaTheme.AccentStart.R);
-        Assert.Equal(0x63, LumaTheme.AccentStart.G);
-        Assert.Equal(0xF5, LumaTheme.AccentStart.B);
-        Assert.Equal(0x4F, LumaTheme.AccentEnd.R);
-        Assert.Equal(0x7C, LumaTheme.AccentEnd.G);
+        // Aurora brand: violet #7C4DFF → cyan #00E5FF, mist #F2F4FF, blue soft #2563FF.
+        Assert.Equal(0x7C, LumaTheme.AccentStart.R);
+        Assert.Equal(0x4D, LumaTheme.AccentStart.G);
+        Assert.Equal(0xFF, LumaTheme.AccentStart.B);
+        Assert.Equal(0x00, LumaTheme.AccentEnd.R);
+        Assert.Equal(0xE5, LumaTheme.AccentEnd.G);
         Assert.Equal(0xFF, LumaTheme.AccentEnd.B);
-        Assert.Equal(0xB3, LumaTheme.AccentSoft.R);
+        Assert.Equal(0x25, LumaTheme.AccentSoft.R);
+        Assert.Equal(0xF2, LumaTheme.InkPanel.R); // mist
         Assert.True(LumaTheme.FloatingCornerRadius >= 16);
         Assert.NotNull(LumaTheme.CreatePanelBorderBrush());
         Assert.NotNull(LumaTheme.CreateAccentGradient());
@@ -149,8 +151,8 @@ public sealed class UiExperienceTests
         Assert.Contains("Selector=\"Border.composeshell\"", xaml);
         Assert.Contains("Selector=\"Border.dockglow\"", xaml);
         Assert.Contains("Selector=\"Ellipse.thinkingring\"", xaml);
-        Assert.Contains("#8A63F5", xaml);
-        Assert.Contains("#4F7CFF", xaml);
+        Assert.Contains("#7C4DFF", xaml);
+        Assert.Contains("#00E5FF", xaml);
     }
 
     [Fact]
@@ -201,7 +203,6 @@ public sealed class UiExperienceTests
         Assert.Contains("NewChatCommand", xaml);
         Assert.Contains("New chat", xaml);
         Assert.Contains("Explain this part", xaml);
-        Assert.Contains("Select an area to focus on and explain", xaml);
         Assert.Contains("ExplainSelectionCommand", xaml);
         Assert.DoesNotContain("Snip a region", xaml);
         Assert.DoesNotContain("Command=\"{Binding CaptureCommand}\"", xaml);

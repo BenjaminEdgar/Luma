@@ -39,8 +39,8 @@ public sealed class QuestionPromptWindow : Window
         CaretBrush = LumaTheme.AccentSoftBrush,
         Padding = new Thickness(12, 10),
         CornerRadius = new CornerRadius(12),
-        Background = new SolidColorBrush(Color.Parse("#1AFFFFFF")),
-        BorderBrush = new SolidColorBrush(Color.Parse("#4A8A63F5")),
+        Background = new SolidColorBrush(Color.Parse("#16FFFFFF")),
+        BorderBrush = LumaTheme.BorderAccentBrush,
         BorderThickness = new Thickness(1),
     };
 
@@ -68,11 +68,12 @@ public sealed class QuestionPromptWindow : Window
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock
+                    new Controls.LumaLogo
                     {
-                        Text = "✦",
-                        FontSize = 14,
-                        Foreground = LumaTheme.AccentSoftBrush,
+                        Width = 15,
+                        Height = 15,
+                        StarBrush = LumaTheme.AccentSoftBrush,
+                        ShowOrbit = false,
                         VerticalAlignment = VerticalAlignment.Center,
                     },
                     _eyebrow,
@@ -121,10 +122,10 @@ public sealed class QuestionPromptWindow : Window
                             EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
                             GradientStops =
                             {
-                                new GradientStop(Color.Parse("#008A63F5"), 0),
-                                new GradientStop(Color.Parse("#CC8A63F5"), 0.4),
-                                new GradientStop(Color.Parse("#994F7CFF"), 0.75),
-                                new GradientStop(Color.Parse("#004F7CFF"), 1),
+                                new GradientStop(Color.FromArgb(0, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B), 0),
+                                new GradientStop(Color.FromArgb(0xCC, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B), 0.4),
+                                new GradientStop(Color.FromArgb(0x99, LumaTheme.AccentEnd.R, LumaTheme.AccentEnd.G, LumaTheme.AccentEnd.B), 0.75),
+                                new GradientStop(Color.FromArgb(0, LumaTheme.AccentEnd.R, LumaTheme.AccentEnd.G, LumaTheme.AccentEnd.B), 1),
                             },
                         },
                     },

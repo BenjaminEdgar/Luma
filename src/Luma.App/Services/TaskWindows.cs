@@ -163,7 +163,7 @@ public abstract class TaskWorkspaceWindow : Window
         _questionCard = new Border
         {
             IsVisible = false,
-            Background = new SolidColorBrush(Color.Parse("#288A63F5")),
+            Background = new SolidColorBrush(Color.FromArgb(0x2A, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B)),
             BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(14),

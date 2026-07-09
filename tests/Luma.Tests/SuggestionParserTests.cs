@@ -33,11 +33,14 @@ public sealed class SuggestionParserTests
     }
 
     [Fact]
-    public void OverlongLinesAreDropped()
+    public void OverlongLinesAreTruncatedNotDropped()
     {
-        var longLine = new string('a', 80);
-        var result = SuggestionParser.Parse($"{longLine}\nShort suggestion");
-        Assert.Equal(["Short suggestion"], result);
+        var longLine = "Explain the complicated build failure cascading through modules " + new string('x', 40);
+        var result = SuggestionParser.Parse($"{longLine}\nShort tip");
+        Assert.Equal(2, result.Count);
+        Assert.True(result[0].Length <= SuggestionParser.MaxLength);
+        Assert.EndsWith("…", result[0]);
+        Assert.Equal("Short tip", result[1]);
     }
 
     [Fact]
@@ -45,5 +48,31 @@ public sealed class SuggestionParserTests
     {
         var result = SuggestionParser.Parse("Explain the 404 error");
         Assert.Equal(["Explain the 404 error"], result);
+    }
+
+    [Fact]
+    public void DotSeparatedOneLinerSplitsIntoChips()
+    {
+        var result = SuggestionParser.Parse("Explain this error · Fix the test · Open logs");
+        Assert.Equal(3, result.Count);
+        Assert.Contains("Explain this error", result);
+        Assert.Contains("Fix the test", result);
+    }
+
+    [Fact]
+    public void IsOnlySeedsDetectsInstantPlaceholders()
+    {
+        Assert.True(SuggestionParser.IsOnlySeeds(SuggestionPrompts.InstantSeeds));
+        Assert.False(SuggestionParser.IsOnlySeeds(["Explain this error", "Fix the build"]));
+        Assert.False(SuggestionParser.IsOnlySeeds([]));
+    }
+
+    [Fact]
+    public void FromScreenPromptAsksForExactLineCount()
+    {
+        var prompt = SuggestionPrompts.FromScreen(3);
+        Assert.Contains("exactly 3", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("verb-led", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("What might I want", prompt);
     }
 }

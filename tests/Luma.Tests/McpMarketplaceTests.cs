@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Luma.App.Services;
 
 namespace Luma.Tests;
@@ -97,6 +98,133 @@ public sealed class McpMarketplaceTests
             if (backup is null) { try { File.Delete(path); } catch { } }
             else File.WriteAllText(path, backup);
             if (grokBackup is not null) File.WriteAllText(grok, grokBackup);
+        }
+    }
+
+    [Fact]
+    public void MissingEnvKeysDetectsEmptySecrets()
+    {
+        var entry = McpCuratedCatalog.All.First(e => e.Id == "curated/github");
+        var missing = McpInstallManager.MissingEnvKeys(entry, new Dictionary<string, string>());
+        Assert.Contains("GITHUB_PERSONAL_ACCESS_TOKEN", missing);
+
+        var filled = McpInstallManager.MissingEnvKeys(entry,
+            new Dictionary<string, string> { ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "ghp_x" });
+        Assert.Empty(filled);
+    }
+
+    [Fact]
+    public void ParseMcpServerTablesImportsHandEditedConfig()
+    {
+        const string toml =
+            """
+            [mcp_servers.my-custom]
+            enabled = true
+            command = "npx"
+            args = ["-y", "foo"]
+            env = { API_KEY = "secret" }
+
+            # --- Luma MCP Marketplace (managed) ---
+            [mcp_servers.curated-memory]
+            enabled = true
+            command = "npx"
+            # --- end Luma MCP Marketplace ---
+            """;
+
+        var parsed = McpInstallManager.ParseMcpServerTables(toml);
+        Assert.Contains(parsed, s => s.ConfigSectionName == "my-custom" && s.Args.Contains("foo"));
+        Assert.DoesNotContain(parsed, s => s.ConfigSectionName == "curated-memory");
+        var custom = parsed.First(s => s.ConfigSectionName == "my-custom");
+        Assert.Equal("secret", custom.Env["API_KEY"]);
+    }
+
+    [Fact]
+    public void CuratedCatalogHasCategoriesAndMoreRecipes()
+    {
+        Assert.Contains("Core", McpCuratedCatalog.Categories);
+        Assert.True(McpCuratedCatalog.All.Count >= 10);
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/sequential-thinking");
+        Assert.Contains(McpCuratedCatalog.All, e => e.DefaultEnv.ContainsKey("DATABASE_URL"));
+    }
+
+    [Fact]
+    public void StripMcpServerTablesRemovesDuplicateKeysBeforeManagedSync()
+    {
+        const string messy =
+            """
+            [cli]
+            installer = "internal"
+
+            [mcp_servers.curated-memory]
+            enabled = true
+            command = "npx"
+
+            [mcp_servers.other]
+            enabled = true
+            command = "echo"
+
+            # --- Luma MCP Marketplace (managed) ---
+            [mcp_servers.curated-memory]
+            enabled = true
+            command = "npx"
+            # --- end Luma MCP Marketplace ---
+            """;
+
+        var withoutManaged = messy; // StripMcpServerTables is only for tables; full sync strips managed first.
+        // Simulate the two-step cleanup SyncToGrokConfig performs.
+        var start = "# --- Luma MCP Marketplace (managed) ---";
+        var end = "# --- end Luma MCP Marketplace ---";
+        var i = withoutManaged.IndexOf(start, StringComparison.Ordinal);
+        var j = withoutManaged.IndexOf(end, StringComparison.Ordinal) + end.Length;
+        withoutManaged = withoutManaged[..i] + withoutManaged[j..];
+        var cleaned = McpInstallManager.StripMcpServerTables(withoutManaged, ["curated-memory"]);
+
+        Assert.DoesNotContain("[mcp_servers.curated-memory]", cleaned);
+        Assert.Contains("[mcp_servers.other]", cleaned);
+        Assert.Contains("[cli]", cleaned);
+    }
+
+    [Fact]
+    public void SyncToGrokConfigDoesNotDuplicateExistingMcpTables()
+    {
+        var path = McpInstallManager.StorePath();
+        var backup = File.Exists(path) ? File.ReadAllText(path) : null;
+        var grok = McpInstallManager.GrokConfigPath();
+        var grokBackup = File.Exists(grok) ? File.ReadAllText(grok) : null;
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+            // Pre-seed the same key Grok already had outside Luma's managed block.
+            File.WriteAllText(grok,
+                """
+                [cli]
+                installer = "internal"
+
+                [mcp_servers.curated-memory]
+                enabled = true
+                command = "npx"
+                args = ["-y", "@modelcontextprotocol/server-memory"]
+
+                """);
+
+            var manager = new McpInstallManager();
+            var entry = McpCuratedCatalog.All.First(e => e.Id == "curated/memory");
+            manager.Install(entry, workspacePath: Path.GetTempPath());
+
+            var toml = File.ReadAllText(grok);
+            var matches = Regex.Matches(toml, @"\[mcp_servers\.curated-memory\]");
+            Assert.Single(matches);
+            Assert.Contains("Luma MCP Marketplace", toml);
+            Assert.DoesNotContain("duplicate", toml); // sanity
+
+            manager.Uninstall(entry.Id);
+        }
+        finally
+        {
+            if (backup is null) { try { File.Delete(path); } catch { } }
+            else File.WriteAllText(path, backup);
+            if (grokBackup is null) { try { File.Delete(grok); } catch { } }
+            else File.WriteAllText(grok, grokBackup);
         }
     }
 

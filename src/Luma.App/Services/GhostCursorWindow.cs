@@ -44,7 +44,7 @@ public sealed class GhostCursorWindow : Window
             CornerRadius = new CornerRadius(14),
             BorderThickness = new Thickness(3),
             BorderBrush = LumaTheme.CreateAccentGradient(),
-            Background = new SolidColorBrush(Color.Parse("#338A63F5")),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B)),
             Opacity = 0,
             // Opacity-only keyframes: animating RenderTransform/ScaleTransform objects
             // via Style setters throws InvalidOperationException in Avalonia.
@@ -71,7 +71,7 @@ public sealed class GhostCursorWindow : Window
         var displayLabel = string.IsNullOrWhiteSpace(labelText) ? "✦ here" : "✦ " + labelText.Trim();
         var label = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#E0181A24")),
+            Background = LumaTheme.GlassFillBrush,
             BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),

@@ -18,15 +18,27 @@ public sealed class MarkdownView : ContentControl
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
     private static readonly FontFamily Mono = new("Cascadia Mono,Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,monospace");
-    private static readonly IBrush InlineCodeBg = new SolidColorBrush(Color.Parse("#338A63F5"));
-    private static readonly IBrush InlineCodeFg = new SolidColorBrush(Color.Parse("#FFE8E2FF"));
-    private static readonly IBrush CodeBlockBg = new SolidColorBrush(Color.Parse("#88090A12"));
-    private static readonly IBrush CodeBlockBorder = new SolidColorBrush(Color.Parse("#448A63F5"));
-    private static readonly IBrush CodeBlockFg = new SolidColorBrush(Color.Parse("#FFE8E6F5"));
-    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#B0A8C8"));
-    private static readonly IBrush LinkFg = new SolidColorBrush(Color.Parse("#FFB3A6FF"));
-    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.Parse("#368A63F5"));
-    private static readonly IBrush QuoteBar = new SolidColorBrush(Color.Parse("#888A63F5"));
+    // Glass-aligned tokens (track LumaTheme / App.axaml Luma Bloom pearl palette).
+    private static readonly IBrush InlineCodeBg = new SolidColorBrush(Color.Parse("#337C5CFF"));
+    private static readonly IBrush InlineCodeFg = new SolidColorBrush(Color.Parse("#FF2E2850"));
+    private static readonly IBrush CodeBlockBg = new SolidColorBrush(Color.Parse("#F8F8FD"));
+    private static readonly IBrush CodeBlockHeaderBg = new SolidColorBrush(Color.Parse("#F2F0FE"));
+    private static readonly IBrush CodeBlockBorder = new SolidColorBrush(Color.Parse("#E4DFF7"));
+    private static readonly IBrush CodeBlockFg = new SolidColorBrush(Color.Parse("#FF1A1433"));
+    private static readonly IBrush HeadingFg = LumaTheme.TextBrightBrush;
+    private static readonly IBrush HeadingAccentFg = LumaTheme.AccentSoftBrush;
+    private static readonly IBrush MutedFg = LumaTheme.TextMutedBrush;
+    private static readonly IBrush LinkFg = LumaTheme.AccentSoftBrush;
+    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.Parse("#887C5CFF"));
+    private static readonly IBrush QuoteBar = new SolidColorBrush(Color.Parse("#CC7C5CFF"));
+    private static readonly IBrush QuoteBg = new SolidColorBrush(Color.Parse("#227C5CFF"));
+    private static readonly IBrush TableHeaderBg = new SolidColorBrush(Color.Parse("#F2F0FE"));
+    private static readonly IBrush TableStripeBg = new SolidColorBrush(Color.Parse("#7AF6F5FE"));
+    private static readonly IBrush TableLine = new SolidColorBrush(Color.Parse("#ECE9F8"));
+    private static readonly IBrush TableBorder = new SolidColorBrush(Color.Parse("#E4DFF7"));
+    private static readonly IBrush CheckFill = new SolidColorBrush(Color.Parse("#7C4DFF"));
+    private static readonly IBrush CheckRim = new SolidColorBrush(Color.Parse("#C4B5FD"));
+    private static readonly IBrush BulletFg = new SolidColorBrush(Color.Parse("#7C4DFF"));
 
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(75);
     private DateTime _lastRebuild = DateTime.MinValue;
@@ -118,6 +130,18 @@ public sealed class MarkdownView : ContentControl
                 yield return BlockQuote(string.Join(' ', quote));
                 continue;
             }
+            if (trimmed.StartsWith('|') && i + 1 < lines.Length && IsTableSeparator(lines[i + 1]))
+            {
+                foreach (var block in FlushParagraph(paragraph)) yield return block;
+                var headerCells = SplitRow(trimmed);
+                var aligns = ParseAlignments(lines[i + 1], headerCells.Count);
+                i++; // consume separator row
+                var rows = new List<List<string>>();
+                while (i + 1 < lines.Length && lines[i + 1].TrimStart().StartsWith('|') && !IsTableSeparator(lines[i + 1]))
+                    rows.Add(SplitRow(lines[++i]));
+                yield return Table(headerCells, aligns, rows);
+                continue;
+            }
             if (TryParseListItem(line, out var indent, out var marker, out var content))
             {
                 foreach (var block in FlushParagraph(paragraph)) yield return block;
@@ -164,16 +188,118 @@ public sealed class MarkdownView : ContentControl
         return false;
     }
 
+    private static bool IsTableSeparator(string line)
+    {
+        var t = line.Trim();
+        return t.Length >= 3 && t.Contains('-') && t.All(c => c is '|' or ':' or '-' or ' ');
+    }
+
+    /// <summary>Stand-in for escaped pipes while splitting table rows (never appears in chat text).</summary>
+    private const char EscapedPipe = (char)1;
+
+    /// <summary>Splits a pipe-table row into trimmed cells; honors escaped \| inside cells.</summary>
+    private static List<string> SplitRow(string line)
+    {
+        var t = line.Trim();
+        if (t.StartsWith('|')) t = t[1..];
+        if (t.EndsWith('|')) t = t[..^1];
+        return t.Replace("\\|", EscapedPipe.ToString()).Split('|')
+            .Select(cell => cell.Replace(EscapedPipe, '|').Trim()).ToList();
+    }
+
+    private static TextAlignment[] ParseAlignments(string separator, int columns)
+    {
+        var cells = SplitRow(separator);
+        var aligns = new TextAlignment[Math.Max(1, Math.Max(columns, cells.Count))];
+        for (var c = 0; c < aligns.Length; c++)
+        {
+            var spec = c < cells.Count ? cells[c] : string.Empty;
+            var left = spec.StartsWith(':');
+            var right = spec.EndsWith(':');
+            aligns[c] = left && right ? TextAlignment.Center : right ? TextAlignment.Right : TextAlignment.Left;
+        }
+        return aligns;
+    }
+
+    private Control Table(List<string> header, TextAlignment[] aligns, List<List<string>> rows)
+    {
+        var cols = Math.Max(header.Count, rows.Count == 0 ? 1 : rows.Max(r => r.Count));
+        var grid = new Grid();
+        for (var c = 0; c < cols; c++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        for (var r = 0; r <= rows.Count; r++)
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        void Cell(int r, int c, string content, bool isHeader)
+        {
+            var block = TextBlock(12.5);
+            // Auto columns keep alignment honest; wide tables scroll sideways instead of squeezing.
+            block.TextWrapping = TextWrapping.NoWrap;
+            block.TextAlignment = aligns[Math.Min(c, aligns.Length - 1)];
+            if (isHeader)
+            {
+                block.FontSize = 12;
+                block.FontWeight = FontWeight.SemiBold;
+                block.Foreground = HeadingFg;
+            }
+            foreach (var inline in ParseInlines(content)) block.Inlines!.Add(inline);
+            var cell = new Border
+            {
+                Padding = new Thickness(11, 6, 11, 6),
+                Background = isHeader ? TableHeaderBg : r % 2 == 0 ? TableStripeBg : Brushes.Transparent,
+                BorderBrush = TableLine,
+                BorderThickness = new Thickness(0, r == 0 ? 0 : 1, c == cols - 1 ? 0 : 1, 0),
+                Child = block,
+            };
+            Grid.SetRow(cell, r);
+            Grid.SetColumn(cell, c);
+            grid.Children.Add(cell);
+        }
+
+        for (var c = 0; c < cols; c++) Cell(0, c, c < header.Count ? header[c] : string.Empty, true);
+        for (var r = 0; r < rows.Count; r++)
+            for (var c = 0; c < cols; c++)
+                Cell(r + 1, c, c < rows[r].Count ? rows[r][c] : string.Empty, false);
+
+        return new Border
+        {
+            BorderBrush = TableBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            ClipToBounds = true,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            BoxShadow = BoxShadows.Parse("0 2 8 0 #0C080F23"),
+            Child = new ScrollViewer
+            {
+                Content = grid,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            },
+        };
+    }
+
     private Control ListItem(int indent, string marker, string content)
     {
-        var markerBlock = new TextBlock
+        Control markerControl;
+        var isTask = marker == "-" && content.Length >= 4 && content[0] == '[' && content[2] == ']' &&
+                     content[3] == ' ' && content[1] is ' ' or 'x' or 'X';
+        if (isTask)
         {
-            Text = marker,
-            FontSize = 13,
-            Foreground = MutedFg,
-            MinWidth = 16,
-            Margin = new Thickness(0, 0, 4, 0),
-        };
+            var done = content[1] is 'x' or 'X';
+            content = content[4..];
+            markerControl = TaskCheck(done);
+        }
+        else
+        {
+            markerControl = new TextBlock
+            {
+                Text = marker == "-" ? "•" : marker,
+                FontSize = 13,
+                Foreground = marker == "-" ? BulletFg : MutedFg,
+                MinWidth = 16,
+                Margin = new Thickness(0, 0, 4, 0),
+            };
+        }
         var body = TextBlock(13);
         foreach (var inline in ParseInlines(content)) body.Inlines!.Add(inline);
         var row = new Grid
@@ -183,18 +309,62 @@ public sealed class MarkdownView : ContentControl
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
         };
         Grid.SetColumn(body, 1);
-        row.Children.Add(markerBlock);
+        row.Children.Add(markerControl);
         row.Children.Add(body);
         return row;
     }
 
+    /// <summary>GitHub task-list checkbox: violet coin when done, quiet rim when open.</summary>
+    private static Control TaskCheck(bool done) => new Border
+    {
+        Width = 15,
+        Height = 15,
+        CornerRadius = new CornerRadius(4.5),
+        Margin = new Thickness(0, 2.5, 7, 0),
+        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+        Background = done ? CheckFill : Brushes.Transparent,
+        BorderBrush = done ? CheckFill : CheckRim,
+        BorderThickness = new Thickness(1.4),
+        Child = done
+            ? new Avalonia.Controls.Shapes.Path
+            {
+                Data = Geometry.Parse("M2.5,7.5 L6,11 L12,3.5"),
+                Stroke = Brushes.White,
+                StrokeThickness = 1.8,
+                StrokeLineCap = PenLineCap.Round,
+                StrokeJoin = PenLineJoin.Round,
+                Stretch = Stretch.Uniform,
+                Width = 9,
+                Height = 9,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            }
+            : null,
+    };
+
     private Control Heading(string text, int level)
     {
-        var block = TextBlock(level switch { 1 => 16.5, 2 => 15, _ => 13.5 });
-        block.FontWeight = FontWeight.SemiBold;
-        block.Margin = new Thickness(0, level <= 2 ? 4 : 2, 0, 0);
+        var block = TextBlock(level switch { 1 => 17, 2 => 15.5, _ => 13.5 });
+        block.FontWeight = level <= 2 ? FontWeight.Bold : FontWeight.SemiBold;
+        block.Foreground = level <= 2 ? HeadingAccentFg : HeadingFg;
+        block.Margin = new Thickness(0, level <= 2 ? 6 : 3, 0, 2);
         foreach (var inline in ParseInlines(text)) block.Inlines!.Add(inline);
-        return block;
+        if (level > 1) return block;
+        // H1: accent underline so headings read as signal chrome, not plain bold.
+        var rule = new Border
+        {
+            Height = 1.5,
+            Background = RuleBrush,
+            Opacity = 0.65,
+            Margin = new Thickness(0, 0, 0, 2),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+        };
+        return new StackPanel
+        {
+            Spacing = 4,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            Children = { block, rule },
+        };
     }
 
     private Control BlockQuote(string text)
@@ -204,9 +374,11 @@ public sealed class MarkdownView : ContentControl
         foreach (var inline in ParseInlines(text)) block.Inlines!.Add(inline);
         return new Border
         {
+            Background = QuoteBg,
             BorderBrush = QuoteBar,
             BorderThickness = new Thickness(3, 0, 0, 0),
-            Padding = new Thickness(10, 2, 0, 2),
+            CornerRadius = new CornerRadius(0, 8, 8, 0),
+            Padding = new Thickness(12, 6, 10, 6),
             Child = block,
         };
     }
@@ -239,37 +411,50 @@ public sealed class MarkdownView : ContentControl
             copy.Content = "copied";
             DispatcherTimer.RunOnce(() => copy.Content = "copy", TimeSpan.FromSeconds(1.5));
         };
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        header.Children.Add(new TextBlock
+        var langLabel = new TextBlock
         {
             Text = string.IsNullOrEmpty(language) ? "code" : language,
             FontSize = 10.5,
-            Foreground = MutedFg,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = HeadingAccentFg,
             FontFamily = Mono,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+            Opacity = 0.9,
+        };
+        var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         Grid.SetColumn(copy, 1);
-        header.Children.Add(copy);
+        headerGrid.Children.Add(langLabel);
+        headerGrid.Children.Add(copy);
+        var header = new Border
+        {
+            Background = CodeBlockHeaderBg,
+            CornerRadius = new CornerRadius(8, 8, 0, 0),
+            Padding = new Thickness(10, 5, 8, 5),
+            Margin = new Thickness(-10, -6, -10, 0),
+            Child = headerGrid,
+        };
         return new Border
         {
             Background = CodeBlockBg,
             BorderBrush = CodeBlockBorder,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(9),
-            Padding = new Thickness(10, 6, 10, 9),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(10, 6, 10, 10),
             ClipToBounds = true,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-            Child = new StackPanel { Spacing = 4, Children = { header, scroll } },
+            BoxShadow = BoxShadows.Parse("0 3 10 0 #0E080F23, inset 0 1 0 0 #AAFFFFFF"),
+            Child = new StackPanel { Spacing = 6, Children = { header, scroll } },
         };
     }
 
     private static SelectableTextBlock TextBlock(double fontSize) => new()
     {
         FontSize = fontSize,
+        Foreground = LumaTheme.TextBodyBrush,
         // Break long URLs / tokens so bubbles stay within the panel.
         TextWrapping = TextWrapping.WrapWithOverflow,
-        LineHeight = fontSize * 1.45,
+        LineHeight = fontSize * 1.48,
         Inlines = [],
     };
 
@@ -326,6 +511,19 @@ public sealed class MarkdownView : ContentControl
                         i = end + delimiter.Length;
                         continue;
                     }
+                }
+            }
+            else if (c == '~' && i + 1 < text.Length && text[i + 1] == '~')
+            {
+                var end = text.IndexOf("~~", i + 2, StringComparison.Ordinal);
+                if (end > i + 1)
+                {
+                    Flush();
+                    var span = new Span { TextDecorations = TextDecorations.Strikethrough, Foreground = MutedFg };
+                    foreach (var inline in ParseInlines(text[(i + 2)..end])) span.Inlines.Add(inline);
+                    result.Add(span);
+                    i = end + 2;
+                    continue;
                 }
             }
             else if (c == '[')

@@ -13,7 +13,7 @@ Always-on-top **Avalonia 12** / **.NET 10** dock (`src/Luma.App`, assembly `Luma
 | Outcome memory | `%LocalAppData%/Luma/outcome-memory.json` |
 | MCP installs | `%LocalAppData%/Luma/mcp-installs.json` → syncs `~/.grok/config.toml` managed block |
 
-**TFM:** `net10.0` (not windows-only). **Theme:** `LumaTheme` + `App.axaml` (violet glass). Secondary windows are code-built with `LumaTheme`.
+**TFM:** `net10.0` (not windows-only). **Theme:** `LumaTheme` + `App.axaml` (**Luma Aurora** brand — violet `#7C4DFF` → cyan `#00E5FF`, mist `#F2F4FF`). Secondary windows use `LumaTheme` (keep in sync with `App.axaml`).
 
 ## Core chat path
 
@@ -49,15 +49,16 @@ Working directory is passed on chat turns when set. Agents may read/write under 
 
 **Chaos Mode:** settings/`+` — tone ELI5/staff, roast UI, dual debate, pomodoro focus lock on Explain.
 
-**MCP:** `McpMarketplaceWindow` — curated + official registry browse, install/enable/remove, sync Grok `config.toml`.
+**MCP:** `McpMarketplaceWindow` — curated + registry browse, category filters, env-key setup, import from config, install/enable/remove, sync Grok `config.toml` (dedupes tables).
 
-## UI map
+## UI map (Luma Aurora brand)
 
-- Header: New chat, provider, settings, close.
-- Quick actions: Explain this screen / Explain this part (no standalone snip tool).
-- Chat bubbles: markdown, questions card, file audit, split-brain card, SHOW_WHERE button, digest action chips.
-- Live pair strip (above next-steps): file mini-map + heat while/after agent writes.
-- Compose: context chips + `+` (folder, clipboard, files, chaos, split-brain, MCP).
+- **Brand:** star mark ✦; primary gradient violet→blue→cyan; secondary outline violet; mist glass panel.
+- **Shell:** dual geometric parallax + soft aurora orbs on `panelshell`; busy/writing rim; compose `listening` multi-stop gradient border (periwinkle→lavender→peach).
+- **Empty stage:** glowing star hero + dual pill Explain actions + suggestion chips.
+- **Chat:** full-height messages; Explain under compose `+`; matching white bubbles.
+- **Header:** star + Luma wordmark, status pill, provider, + New chat, settings, close.
+- Compose: white capsule, star send; chaos under `+`.
 
 ## Conventions
 

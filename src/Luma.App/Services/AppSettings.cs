@@ -25,9 +25,13 @@ public sealed class AppSettings
     public bool SuggestFromScreen { get; set; } = true;
     public bool PrewarmOnLaunch { get; set; } = true;
     public int SuggestionCount { get; set; } = 3;
-    /// <summary>0 regenerates suggestions on every panel open; higher values reuse recent chips.</summary>
-    public int SuggestionFreshSeconds { get; set; } = 0;
-    public int SuggestionImageMaxWidth { get; set; } = 1280;
+    /// <summary>
+    /// Reuse recent chips for this many seconds after generation (0 = always regenerate on open).
+    /// Default 45 keeps reopening the dock snappy without stale forever.
+    /// </summary>
+    public int SuggestionFreshSeconds { get; set; } = 45;
+    /// <summary>Downscale ambient capture before suggestion calls (smaller = faster tokens).</summary>
+    public int SuggestionImageMaxWidth { get; set; } = 720;
     /// <summary>Skips regenerating chips when the screen is visually unchanged - a free reuse.</summary>
     public bool SkipSuggestionsWhenScreenUnchanged { get; set; } = true;
 

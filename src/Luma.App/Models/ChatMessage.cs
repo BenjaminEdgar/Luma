@@ -13,6 +13,7 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     private bool _isError;
     private string? _caption;
     private string? _elapsed;
+    private string? _turnMeta;
     private bool _isQuestion;
     private string? _question;
     private string _questionAnswer = string.Empty;
@@ -29,11 +30,30 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     public bool IsUser => Role == "user";
 
     public string Text { get => _text; set => Set(ref _text, value); }
-    public bool IsPending { get => _isPending; set => Set(ref _isPending, value); }
+    public bool IsPending
+    {
+        get => _isPending;
+        set
+        {
+            if (!Set(ref _isPending, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSpeaking)));
+        }
+    }
     public bool IsError { get => _isError; set => Set(ref _isError, value); }
     /// <summary>Small muted line above assistant text, e.g. "* Claude - 6.2 s".</summary>
     public string? Caption { get => _caption; set => Set(ref _caption, value); }
     public string? Elapsed { get => _elapsed; set => Set(ref _elapsed, value); }
+    /// <summary>Compact per-turn trust metadata: provider, mode, and attached context.</summary>
+    public string? TurnMeta
+    {
+        get => _turnMeta;
+        set
+        {
+            if (!Set(ref _turnMeta, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasTurnMeta)));
+        }
+    }
+    public bool HasTurnMeta => !string.IsNullOrWhiteSpace(_turnMeta);
     /// <summary>In-chat screenshot thumbnail (owned copy; disposed with the message).</summary>
     public Bitmap? AttachmentImage
     {
@@ -132,7 +152,17 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     public bool HasQuestionChoices => _questionChoices.Count > 0;
     /// <summary>In-chat card is visible while a clarifying question is outstanding.</summary>
     public bool ShowQuestionCard => _isQuestion && !string.IsNullOrWhiteSpace(_question);
-    public bool IsStreaming { get => _isStreaming; set => Set(ref _isStreaming, value); }
+    public bool IsStreaming
+    {
+        get => _isStreaming;
+        set
+        {
+            if (!Set(ref _isStreaming, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSpeaking)));
+        }
+    }
+    /// <summary>True while the model is thinking or streaming — drives the shared speaking line.</summary>
+    public bool IsSpeaking => !IsUser && (_isPending || _isStreaming);
     /// <summary>Present when this assistant message carries a coding-task diff review card.</summary>
     public CodeChatSession? CodeSession
     {

@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     private Point _dockPressPoint;
     private int _snapAnimationId;
     private int _shellAnimationId;
+    private int _shellPulseId;
+    private int _messageCount;
     private string? _lastCodeRepository;
 
     public MainWindow()
@@ -44,6 +46,12 @@ public partial class MainWindow : Window
         LoadSettings();
         _viewModel.WorkingDirectoryRequested = ResolveWorkingDirectoryAsync;
         _viewModel.AttachFilesRequested = PickFilesToAttachAsync;
+        // Micro-delights: provider accent flash (skip initial settings load via Opened flag timing).
+        _viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainWindowViewModel.SelectedProviderIndex) && _expanded)
+                _ = PulseShellFlashAsync();
+        };
         _questionWindow.Answered += answer =>
         {
             var message = _pendingQuestion;
@@ -96,6 +104,9 @@ public partial class MainWindow : Window
                 _ = _viewModel.RefreshContextAsync();
         };
         QuestionBox.AddHandler(KeyDownEvent, OnQuestionKeyDown, RoutingStrategies.Tunnel);
+        // Compose "listening" beacon: pure focus glue (no VM change).
+        QuestionBox.GotFocus += (_, _) => ComposeShell.Classes.Set("listening", true);
+        QuestionBox.LostFocus += (_, _) => ComposeShell.Classes.Set("listening", false);
         KeyDown += (_, e) => { if (e.Key == Key.Escape && _expanded) SetExpanded(false); };
         _viewModel.Messages.CollectionChanged += (_, e) =>
         {
@@ -110,6 +121,11 @@ public partial class MainWindow : Window
                         else if (ReferenceEquals(_pendingQuestion, message))
                             ClearPendingQuestion();
                     };
+            // New chat / clear: brief shell dim→bright reset breath.
+            var prev = _messageCount;
+            _messageCount = _viewModel.Messages.Count;
+            if (prev > 0 && _messageCount == 0 && _expanded)
+                _ = PulseShellBreathAsync();
             ScrollChatToEnd();
         };
         _viewModel.LivePairJumpRequested = (_, _) => ScrollChatToEnd();
@@ -346,6 +362,44 @@ public partial class MainWindow : Window
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         BeginMoveDrag(e);
         PositionPanelOnScreen(); // keep the dropped panel fully visible
+    }
+
+    /// <summary>Provider switch: brief violet flash on the panelshell border/glow.</summary>
+    private async Task PulseShellFlashAsync()
+    {
+        if (!PanelBackground.IsVisible) return;
+        var id = ++_shellPulseId;
+        PanelBackground.Classes.Set("flash", true);
+        try
+        {
+            await Task.Delay(280);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        if (id != _shellPulseId) return;
+        PanelBackground.Classes.Set("flash", false);
+    }
+
+    /// <summary>New chat: shell dim→bright reset (opacity only — no transform thrash).</summary>
+    private async Task PulseShellBreathAsync()
+    {
+        if (!PanelBackground.IsVisible || !_expanded) return;
+        var id = ++_shellPulseId;
+        var prior = PanelBackground.Opacity;
+        if (prior < 0.5) prior = 1;
+        PanelBackground.Opacity = 0.42;
+        try
+        {
+            await Task.Delay(140);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        if (id != _shellPulseId || !_expanded) return;
+        PanelBackground.Opacity = 1;
     }
 
     private void SetExpanded(bool expanded)

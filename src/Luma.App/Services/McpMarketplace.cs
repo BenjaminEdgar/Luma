@@ -334,7 +334,77 @@ public static class McpCuratedCatalog
             Category = "Web",
             Version = "latest",
         },
+        new()
+        {
+            Id = "curated/sequential-thinking",
+            Title = "Sequential Thinking",
+            Description = "Structured multi-step reasoning tools for complex planning and analysis.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+            Category = "Core",
+            IsFeatured = true,
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/time",
+            Title = "Time",
+            Description = "Current time and timezone conversion utilities for agents.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-time"],
+            Category = "Core",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/postgres",
+            Title = "PostgreSQL",
+            Description = "Query PostgreSQL. Set DATABASE_URL (postgres connection string) after install.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-postgres"],
+            DefaultEnv = new Dictionary<string, string> { ["DATABASE_URL"] = "" },
+            Category = "Data",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/slack",
+            Title = "Slack",
+            Description = "Slack channels and messages. Set SLACK_BOT_TOKEN (and optional SLACK_TEAM_ID).",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-slack"],
+            DefaultEnv = new Dictionary<string, string>
+            {
+                ["SLACK_BOT_TOKEN"] = "",
+                ["SLACK_TEAM_ID"] = "",
+            },
+            Category = "Dev",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/everything",
+            Title = "Everything (test)",
+            Description = "Reference MCP server with sample tools/prompts — useful for testing your setup.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-everything"],
+            Category = "Core",
+            Version = "latest",
+        },
     ];
+
+    public static IReadOnlyList<string> Categories { get; } =
+        ["All", "Core", "Dev", "Web", "Data", "Registry"];
 }
 
 /// <summary>Persists installs and syncs them into Grok Build's config.toml.</summary>
@@ -408,6 +478,119 @@ public sealed class McpInstallManager
     public bool IsInstalled(string id) =>
         LoadInstalled().Any(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Env keys declared by the catalog recipe that still need a non-empty value.</summary>
+    public static IReadOnlyList<string> MissingEnvKeys(McpCatalogEntry entry, IDictionary<string, string>? env = null)
+    {
+        if (entry.DefaultEnv.Count == 0) return [];
+        env ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        return entry.DefaultEnv.Keys
+            .Where(k => !env.TryGetValue(k, out var v) || string.IsNullOrWhiteSpace(v))
+            .ToList();
+    }
+
+    public static IReadOnlyList<string> MissingEnvKeys(McpInstalledServer server) =>
+        server.Env.Where(kv => string.IsNullOrWhiteSpace(kv.Value))
+            .Select(kv => kv.Key)
+            .ToList();
+
+    public void UpdateEnv(string id, IDictionary<string, string> env)
+    {
+        var list = LoadInstalled().ToList();
+        var item = list.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
+        if (item is null) return;
+        foreach (var kv in env)
+            item.Env[kv.Key] = kv.Value ?? "";
+        SaveInstalled(list);
+    }
+
+    /// <summary>
+    /// Pulls [mcp_servers.*] tables already present in config.toml into Luma's install list
+    /// (so marketplace management covers servers the user added by hand).
+    /// </summary>
+    public int ImportFromGrokConfig()
+    {
+        var path = GrokConfigPath();
+        if (!File.Exists(path)) return 0;
+        var text = File.ReadAllText(path);
+        var list = LoadInstalled().ToList();
+        var before = list.Count;
+        foreach (var parsed in ParseMcpServerTables(text))
+        {
+            if (list.Any(s => string.Equals(s.ConfigSectionName, parsed.ConfigSectionName, StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(s.Id, parsed.Id, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            list.Add(parsed);
+        }
+        if (list.Count == before) return 0;
+        SaveInstalled(list);
+        return list.Count - before;
+    }
+
+    /// <summary>Parses flat <c>[mcp_servers.name]</c> tables from a Grok config.toml body.</summary>
+    public static IReadOnlyList<McpInstalledServer> ParseMcpServerTables(string toml)
+    {
+        var results = new List<McpInstalledServer>();
+        // Skip Luma-managed region — those already live in mcp-installs.json.
+        var working = StripManagedBlocks(toml);
+        var matches = Regex.Matches(working, @"(?ms)^\[mcp_servers\.([^\]]+)\]\s*\r?\n(.*?)(?=^\[|\z)");
+        foreach (Match match in matches)
+        {
+            var key = match.Groups[1].Value.Trim();
+            var body = match.Groups[2].Value;
+            if (string.IsNullOrWhiteSpace(key)) continue;
+
+            var enabled = !Regex.IsMatch(body, @"(?im)^\s*enabled\s*=\s*false\b");
+            var url = MatchTomlString(body, "url");
+            var command = MatchTomlString(body, "command") ?? "npx";
+            var args = MatchTomlStringArray(body, "args");
+            var env = MatchTomlInlineTable(body, "env");
+
+            results.Add(new McpInstalledServer
+            {
+                Id = "imported/" + key,
+                Title = key,
+                Description = "Imported from Grok config.toml",
+                Kind = !string.IsNullOrWhiteSpace(url) ? McpInstallKind.RemoteHttp : McpInstallKind.NpxPackage,
+                Enabled = enabled,
+                RemoteUrl = url,
+                Command = command,
+                Args = args,
+                Env = env,
+                ConfigKey = key,
+                InstalledAt = DateTimeOffset.UtcNow,
+            });
+        }
+        return results;
+    }
+
+    private static string? MatchTomlString(string body, string key)
+    {
+        var m = Regex.Match(body, $@"(?im)^\s*{Regex.Escape(key)}\s*=\s*""((?:\\.|[^""])*)""");
+        return m.Success ? UnescapeToml(m.Groups[1].Value) : null;
+    }
+
+    private static List<string> MatchTomlStringArray(string body, string key)
+    {
+        var m = Regex.Match(body, $@"(?ims)^\s*{Regex.Escape(key)}\s*=\s*\[(.*?)\]");
+        if (!m.Success) return [];
+        return Regex.Matches(m.Groups[1].Value, @"""((?:\\.|[^""])*)""")
+            .Select(x => UnescapeToml(x.Groups[1].Value))
+            .ToList();
+    }
+
+    private static Dictionary<string, string> MatchTomlInlineTable(string body, string key)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var m = Regex.Match(body, $@"(?ims)^\s*{Regex.Escape(key)}\s*=\s*\{{(.*?)\}}");
+        if (!m.Success) return dict;
+        foreach (Match kv in Regex.Matches(m.Groups[1].Value, @"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*""((?:\\.|[^""])*)"""))
+            dict[kv.Groups[1].Value] = UnescapeToml(kv.Groups[2].Value);
+        return dict;
+    }
+
+    private static string UnescapeToml(string value) =>
+        value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+
     public static string GrokConfigPath() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".grok", "config.toml");
 
@@ -422,7 +605,16 @@ public sealed class McpInstallManager
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         var existing = File.Exists(path) ? File.ReadAllText(path) : "";
+        // Drop previous managed region, then any leftover tables for the same keys
+        // (hand-edited or older installs) so TOML never gets duplicate [mcp_servers.*] keys.
         var without = StripManagedBlocks(existing);
+        var ownedKeys = servers
+            .Select(s => s.ConfigSectionName)
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        without = StripMcpServerTables(without, ownedKeys);
+
         var builder = new StringBuilder(without.TrimEnd());
         if (builder.Length > 0) builder.AppendLine().AppendLine();
 
@@ -500,6 +692,24 @@ public sealed class McpInstallManager
             while (j < toml.Length && (toml[j] == '\r' || toml[j] == '\n')) j++;
             toml = toml[..i] + toml[j..];
         }
+        return toml;
+    }
+
+    /// <summary>
+    /// Removes entire <c>[mcp_servers.key]</c> tables so re-syncing Luma installs cannot create
+    /// duplicate TOML keys (Grok fails with "duplicate key" at parse time).
+    /// </summary>
+    public static string StripMcpServerTables(string toml, IEnumerable<string> keys)
+    {
+        foreach (var key in keys)
+        {
+            if (string.IsNullOrWhiteSpace(key)) continue;
+            // Match table header then body until the next top-level table or EOF.
+            var pattern = $@"(?ms)^\[mcp_servers\.{Regex.Escape(key)}\][ \t]*\r?\n.*?(?=^\[|\z)";
+            toml = Regex.Replace(toml, pattern, "");
+        }
+        // Collapse runs of blank lines left by removals.
+        toml = Regex.Replace(toml, @"(\r?\n){3,}", "\n\n");
         return toml;
     }
 }

@@ -42,14 +42,14 @@ public sealed class SelectionWindow : Window
         Topmost = true;
         ShowInTaskbar = false;
         CanResize = false;
-        Background = new SolidColorBrush(Color.FromArgb(75, 0, 0, 0));
+        Background = new SolidColorBrush(Color.FromArgb(82, 6, 8, 14));
         Cursor = new Cursor(StandardCursorType.Cross);
 
-        _sizeText = new TextBlock { Foreground = Brushes.White, FontSize = 12, FontWeight = FontWeight.Medium };
+        _sizeText = new TextBlock { Foreground = LumaTheme.TextBrightBrush, FontSize = 12, FontWeight = FontWeight.Medium };
         _sizeBadge = new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(230, 20, 22, 30)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(150, Accent.R, Accent.G, Accent.B)),
+            Background = LumaTheme.GlassFillStrongBrush,
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(7),
             Padding = new Thickness(8, 3),
@@ -58,8 +58,8 @@ public sealed class SelectionWindow : Window
         };
         _hint = new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(230, 20, 22, 30)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+            Background = LumaTheme.GlassFillStrongBrush,
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(999),
             Padding = new Thickness(16, 8),
@@ -72,8 +72,8 @@ public sealed class SelectionWindow : Window
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = "*", FontSize = 13, Foreground = new SolidColorBrush(Accent), VerticalAlignment = VerticalAlignment.Center },
-                    new TextBlock { Text = "Drag to select a region - Esc to cancel", Foreground = Brushes.White, FontSize = 13, VerticalAlignment = VerticalAlignment.Center },
+                    new TextBlock { Text = "*", FontSize = 13, Foreground = LumaTheme.AccentSoftBrush, VerticalAlignment = VerticalAlignment.Center },
+                    new TextBlock { Text = "Drag to select a region - Esc to cancel", Foreground = LumaTheme.TextBrightBrush, FontSize = 13, VerticalAlignment = VerticalAlignment.Center },
                 },
             },
         };

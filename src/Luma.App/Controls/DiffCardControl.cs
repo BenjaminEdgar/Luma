@@ -18,9 +18,9 @@ public sealed class DiffCardControl : ContentControl
     public static readonly StyledProperty<CodeChatSession?> SessionProperty =
         AvaloniaProperty.Register<DiffCardControl, CodeChatSession?>(nameof(Session));
 
-    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#B0A8C8"));
-    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#88090A12"));
-    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#448A63F5"));
+    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#64748B"));
+    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#F2FFFFFF"));
+    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#887C5CFF"));
 
     private readonly TextBlock _status = new() { FontSize = 12, Foreground = MutedFg, TextWrapping = TextWrapping.WrapWithOverflow };
     private readonly Button _toggle = new() { Padding = new Thickness(10, 5), HorizontalAlignment = HorizontalAlignment.Right };
