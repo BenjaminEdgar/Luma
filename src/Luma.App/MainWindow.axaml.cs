@@ -47,10 +47,15 @@ public partial class MainWindow : Window
         _viewModel.WorkingDirectoryRequested = ResolveWorkingDirectoryAsync;
         _viewModel.AttachFilesRequested = PickFilesToAttachAsync;
         // Micro-delights: provider accent flash (skip initial settings load via Opened flag timing).
+        // Also keep the live-diff preview scrolled to the latest lines as writes land.
         _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.SelectedProviderIndex) && _expanded)
                 _ = PulseShellFlashAsync();
+            if (e.PropertyName is nameof(MainWindowViewModel.LivePairPreviewLines)
+                or nameof(MainWindowViewModel.ActiveLivePairFile)
+                or nameof(MainWindowViewModel.HasLivePairPreview))
+                ScrollLivePairPreviewToEnd();
         };
         _questionWindow.Answered += answer =>
         {
@@ -131,8 +136,9 @@ public partial class MainWindow : Window
         _viewModel.LivePairJumpRequested = (_, _) => ScrollChatToEnd();
         _viewModel.LivePairFiles.CollectionChanged += (_, _) =>
         {
-            // Keep the latest write in view when the mini-map first appears.
+            // Keep the live diff panel in view when the first write lands.
             if (_viewModel.LivePairFiles.Count == 1) ScrollChatToEnd();
+            ScrollLivePairPreviewToEnd();
         };
     }
 
@@ -306,6 +312,7 @@ public partial class MainWindow : Window
         AppSettings.Load();
         var settings = AppSettings.Current;
         _viewModel.SelectedProviderIndex = Math.Clamp(settings.Provider, 0, _viewModel.Providers.Count - 1);
+        _viewModel.SelectedEffortIndex = AppSettings.EffortToIndex(settings.ChatReasoningEffort);
         if (settings.WorkingDirectory is not null && Directory.Exists(settings.WorkingDirectory))
             _viewModel.WorkingDirectory = _lastCodeRepository = settings.WorkingDirectory;
     }
@@ -314,12 +321,16 @@ public partial class MainWindow : Window
     {
         var settings = AppSettings.Current;
         settings.Provider = _viewModel.SelectedProviderIndex;
+        settings.ChatReasoningEffort = AppSettings.EffortFromIndex(_viewModel.SelectedEffortIndex);
         settings.WorkingDirectory = _viewModel.WorkingDirectory;
         settings.Save();
     }
 
     private void ScrollChatToEnd() =>
         Dispatcher.UIThread.Post(ChatScroll.ScrollToEnd, DispatcherPriority.Loaded);
+
+    private void ScrollLivePairPreviewToEnd() =>
+        Dispatcher.UIThread.Post(() => LivePairPreviewScroll?.ScrollToEnd(), DispatcherPriority.Loaded);
 
     private void OnQuestionKeyDown(object? sender, KeyEventArgs e)
     {

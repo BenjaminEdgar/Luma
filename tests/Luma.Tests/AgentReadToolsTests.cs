@@ -14,7 +14,7 @@ public sealed class AgentReadToolsTests
         Assert.Contains("permission-mode", source);
         Assert.Contains("dontAsk", source);
         // Suggestion garnish should not pay for tools.
-        Assert.Contains("TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route", source);
+        Assert.Contains("TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt", source);
     }
 
     [Fact]

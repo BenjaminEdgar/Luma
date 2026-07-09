@@ -28,9 +28,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _busy;
     private bool _refreshingContext;
     private bool _suggesting;
+    private bool _improvingPrompt;
     private CancellationTokenSource? _suggestCts;
+    private CancellationTokenSource? _improveCts;
     private DateTime _suggestionsAt = DateTime.MinValue;
     private int _selectedProviderIndex;
+    private int _selectedEffortIndex = 1;
     private string? _workingDirectory;
     private CancellationTokenSource? _requestCts;
     private ProviderDiagnostic? _claudeDiagnostic;
@@ -51,6 +54,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private string? _livePairRoot;
     private ChatMessage? _livePairAnswer;
     private bool _livePairActive;
+    private LivePairFile? _activeLivePairFile;
+    private bool _livePairUserPicked;
 
     public MainWindowViewModel(Window owner, IScreenCaptureService captureService, IAiClientFactory clientFactory,
         IRunningOperationCoordinator operations, ProviderDiagnostics diagnostics, IScreenDifferenceService screenDifference)
@@ -93,6 +98,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ChooseSplitBrainCommand = new ParameterCommand(ChooseSplitBrainSide);
         JumpLivePairCommand = new ParameterCommand(JumpLivePairFile);
         DismissLivePairCommand = new RelayCommand(DismissLivePair);
+        SelectProviderCommand = new ParameterCommand(SelectProvider);
+        SelectEffortCommand = new ParameterCommand(SelectEffort);
+        ImprovePromptCommand = new AsyncCommand(ImprovePromptAsync,
+            () => IsIdle && !IsImprovingPrompt && !string.IsNullOrWhiteSpace(Question) && SelectedDiagnostic?.IsAvailable != false);
+        _selectedEffortIndex = AppSettings.EffortToIndex(AppSettings.Current.ChatReasoningEffort);
         _operations.Changed += OnOperationsChanged;
         Messages.CollectionChanged += (_, _) =>
         {
@@ -106,6 +116,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<ChatMessage> Messages { get; } = [];
     public IReadOnlyList<string> Providers { get; } = ["Claude", "Codex", "Grok"];
+    public IReadOnlyList<string> EffortLevels { get; } = ["Low", "Medium", "High"];
     public AsyncCommand CaptureCommand { get; }
     public AsyncCommand ExplainSelectionCommand { get; }
     public AsyncCommand ExplainScreenCommand { get; }
@@ -132,22 +143,49 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ParameterCommand ChooseSplitBrainCommand { get; }
     public ParameterCommand JumpLivePairCommand { get; }
     public RelayCommand DismissLivePairCommand { get; }
+    public ParameterCommand SelectProviderCommand { get; }
+    public ParameterCommand SelectEffortCommand { get; }
+    public AsyncCommand ImprovePromptCommand { get; }
     /// <summary>Opens a file picker (wired from MainWindow) and returns absolute paths.</summary>
     public Func<Task<IReadOnlyList<string>>>? AttachFilesRequested { get; set; }
     /// <summary>Raised when the user picks a file in the live pair map so the UI can scroll to the audit row.</summary>
     public Action<ChatMessage, string>? LivePairJumpRequested { get; set; }
-    /// <summary>Files the agent has touched so far this turn (live mini-map).</summary>
+    /// <summary>Files the agent has touched so far this turn (live diff panel).</summary>
     public ObservableCollection<LivePairFile> LivePairFiles { get; } = [];
     public bool HasLivePair => LivePairFiles.Count > 0;
     public bool IsLivePairWatching => _livePairActive;
     /// <summary>Show the strip while watching (even empty) or after files land.</summary>
     public bool ShowLivePair => _livePairActive || LivePairFiles.Count > 0;
     public string LivePairTitle => _livePairActive
-        ? (LivePairFiles.Count == 0 ? "PAIR · watching writes…" : $"PAIR · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}")
-        : (LivePairFiles.Count == 0 ? "PAIR" : $"PAIR · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}");
+        ? (LivePairFiles.Count == 0 ? "LIVE DIFF · watching writes…" : $"LIVE DIFF · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}")
+        : (LivePairFiles.Count == 0 ? "LIVE DIFF" : $"LIVE DIFF · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}");
     public string LivePairSubtitle => _livePairActive
-        ? "Live heatmap while the agent writes"
-        : "Click a file to jump to the audit entry";
+        ? (ActiveLivePairFile is { } active
+            ? $"Streaming · {active.RelativePath}"
+            : "Live line output while the agent writes")
+        : (ActiveLivePairFile is { } done
+            ? done.RelativePath
+            : "Click a file to preview · jump to audit when ready");
+
+    /// <summary>File currently shown in the live unified-diff preview.</summary>
+    public LivePairFile? ActiveLivePairFile
+    {
+        get => _activeLivePairFile;
+        private set
+        {
+            if (ReferenceEquals(_activeLivePairFile, value)) return;
+            if (_activeLivePairFile is not null) _activeLivePairFile.IsActive = false;
+            _activeLivePairFile = value;
+            if (_activeLivePairFile is not null) _activeLivePairFile.IsActive = true;
+            OnPropertyChanged(nameof(ActiveLivePairFile));
+            OnPropertyChanged(nameof(HasLivePairPreview));
+            OnPropertyChanged(nameof(LivePairPreviewLines));
+            OnPropertyChanged(nameof(LivePairSubtitle));
+        }
+    }
+
+    public bool HasLivePairPreview => ActiveLivePairFile is { HasPreview: true };
+    public ObservableCollection<LivePairPreviewLine>? LivePairPreviewLines => ActiveLivePairFile?.PreviewLines;
     /// <summary>Short prompt ideas derived from the ambient screen capture, shown as chips.</summary>
     public ObservableCollection<string> Suggestions { get; } = [];
     /// <summary>Display names of files attached for the next send (@file or picker).</summary>
@@ -159,6 +197,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             Set(ref _suggesting, value);
             NotifySurfaceStateChanged();
+        }
+    }
+    public bool IsImprovingPrompt
+    {
+        get => _improvingPrompt;
+        private set
+        {
+            Set(ref _improvingPrompt, value);
+            NotifySurfaceStateChanged();
+            ImprovePromptCommand.RaiseCanExecuteChanged();
         }
     }
     public string? ClipboardSnippet
@@ -216,7 +264,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public Func<Task<bool>>? NewChatConfirmationRequested { get; set; }
     public Action? ScreenExplanationReadyToShow { get; set; }
 
-    public int SelectedProviderIndex { get => _selectedProviderIndex; set { Set(ref _selectedProviderIndex, value); OnPropertyChanged(nameof(CanSend)); OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); SendCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged(); RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged(); } }
+    public int SelectedProviderIndex
+    {
+        get => _selectedProviderIndex;
+        set
+        {
+            if (_selectedProviderIndex == value) return;
+            Set(ref _selectedProviderIndex, value);
+            OnPropertyChanged(nameof(CanSend));
+            OnPropertyChanged(nameof(ProviderStatus));
+            OnPropertyChanged(nameof(HasProviderProblem));
+            NotifyModelPickerChanged();
+            SendCommand.RaiseCanExecuteChanged();
+            ImprovePromptCommand.RaiseCanExecuteChanged();
+            ExplainSelectionCommand.RaiseCanExecuteChanged();
+            ExplainScreenCommand.RaiseCanExecuteChanged();
+            RoastUiCommand.RaiseCanExecuteChanged();
+            ArgueWithYourselfCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>0 = low, 1 = medium, 2 = high — used by Codex chat/code turns.</summary>
+    public int SelectedEffortIndex
+    {
+        get => _selectedEffortIndex;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, EffortLevels.Count - 1);
+            if (_selectedEffortIndex == clamped) return;
+            Set(ref _selectedEffortIndex, clamped);
+            AppSettings.Current.ChatReasoningEffort = AppSettings.EffortFromIndex(clamped);
+            AppSettings.Current.Save();
+            NotifyModelPickerChanged();
+        }
+    }
+
+    /// <summary>Compact compose-bar label, e.g. "Claude · Med".</summary>
+    public string ModelPickerLabel
+    {
+        get
+        {
+            var provider = Providers[Math.Clamp(SelectedProviderIndex, 0, Providers.Count - 1)];
+            var effort = SelectedEffortIndex switch
+            {
+                0 => "Low",
+                2 => "High",
+                _ => "Med"
+            };
+            return $"{provider} · {effort}";
+        }
+    }
+
+    public string ProviderMenuClaude => MenuCheck(SelectedProviderIndex == 0, "Claude");
+    public string ProviderMenuCodex => MenuCheck(SelectedProviderIndex == 1, "Codex");
+    public string ProviderMenuGrok => MenuCheck(SelectedProviderIndex == 2, "Grok");
+    public string EffortMenuLow => MenuCheck(SelectedEffortIndex == 0, "Low");
+    public string EffortMenuMedium => MenuCheck(SelectedEffortIndex == 1, "Medium");
+    public string EffortMenuHigh => MenuCheck(SelectedEffortIndex == 2, "High");
     public string? WorkingDirectory
     {
         get => _workingDirectory;
@@ -250,7 +354,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public bool ShowBusyDetail => IsBusy && !string.IsNullOrWhiteSpace(SurfaceDetail);
     /// <summary>Shortcut tip only on screen landing — hide in repo mode to cut empty-state noise.</summary>
     public bool ShowGlobalExplainHint => GlobalExplainShortcutAvailable && ShowScreenLandingActions;
-    public string Question { get => _question; set { Set(ref _question, value); OnPropertyChanged(nameof(CanSend)); SendCommand.RaiseCanExecuteChanged(); } }
+    public string Question
+    {
+        get => _question;
+        set
+        {
+            Set(ref _question, value);
+            OnPropertyChanged(nameof(CanSend));
+            SendCommand.RaiseCanExecuteChanged();
+            ImprovePromptCommand.RaiseCanExecuteChanged();
+        }
+    }
     public Bitmap? Preview { get => _preview; private set => Set(ref _preview, value); }
     public bool HasCapture => _regionPath is not null || _contextPath is not null;
     public bool HasContext => _contextPath is not null;
@@ -265,6 +379,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         IsFocusLocked ? PomodoroLabel
         : _refreshingContext ? "Capturing"
         : _busy ? _activityStatus
+        : IsImprovingPrompt ? "Improving prompt"
         : IsSuggesting ? "Preparing shortcuts"
         : ChaosModeEnabled ? "Chaos"
         : HasRegion ? "Region ready"
@@ -274,6 +389,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         IsFocusLocked ? ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow)
         : _refreshingContext ? "Refreshing screen context"
         : _busy ? (HasRunningOperations ? RunningStatus : _activityDetail)
+        : IsImprovingPrompt ? "Rewriting your draft — not sent yet"
         : IsSuggesting ? "Generating quick actions"
         : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
         : HasRegion ? "Selected area stays in focus until you clear it"
@@ -486,6 +602,44 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Rewrites the compose draft in place (does not send). Uses the cheap suggestion path.</summary>
+    private async Task ImprovePromptAsync()
+    {
+        var draft = Question.Trim();
+        if (_busy || string.IsNullOrWhiteSpace(draft) || SelectedDiagnostic?.IsAvailable == false) return;
+
+        _improveCts?.Cancel();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _improveCts = cts;
+        IsImprovingPrompt = true;
+        try
+        {
+            // Light history so rewrites stay grounded in the current chat when present.
+            var history = Messages.Count == 0
+                ? Array.Empty<ChatMessage>()
+                : Messages.Skip(Math.Max(0, Messages.Count - 6)).ToArray();
+            var request = new AiRequest(PromptImprove.BuildRequest(draft), null, null, history)
+            {
+                TaskKind = TaskKind.ImprovePrompt,
+            };
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex)
+                .AskAsync(request, null, cts.Token);
+            if (cts.IsCancellationRequested) return;
+            var improved = PromptImprove.Parse(text);
+            // Only replace if the user has not edited/sent/cleared the draft while we worked.
+            if (!string.IsNullOrWhiteSpace(improved) &&
+                string.Equals(Question.Trim(), draft, StringComparison.Ordinal))
+                Question = improved;
+        }
+        catch (OperationCanceledException) { }
+        catch { /* leave draft unchanged */ }
+        finally
+        {
+            if (_improveCts == cts) { _improveCts = null; IsImprovingPrompt = false; }
+            cts.Dispose();
+        }
+    }
+
     private async Task GenerateFollowUpSuggestionsAsync()
     {
         _suggestCts?.Cancel();
@@ -591,6 +745,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         if (_busy) return;
         _suggestCts?.Cancel();
+        _improveCts?.Cancel();
         _requestCts?.Cancel();
         DisposeMessages();
         Suggestions.Clear();
@@ -691,6 +846,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private async Task SendAsync()
     {
         _suggestCts?.Cancel();
+        _improveCts?.Cancel();
         Suggestions.Clear();
         var prompt = Question.Trim();
         Question = string.Empty;
@@ -1274,6 +1430,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _livePairSnapshot = snapshot;
         _livePairAnswer = answer;
         LivePairFiles.Clear();
+        ActiveLivePairFile = null;
+        _livePairUserPicked = false;
         _livePairActive = true;
         if (!_livePairTicker.IsEnabled) _livePairTicker.Start();
         NotifyLivePairChanged();
@@ -1290,7 +1448,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         // One last scan so late flushes land before the audit card freezes.
         if (_livePairSnapshot is not null && !string.IsNullOrWhiteSpace(_livePairRoot))
         {
-            try { LivePairMap.MergeInto(LivePairFiles, LivePairMap.Scan(_livePairRoot, _livePairSnapshot)); }
+            try
+            {
+                LivePairMap.MergeInto(LivePairFiles, LivePairMap.Scan(_livePairRoot, _livePairSnapshot));
+                RefreshActiveLivePair();
+            }
             catch { /* ignore */ }
         }
         NotifyLivePairChanged();
@@ -1306,14 +1468,40 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             foreach (var file in LivePairFiles) file.IsFresh = false;
             var scan = LivePairMap.Scan(_livePairRoot, _livePairSnapshot);
             LivePairMap.MergeInto(LivePairFiles, scan);
+            RefreshActiveLivePair();
             NotifyLivePairChanged();
         }
         catch { /* best-effort */ }
     }
 
+    private void RefreshActiveLivePair()
+    {
+        if (LivePairFiles.Count == 0)
+        {
+            ActiveLivePairFile = null;
+            return;
+        }
+
+        // Auto-follow hottest/freshest until the user picks a chip; then stick to their choice.
+        if (!_livePairUserPicked)
+        {
+            ActiveLivePairFile = LivePairMap.PickActive(LivePairFiles, null);
+            return;
+        }
+
+        ActiveLivePairFile = LivePairMap.PickActive(LivePairFiles, ActiveLivePairFile);
+    }
+
     private void JumpLivePairFile(object? parameter)
     {
         if (parameter is not LivePairFile file) return;
+
+        // Always show this file's live unified preview first.
+        _livePairUserPicked = true;
+        ActiveLivePairFile = LivePairFiles.FirstOrDefault(f =>
+            string.Equals(f.RelativePath, file.RelativePath, StringComparison.OrdinalIgnoreCase)) ?? file;
+        OnPropertyChanged(nameof(LivePairSubtitle));
+
         // Prefer the answer from this pair session; fall back to newest message with that path.
         ChatMessage? target = null;
         FileChangeRecord? record = null;
@@ -1339,7 +1527,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         if (target is null || record is null)
         {
-            // Turn still running or audit not attached yet — flash the mini-map row.
+            // Turn still running or audit not attached yet — keep preview, pulse the chip.
             file.IsFresh = true;
             return;
         }
@@ -1374,6 +1562,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _livePairRoot = null;
         _livePairAnswer = null;
         LivePairFiles.Clear();
+        ActiveLivePairFile = null;
+        _livePairUserPicked = false;
         NotifyLivePairChanged();
     }
 
@@ -1384,6 +1574,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(IsLivePairWatching));
         OnPropertyChanged(nameof(LivePairTitle));
         OnPropertyChanged(nameof(LivePairSubtitle));
+        OnPropertyChanged(nameof(HasLivePairPreview));
+        OnPropertyChanged(nameof(LivePairPreviewLines));
+        OnPropertyChanged(nameof(ActiveLivePairFile));
     }
 
     private void RefreshOutcomeChips(string? promptHint = null)
@@ -1581,8 +1774,52 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         OnPropertyChanged(nameof(HasAssistantMemory));
         OnPropertyChanged(nameof(AssistantMemoryPreview));
+        SelectedEffortIndex = AppSettings.EffortToIndex(AppSettings.Current.ChatReasoningEffort);
         NotifyChaosChanged();
+        NotifyModelPickerChanged();
     }
+
+    private void SelectProvider(object? parameter)
+    {
+        if (!TryParseMenuIndex(parameter, out var index)) return;
+        SelectedProviderIndex = Math.Clamp(index, 0, Providers.Count - 1);
+        AppSettings.Current.Provider = SelectedProviderIndex;
+        AppSettings.Current.Save();
+    }
+
+    private void SelectEffort(object? parameter)
+    {
+        if (!TryParseMenuIndex(parameter, out var index)) return;
+        SelectedEffortIndex = index;
+    }
+
+    private static bool TryParseMenuIndex(object? parameter, out int index)
+    {
+        switch (parameter)
+        {
+            case int i:
+                index = i;
+                return true;
+            case string s when int.TryParse(s, out index):
+                return true;
+            default:
+                index = 0;
+                return false;
+        }
+    }
+
+    private void NotifyModelPickerChanged()
+    {
+        OnPropertyChanged(nameof(ModelPickerLabel));
+        OnPropertyChanged(nameof(ProviderMenuClaude));
+        OnPropertyChanged(nameof(ProviderMenuCodex));
+        OnPropertyChanged(nameof(ProviderMenuGrok));
+        OnPropertyChanged(nameof(EffortMenuLow));
+        OnPropertyChanged(nameof(EffortMenuMedium));
+        OnPropertyChanged(nameof(EffortMenuHigh));
+    }
+
+    private static string MenuCheck(bool selected, string label) => selected ? $"✓  {label}" : $"    {label}";
 
     private void DisposeMessages()
     {
@@ -1622,7 +1859,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(CanStartNewChat));
         NotifySurfaceStateChanged();
         CaptureCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged();
-        SendCommand.RaiseCanExecuteChanged(); StopCommand.RaiseCanExecuteChanged(); NewChatCommand.RaiseCanExecuteChanged();
+        SendCommand.RaiseCanExecuteChanged(); ImprovePromptCommand.RaiseCanExecuteChanged();
+        StopCommand.RaiseCanExecuteChanged(); NewChatCommand.RaiseCanExecuteChanged();
         RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged();
     }
 

@@ -50,6 +50,8 @@ public sealed class AppSettings
     public string CodexImageModel { get; set; } = "gpt-5.4-mini";
     public string CodexSuggestionModel { get; set; } = "gpt-5.4-mini";
     public string CodexSuggestionReasoningEffort { get; set; } = "low";
+    /// <summary>Chat/code reasoning effort for Codex: low, medium, or high (compose picker).</summary>
+    public string ChatReasoningEffort { get; set; } = "medium";
     /// <summary>Blank uses the Grok Build CLI default (currently grok-4.5). Run `grok models` for valid IDs.</summary>
     public string GrokChatModel { get; set; } = "";
     public string GrokSuggestionModel { get; set; } = "grok-composer-2.5-fast";
@@ -101,10 +103,42 @@ public sealed class AppSettings
         AssistantMemoryCharacterLimit = Math.Clamp(AssistantMemoryCharacterLimit, 0, 20_000);
         ChaosTone = Math.Clamp(ChaosTone, 0, 2);
         ChaosPomodoroMinutes = Math.Clamp(ChaosPomodoroMinutes, 1, 120);
+        ChatReasoningEffort = NormalizeEffort(ChatReasoningEffort, "medium");
+        // Blank keeps the Codex CLI default for suggestion garnish; non-blank is normalized.
+        if (!string.IsNullOrWhiteSpace(CodexSuggestionReasoningEffort))
+            CodexSuggestionReasoningEffort = NormalizeEffort(CodexSuggestionReasoningEffort, "low");
         AssistantMemory = AssistantMemory.Length > AssistantMemoryCharacterLimit && AssistantMemoryCharacterLimit > 0
             ? AssistantMemory[..AssistantMemoryCharacterLimit]
             : AssistantMemory;
     }
+
+    /// <summary>Maps free text to low/medium/high; blank keeps <paramref name="fallback"/>.</summary>
+    public static string NormalizeEffort(string? value, string fallback = "medium")
+    {
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        var v = value.Trim().ToLowerInvariant();
+        return v switch
+        {
+            "low" or "minimal" or "min" => "low",
+            "med" or "medium" or "mid" => "medium",
+            "high" or "max" or "xhigh" or "x-high" => "high",
+            _ => fallback
+        };
+    }
+
+    public static int EffortToIndex(string? effort) => NormalizeEffort(effort) switch
+    {
+        "low" => 0,
+        "high" => 2,
+        _ => 1
+    };
+
+    public static string EffortFromIndex(int index) => index switch
+    {
+        0 => "low",
+        2 => "high",
+        _ => "medium"
+    };
 
     private static string SettingsPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma", "settings.json");

@@ -197,6 +197,29 @@ public sealed class UiExperienceTests
     }
 
     [Fact]
+    public void ComposeBarHasModelAndEffortPickerOnTheRight()
+    {
+        var xaml = ReadShipped("src/Luma.App/MainWindow.axaml");
+        Assert.Contains("ComposeModelButton", xaml);
+        Assert.Contains("Classes=\"composemodel\"", xaml);
+        Assert.Contains("ModelPickerLabel", xaml);
+        Assert.Contains("SelectProviderCommand", xaml);
+        Assert.Contains("SelectEffortCommand", xaml);
+        Assert.Contains("EffortMenuLow", xaml);
+        Assert.Contains("EffortMenuHigh", xaml);
+        // Provider lives in compose, not the header ComboBox.
+        Assert.DoesNotContain("ItemsSource=\"{Binding Providers}\"", xaml);
+
+        var styles = ReadShipped("src/Luma.App/App.axaml");
+        Assert.Contains("Selector=\"Button.composemodel\"", styles);
+
+        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        Assert.Contains("ModelPickerLabel", vm);
+        Assert.Contains("SelectedEffortIndex", vm);
+        Assert.Contains("ChatReasoningEffort", vm);
+    }
+
+    [Fact]
     public void QuickActionsOfferNewChatAndBiggerExplainPartWithoutSnip()
     {
         var xaml = ReadShipped("src/Luma.App/MainWindow.axaml");

@@ -184,14 +184,14 @@ public abstract class CliAiClient : IAiClient
             "Prefer 2–4 short multiple-choice options when sensible; omit choices only when free text is required. " +
             "Do not ask more than one question per turn. If you can help well without asking, answer directly.\n");
         if (AppSettings.Current.ChaosMode &&
-            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
         {
             var tone = (ChaosTone)AppSettings.Current.ChaosTone;
             var directive = ChaosMode.ToneDirective(tone);
             if (directive is not null) builder.AppendLine(directive);
         }
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
-        if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
         {
             builder.AppendLine(
                 "Treat the supplied screenshot as primary evidence and inspect it before answering. " +
@@ -207,7 +207,7 @@ public abstract class CliAiClient : IAiClient
         if (!hasVisualContext && request.TaskKind is TaskKind.Chat or TaskKind.Generic)
             builder.AppendLine("If you need the current screen to answer accurately and no screenshot is included yet, end with NEED_SCREEN: <short reason>. Otherwise answer directly.");
         if (!string.IsNullOrWhiteSpace(request.WorkingDirectory) &&
-            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
         {
             builder.AppendLine(
                 $"Project directory (working root): {request.WorkingDirectory}. " +
@@ -247,6 +247,11 @@ public abstract class CliAiClient : IAiClient
                 break;
             case TaskKind.Route:
                 builder.AppendLine("Classify the request as exactly one of CHAT, CODE, or COMMAND. Reply with one word only.");
+                break;
+            case TaskKind.ImprovePrompt:
+                builder.AppendLine(
+                    "Rewrite the draft prompt only. Reply with the improved prompt text and nothing else. " +
+                    "Do not answer the draft, ask questions, or use tools.");
                 break;
         }
         if (!string.IsNullOrWhiteSpace(AppSettings.Current.AssistantMemory))
@@ -381,16 +386,18 @@ public sealed class CodexClient(IRunningOperationCoordinator? operations = null)
         psi.ArgumentList.Add("-c"); psi.ArgumentList.Add("approval_policy=\"never\"");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
         var hasImage = request.ContextImagePath is not null || request.ImagePath is not null;
-        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt
             ? FirstNonBlank(AppSettings.Current.CodexSuggestionModel, hasImage ? AppSettings.Current.CodexImageModel : null)
             : hasImage
                 ? FirstNonBlank(AppSettings.Current.CodexImageModel, AppSettings.Current.CodexChatModel)
                 : AppSettings.Current.CodexChatModel;
         if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Trim()); }
-        // Cheapest reasoning for the latency-sensitive suggestion garnish (user-overridable).
-        var effort = AppSettings.Current.CodexSuggestionReasoningEffort;
-        if (request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route && !string.IsNullOrWhiteSpace(effort))
-        { psi.ArgumentList.Add("-c"); psi.ArgumentList.Add($"model_reasoning_effort=\"{effort.Trim()}\""); }
+        // Suggestions use the cheap override; chat/code use the compose-bar effort picker.
+        var effort = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt
+            ? AppSettings.Current.CodexSuggestionReasoningEffort
+            : AppSettings.Current.ChatReasoningEffort;
+        if (!string.IsNullOrWhiteSpace(effort))
+        { psi.ArgumentList.Add("-c"); psi.ArgumentList.Add($"model_reasoning_effort=\"{AppSettings.NormalizeEffort(effort)}\""); }
         if (request.ContextImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ContextImagePath); }
         if (request.ImagePath is not null) { psi.ArgumentList.Add("--image"); psi.ArgumentList.Add(request.ImagePath); }
         psi.ArgumentList.Add("-");
@@ -408,7 +415,7 @@ public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null
         psi.ArgumentList.Add("--print"); psi.ArgumentList.Add("--output-format"); psi.ArgumentList.Add("stream-json");
         psi.ArgumentList.Add("--include-partial-messages"); psi.ArgumentList.Add("--verbose");
         // Read + write tools for chat/code. Skip tools on suggestion garnish for latency.
-        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
         {
             psi.ArgumentList.Add("--tools");
             psi.ArgumentList.Add("Read,Glob,Grep,Write,Edit");
@@ -418,7 +425,7 @@ public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null
         psi.ArgumentList.Add("--no-session-persistence");
         // Suggestion chips are a latency-sensitive garnish, so they default to Haiku (the fast,
         // cheap tier); chat uses the CLI's own default. Both are user-overridable in Settings.
-        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt
             ? AppSettings.Current.ClaudeSuggestionModel
             : AppSettings.Current.ClaudeChatModel;
         if (!string.IsNullOrWhiteSpace(model)) { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Trim()); }
@@ -443,7 +450,7 @@ public sealed class GrokClient(IRunningOperationCoordinator? operations = null) 
         // search_replace covers create/edit; bare "write" is not a valid tool id and breaks agent
         // build with a run_terminal_cmd params_constraint error on current Grok CLIs.
         // Suggestion/follow-up chips stay tool-free for speed.
-        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
         {
             psi.ArgumentList.Add("--tools");
             psi.ArgumentList.Add("read_file,grep,list_dir,search_replace");
@@ -453,7 +460,7 @@ public sealed class GrokClient(IRunningOperationCoordinator? operations = null) 
         psi.ArgumentList.Add("--disable-web-search");
         psi.ArgumentList.Add("--no-memory");
         psi.ArgumentList.Add("--no-subagents");
-        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
+        var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt
             ? AppSettings.Current.GrokSuggestionModel
             : AppSettings.Current.GrokChatModel;
         if (!string.IsNullOrWhiteSpace(model))

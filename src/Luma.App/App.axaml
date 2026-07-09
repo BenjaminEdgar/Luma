@@ -766,6 +766,24 @@
             <Setter Property="Background" Value="#E1D8FF" />
             <Setter Property="BorderBrush" Value="#A78BFF" />
         </Style>
+        <!-- Compose model picker: pill next to send (provider · effort). -->
+        <Style Selector="Button.composemodel">
+            <Setter Property="Background" Value="#F6F4FF" />
+            <Setter Property="BorderBrush" Value="#E0D8FC" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.composemodel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#EDE7FF" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
+        </Style>
+        <Style Selector="Button.composemodel:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E1D8FF" />
+            <Setter Property="BorderBrush" Value="#A78BFF" />
+        </Style>
         <!-- Context tokens: violet-tinted pills that sit inside the compose capsule. -->
         <Style Selector="Border.cwdchip">
             <Setter Property="Background" Value="#F6F4FF" />
@@ -797,7 +815,7 @@
             <Setter Property="CornerRadius" Value="7" />
             <Setter Property="Background" Value="#E2E8F0" />
         </Style>
-        <!-- Live pair signal rail. -->
+        <!-- Live pair: file chips + unified line preview. -->
         <Style Selector="Border.livepair">
             <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
             <Setter Property="BorderBrush" Value="#E2E8F0" />
@@ -805,7 +823,7 @@
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="11,9" />
             <Setter Property="BoxShadow" Value="0 8 22 0 #1A000000, inset 0 1 0 0 #AAFFFFFF" />
-            <Setter Property="MaxHeight" Value="160" />
+            <Setter Property="MaxHeight" Value="280" />
         </Style>
         <Style Selector="Border.livepairbadge">
             <Setter Property="Background" Value="#5512B86A" />
@@ -815,21 +833,66 @@
             <Setter Property="Padding" Value="7,2" />
             <Setter Property="Opacity" Value="0.95" />
         </Style>
-        <Style Selector="Button.livepairrow">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="6,5" />
-            <Setter Property="CornerRadius" Value="8" />
+        <Style Selector="Button.livepairchip">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#334155" />
         </Style>
-        <Style Selector="Button.livepairrow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.livepairchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="#C7D2FE" />
+        </Style>
+        <Style Selector="Button.livepairchip.active">
+            <Setter Property="Background" Value="#E0E7FF" />
+            <Setter Property="BorderBrush" Value="#A5B4FC" />
+            <Setter Property="Foreground" Value="#312E81" />
+        </Style>
+        <Style Selector="Button.livepairchip.fresh">
+            <Setter Property="BorderBrush" Value="#12B86A" />
+            <Setter Property="Background" Value="#E8FBF1" />
+            <Setter Property="Foreground" Value="#0A6B3C" />
+        </Style>
+        <!-- BoxShadow is not available on Button — target the template border for a soft glow. -->
+        <Style Selector="Button.livepairchip.fresh /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E8FBF1" />
+            <Setter Property="BorderBrush" Value="#12B86A" />
+        </Style>
+        <Style Selector="Border.livepairpreview">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Border.livepairline">
+            <Setter Property="Padding" Value="8,1" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.livepairline.add">
+            <Setter Property="Background" Value="#D8F5E6" />
+        </Style>
+        <Style Selector="Border.livepairline.add TextBlock">
+            <Setter Property="Foreground" Value="#0A6B3C" />
+        </Style>
+        <Style Selector="Border.livepairline.del">
+            <Setter Property="Background" Value="#FCE4E7" />
+        </Style>
+        <Style Selector="Border.livepairline.del TextBlock">
+            <Setter Property="Foreground" Value="#B02030" />
+        </Style>
+        <Style Selector="Border.livepairline.ctx TextBlock">
+            <Setter Property="Foreground" Value="#64748B" />
         </Style>
         <Style Selector="Border.fresh">
             <Setter Property="Background" Value="#7712B86A" />
             <Setter Property="BoxShadow" Value="0 0 12 0 #5512B86A" />
         </Style>
-        <!-- Heat filaments (add green / del red). -->
+        <!-- Heat filaments (add green / del red) — kept for any residual bindings. -->
         <Style Selector="Border.heatadd">
             <Setter Property="Height" Value="5" />
             <Setter Property="CornerRadius" Value="2.5" />

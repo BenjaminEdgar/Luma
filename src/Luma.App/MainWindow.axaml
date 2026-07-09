@@ -70,7 +70,7 @@
 
         <!-- Compact header (brand board example). -->
         <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent"
-              ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,14">
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,14">
           <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <!-- Alternate horizontal lockup (brand board): orbit mark + wordmark. -->
             <Button Name="LogoButton" Classes="ghost" Width="34" Height="34" CornerRadius="12"
@@ -94,18 +94,14 @@
                          TextTrimming="CharacterEllipsis" MaxWidth="110" />
             </StackPanel>
           </Border>
-          <ComboBox Grid.Column="3" Width="84" FontSize="12" CornerRadius="999"
-                    Background="#FFFFFF" BorderBrush="#E8E4F8" Foreground="#080F23"
-                    SelectedIndex="{Binding SelectedProviderIndex}"
-                    ItemsSource="{Binding Providers}" Margin="0,0,6,0" VerticalAlignment="Center" />
-          <Button Grid.Column="4" Classes="outline" Command="{Binding NewChatCommand}"
+          <Button Grid.Column="3" Classes="outline" Command="{Binding NewChatCommand}"
                   IsEnabled="{Binding CanStartNewChat}" Height="30" MinWidth="72"
                   Padding="12,0" CornerRadius="999" VerticalAlignment="Center" Margin="0,0,4,0"
                   ToolTip.Tip="Clear this conversation and start fresh">
             <TextBlock Text="+ New chat" FontSize="11.5" FontWeight="SemiBold"
                        VerticalAlignment="Center" Foreground="#1E293B" />
           </Button>
-          <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2">
+          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2">
             <Button Name="SettingsButton" Classes="ghost" Width="30" Height="30"
                     CornerRadius="10" Padding="0" VerticalAlignment="Center"
                     ToolTip.Tip="Settings">
@@ -443,7 +439,7 @@
           </ScrollViewer>
         </Grid>
 
-        <!-- Live coding pair: mini-map + heat while the agent writes -->
+        <!-- Live coding pair: file chips + unified line preview while the agent writes -->
         <Border Grid.Row="4" Classes="livepair" Margin="0,0,0,10"
                 IsVisible="{Binding ShowLivePair}"
                 Classes.writing="{Binding IsLivePairWatching}">
@@ -460,7 +456,8 @@
                   <TextBlock Text="{Binding LivePairTitle}" Classes="sectionlabel"
                              VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="{Binding LivePairSubtitle}" FontSize="11" Classes="muted" />
+                <TextBlock Text="{Binding LivePairSubtitle}" FontSize="11" Classes="muted"
+                           TextTrimming="CharacterEllipsis" />
               </StackPanel>
               <Border Grid.Column="1" Classes="livepairbadge" VerticalAlignment="Center"
                       IsVisible="{Binding IsLivePairWatching}">
@@ -469,43 +466,69 @@
               <Button Grid.Column="2" Classes="ghost" Content="×" Width="28" Height="28"
                       Padding="0" CornerRadius="8" FontSize="14" VerticalAlignment="Center"
                       Command="{Binding DismissLivePairCommand}"
-                      ToolTip.Tip="Dismiss pair map" />
+                      ToolTip.Tip="Dismiss live diff" />
             </Grid>
-            <ItemsControl ItemsSource="{Binding LivePairFiles}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Button Classes="livepairrow" HorizontalAlignment="Stretch"
-                          HorizontalContentAlignment="Stretch"
-                          Command="{Binding $parent[Window].DataContext.JumpLivePairCommand}"
-                          CommandParameter="{Binding}"
-                          ToolTip.Tip="{Binding Summary}">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,1">
-                      <Border Classes="kindbadge" Width="20" Height="20" CornerRadius="6"
-                              VerticalAlignment="Center"
-                              Classes.fresh="{Binding IsFresh}">
+
+            <!-- File chips: pick which file's live output to show -->
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding HasLivePair}">
+              <ItemsControl ItemsSource="{Binding LivePairFiles}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Classes="livepairchip"
+                            Classes.active="{Binding IsActive}"
+                            Classes.fresh="{Binding IsFresh}"
+                            Command="{Binding $parent[Window].DataContext.JumpLivePairCommand}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="{Binding Summary}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="#334155" />
-                      </Border>
-                      <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="#334155" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding FolderHint}" FontSize="10" Classes="muted"
-                                   TextTrimming="CharacterEllipsis"
-                                   IsVisible="{Binding FolderHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                        <StackPanel Orientation="Horizontal" Spacing="2" Height="5" Margin="0,1,0,0">
-                          <Border Classes="heatadd" Width="{Binding AddBarWidth}" />
-                          <Border Classes="heatdel" Width="{Binding DelBarWidth}" />
-                        </StackPanel>
+                                   VerticalAlignment="Center" Opacity="0.75" />
+                        <TextBlock Text="{Binding DisplayName}" FontSize="11.5" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" MaxWidth="140"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding StatsLabel}" FontSize="10.5"
+                                   FontFamily="Cascadia Mono, Consolas, monospace"
+                                   VerticalAlignment="Center" Opacity="0.85" />
                       </StackPanel>
-                      <TextBlock Grid.Column="2" Text="{Binding StatsLabel}" FontSize="10.5"
-                                 FontFamily="Cascadia Mono, Consolas, monospace"
-                                 Foreground="#4338CA" VerticalAlignment="Center" />
-                    </Grid>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Live unified-diff output for the active file -->
+            <Border Classes="livepairpreview" IsVisible="{Binding HasLivePairPreview}">
+              <ScrollViewer x:Name="LivePairPreviewScroll" MaxHeight="168"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding LivePairPreviewLines}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="livepairline"
+                              Classes.add="{Binding IsAdded}"
+                              Classes.del="{Binding IsRemoved}"
+                              Classes.ctx="{Binding IsContext}">
+                        <TextBlock Text="{Binding Display}"
+                                   FontFamily="Cascadia Mono, Consolas, monospace"
+                                   FontSize="11.5"
+                                   TextWrapping="NoWrap"
+                                   TextTrimming="CharacterEllipsis" />
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+
+            <TextBlock Text="Waiting for the first write…" FontSize="11" Classes="muted"
+                       IsVisible="{Binding !HasLivePair}"
+                       Margin="2,0,0,0" />
           </StackPanel>
         </Border>
 
@@ -591,7 +614,7 @@
                       ToolTip.Tip="Split-brain is on — next send runs explainer + implementer. Click to turn off." />
             </WrapPanel>
 
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
               <!-- + menu: explain, project, clipboard, files, chaos -->
               <Button Name="ComposePlusButton" Classes="composemore" Width="34" Height="34"
                       CornerRadius="999" Padding="0" VerticalAlignment="Bottom" Margin="0,0,0,3"
@@ -604,6 +627,9 @@
                     <MenuItem Header="Explain this part"
                               Command="{Binding ExplainSelectionCommand}"
                               ToolTip.Tip="Drag a region to focus the explanation" />
+                    <MenuItem Header="Improve prompt"
+                              Command="{Binding ImprovePromptCommand}"
+                              ToolTip.Tip="Rewrite your draft for clarity — does not send" />
                     <MenuItem Header="-" />
                     <MenuItem Header="Set working directory…"
                               Click="OnSetWorkingDirectoryClick"
@@ -655,7 +681,43 @@
                        VerticalContentAlignment="Center"
                        Background="Transparent" BorderBrush="Transparent" BorderThickness="0"
                        Padding="8,9" />
-              <Grid Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,1,1">
+              <!-- Model + effort picker (right of input, left of send). -->
+              <Button Grid.Column="2" Name="ComposeModelButton" Classes="composemodel"
+                      Height="32" MinWidth="0" Padding="10,0,8,0" CornerRadius="999"
+                      VerticalAlignment="Bottom" Margin="0,0,0,4"
+                      ToolTip.Tip="Provider and reasoning effort">
+                <Button.Flyout>
+                  <MenuFlyout Placement="TopEdgeAlignedRight">
+                    <MenuItem Header="Provider" IsEnabled="False" />
+                    <MenuItem Header="{Binding ProviderMenuClaude}"
+                              Command="{Binding SelectProviderCommand}" CommandParameter="0" />
+                    <MenuItem Header="{Binding ProviderMenuCodex}"
+                              Command="{Binding SelectProviderCommand}" CommandParameter="1" />
+                    <MenuItem Header="{Binding ProviderMenuGrok}"
+                              Command="{Binding SelectProviderCommand}" CommandParameter="2" />
+                    <MenuItem Header="-" />
+                    <MenuItem Header="Effort" IsEnabled="False" />
+                    <MenuItem Header="{Binding EffortMenuLow}"
+                              Command="{Binding SelectEffortCommand}" CommandParameter="0"
+                              ToolTip.Tip="Faster, lighter answers (Codex reasoning)" />
+                    <MenuItem Header="{Binding EffortMenuMedium}"
+                              Command="{Binding SelectEffortCommand}" CommandParameter="1"
+                              ToolTip.Tip="Balanced reasoning" />
+                    <MenuItem Header="{Binding EffortMenuHigh}"
+                              Command="{Binding SelectEffortCommand}" CommandParameter="2"
+                              ToolTip.Tip="Deeper reasoning when it matters" />
+                  </MenuFlyout>
+                </Button.Flyout>
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="{Binding ModelPickerLabel}" FontSize="11.5" FontWeight="SemiBold"
+                             Foreground="#4338CA" VerticalAlignment="Center" />
+                  <Path Data="M6,9 L12,15 L18,9" Stroke="#7C4DFF" StrokeThickness="1.6"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        Width="9" Height="6" Stretch="Uniform" VerticalAlignment="Center"
+                        Opacity="0.75" />
+                </StackPanel>
+              </Button>
+              <Grid Grid.Column="3" VerticalAlignment="Bottom" Margin="0,0,1,1">
                 <Border Classes="sendhalo" IsVisible="{Binding !IsBusy}"
                         Classes.lit="{Binding CanSend}">
                   <Button Classes="accent sendstar" Command="{Binding SendCommand}" IsEnabled="{Binding CanSend}"
