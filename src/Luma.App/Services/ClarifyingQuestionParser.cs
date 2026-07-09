@@ -9,6 +9,9 @@ public static partial class ClarifyingQuestionParser
     [GeneratedRegex(@"(?:\r?\n|^)[ \t]*ASK_USER:[ \t]*(?<q>[^\r\n]+)[ \t]*$", RegexOptions.Multiline)]
     private static partial Regex Pattern();
 
+    [GeneratedRegex(@"(?:\r?\n|^)[ \t]*NEED_SCREEN:[ \t]*(?<r>[^\r\n]+)[ \t]*$", RegexOptions.Multiline)]
+    private static partial Regex ScreenPattern();
+
     public static (string Text, string? Question) Extract(string text)
     {
         var result = ExtractDetailed(text);
@@ -26,6 +29,27 @@ public static partial class ClarifyingQuestionParser
             string.IsNullOrWhiteSpace(cleaned) ? "One quick question before I continue:" : cleaned,
             question,
             parts.Skip(1).Take(4).ToArray());
+    }
+
+    public static bool TryExtractScreenRereadReason(string text, out string reason)
+    {
+        var match = ScreenPattern().Match(text);
+        if (!match.Success)
+        {
+            reason = string.Empty;
+            return false;
+        }
+
+        reason = match.Groups["r"].Value.Trim();
+        return !string.IsNullOrWhiteSpace(reason);
+    }
+
+    public static string RemoveScreenRereadDirective(string text)
+    {
+        var match = ScreenPattern().Match(text);
+        if (!match.Success) return text;
+        var cleaned = (text[..match.Index] + text[(match.Index + match.Length)..]).Trim();
+        return string.IsNullOrWhiteSpace(cleaned) ? text.Trim() : cleaned;
     }
 }
 

@@ -46,7 +46,8 @@ public sealed class AppSettings
     public string CodexImageModel { get; set; } = "gpt-5.4-mini";
     public string CodexSuggestionModel { get; set; } = "gpt-5.4-mini";
     public string CodexSuggestionReasoningEffort { get; set; } = "low";
-    public string GrokChatModel { get; set; } = "grok-build";
+    /// <summary>Blank uses the Grok Build CLI default (currently grok-4.5). Run `grok models` for valid IDs.</summary>
+    public string GrokChatModel { get; set; } = "";
     public string GrokSuggestionModel { get; set; } = "grok-composer-2.5-fast";
 
     public static void Load()
@@ -58,6 +59,9 @@ public sealed class AppSettings
                 Current = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path)) ?? new AppSettings();
         }
         catch { Current = new AppSettings(); }
+        // grok-build is no longer a valid model id on current Grok Build CLIs.
+        if (string.Equals(Current.GrokChatModel, "grok-build", StringComparison.OrdinalIgnoreCase))
+            Current.GrokChatModel = "";
         Current.Clamp();
     }
 

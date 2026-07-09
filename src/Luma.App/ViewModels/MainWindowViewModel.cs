@@ -409,11 +409,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         var provider = (AiProvider)SelectedProviderIndex;
         var providerName = Providers[SelectedProviderIndex];
+        var probeWithoutScreen = HasCapture;
         Messages.Add(new ChatMessage("user", displayPrompt ?? prompt));
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
-            Caption = HasCapture ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
-            Text = HasCapture ? "Reading screen…" : "Thinking…",
+            Caption = $"* {providerName} is thinking",
+            Text = "Thinking...",
         };
         Messages.Add(answer);
         SetBusy(true);
@@ -426,8 +427,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var history = Messages.Take(Messages.Count - 2).ToArray();
-            var request = new AiRequest(prompt, _regionPath, _contextPath, history);
-            var text = await _clientFactory.Create(provider).AskAsync(request,
+            var client = _clientFactory.Create(provider);
+            var request = new AiRequest(prompt, probeWithoutScreen ? null : _regionPath, probeWithoutScreen ? null : _contextPath, history);
+            var text = await client.AskAsync(request,
                 partial => Dispatcher.UIThread.Post(() =>
                 {
                     answer.IsPending = false;
@@ -435,6 +437,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     answer.Caption = $"✦ {providerName}";
                     ApplyAnswerText(answer, partial);
                 }), cts.Token);
+            if (probeWithoutScreen && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
+            {
+                answer.Caption = $"* {providerName} is rereading the screen";
+                answer.Text = string.IsNullOrWhiteSpace(reason) ? "Reading screen..." : $"Rereading screen: {reason}";
+                answer.IsStreaming = false;
+                var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history);
+                text = await client.AskAsync(screenRequest,
+                    partial => Dispatcher.UIThread.Post(() =>
+                    {
+                        answer.IsPending = false;
+                        answer.IsStreaming = true;
+                        answer.Caption = $"* {providerName}";
+                        ApplyAnswerText(answer, partial);
+                    }), cts.Token);
+            }
+            text = ClarifyingQuestionParser.RemoveScreenRereadDirective(text);
+            if (string.IsNullOrWhiteSpace(text))
+                text = probeWithoutScreen ? "I still need a clearer screen capture." : "I need a screenshot to answer that.";
             ApplyAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
             answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
             _ = GenerateFollowUpSuggestionsAsync();

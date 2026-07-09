@@ -21,7 +21,9 @@ The diff card is a per-file, per-hunk checklist with colored additions/deletions
 ## Requirements
 
 - .NET 9 SDK or newer (building from source; supported by Visual Studio 2022 17.12+)
-- Claude Code (`claude`), Codex CLI (`codex`), and/or Grok Code (`grok`), already authenticated
+- Claude Code (`claude`), Codex CLI (`codex`), and/or Grok Build (`grok`), already authenticated
+  - Grok Build: install from [x.ai/cli](https://x.ai/cli) (Windows: `irm https://x.ai/cli/install.ps1 | iex`), then run `grok login`
+  - Model IDs must match `grok models` (chat defaults to the CLI flagship; suggestions default to `grok-composer-2.5-fast`)
 - Linux capture helper: `grim` on Wayland or ImageMagick `import` on X11
 
 The CLI runs locally, but the screenshot and question are processed by the selected provider's cloud service.
@@ -39,7 +41,7 @@ Use **Explain this screen** from the empty panel for the same zero-input workflo
 The persistent toolbar keeps full-screen explanation, context snipping, and select-and-explain available throughout a conversation; repository selection appears only when automatic routing detects a coding task.
 On Windows, **Ctrl+Shift+E** starts the select-and-explain flow globally from any application. The shortcut can be disabled in settings and is shown in Luma only when Windows registers it successfully.
 
-The provider CLI runs on your computer, but Claude and Codex process requests using their cloud services. Luma does not currently run an offline model.
+The provider CLI runs on your computer, but Claude, Codex, and Grok process requests using their cloud services. Luma does not currently run an offline model.
 
 ## Build and test
 

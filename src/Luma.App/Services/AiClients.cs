@@ -28,7 +28,8 @@ public abstract class CliAiClient : IAiClient
     protected CliAiClient(IRunningOperationCoordinator? operations = null) => _operations = operations;
     protected abstract string Command { get; }
     protected virtual bool PromptViaStandardInput => true;
-    protected abstract void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt);
+    /// <param name="sessionDirectory">Temp session folder for images/prompt files; deleted after the call.</param>
+    protected abstract void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt, string sessionDirectory);
 
     public async Task<string> AskAsync(AiRequest request, Action<string>? onPartialText, CancellationToken cancellationToken)
     {
@@ -46,7 +47,7 @@ public abstract class CliAiClient : IAiClient
             var psi = BuildStartInfo(launch.Executable, workingDirectory);
             foreach (var argument in launch.PrefixArguments) psi.ArgumentList.Add(argument);
             var prompt = BuildPrompt(localRequest);
-            AddArguments(psi, localRequest, prompt);
+            AddArguments(psi, localRequest, prompt, sessionDirectory);
             using var operation = _operations?.Begin($"{Command} request", cancellationToken);
             var processToken = operation?.Token ?? cancellationToken;
             using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Could not start {Command}.");
@@ -89,8 +90,9 @@ public abstract class CliAiClient : IAiClient
         finally { try { Directory.Delete(sessionDirectory, true); } catch { } }
     }
 
-    /// <summary>Recognizes claude --output-format stream-json lines: text deltas inside
-    /// stream_event/content_block_delta (ignoring thinking/signature deltas) and the final result event.</summary>
+    /// <summary>Recognizes Claude stream-json and Grok streaming-json lines.
+    /// Claude: text deltas in stream_event/content_block_delta and the final result event.
+    /// Grok: type=text data chunks; type=end / thought / error are recognized but only text yields deltas.</summary>
     protected static bool TryReadStreamLine(string line, out string? deltaText, out string? finalText)
     {
         deltaText = null;
@@ -114,6 +116,16 @@ public abstract class CliAiClient : IAiClient
                 case "result":
                     if (root.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.String)
                         finalText = result.GetString();
+                    return true;
+                // Grok Build --output-format streaming-json
+                case "text":
+                    if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.String)
+                        deltaText = data.GetString();
+                    return true;
+                case "thought":
+                case "end":
+                case "error":
+                case "max_turns_reached":
                     return true;
                 default:
                     return false;
@@ -174,6 +186,8 @@ public abstract class CliAiClient : IAiClient
                 "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
                 "If an unreadable visual detail is essential, ask one multiple-choice question offering a tighter selection or a best-effort answer.");
         }
+        if (!hasVisualContext && request.TaskKind is TaskKind.Chat or TaskKind.Generic)
+            builder.AppendLine("If you need the current screen to answer accurately and no screenshot is included yet, end with NEED_SCREEN: <short reason>. Otherwise answer directly.");
         switch (request.TaskKind)
         {
             case TaskKind.Email:
@@ -281,9 +295,21 @@ public abstract class CliAiClient : IAiClient
         var names = OperatingSystem.IsWindows() ? new[] { $"{command}.exe", $"{command}.cmd", command } : new[] { command };
         foreach (var folder in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator))
             foreach (var name in names) { var path = Path.Combine(folder.Trim('"'), name); if (File.Exists(path)) return ExpandWindowsShim(command, path); }
+        if (TryResolveWellKnownInstall(command) is { } wellKnown) return wellKnown;
         var npm = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var npmShim = Path.Combine(npm, "npm", $"{command}.cmd");
         return File.Exists(npmShim) ? ExpandWindowsShim(command, npmShim) : null;
+    }
+
+    /// <summary>Official Grok Build install lives under ~/.grok/bin, which GUI apps often lack on PATH.</summary>
+    private static (string Executable, string[] PrefixArguments)? TryResolveWellKnownInstall(string command)
+    {
+        if (!command.Equals("grok", StringComparison.OrdinalIgnoreCase)) return null;
+        var home = Environment.GetEnvironmentVariable("GROK_HOME");
+        if (string.IsNullOrWhiteSpace(home))
+            home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".grok");
+        var executable = Path.Combine(home, "bin", OperatingSystem.IsWindows() ? "grok.exe" : "grok");
+        return File.Exists(executable) ? (executable, []) : null;
     }
 
     private static (string, string[]) ExpandWindowsShim(string command, string path)
@@ -296,8 +322,13 @@ public abstract class CliAiClient : IAiClient
             var node = Path.Combine(root, "node.exe");
             return (File.Exists(node) ? node : "node.exe", [script]);
         }
-        var claude = Path.Combine(root, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
-        return (claude, []);
+        if (command == "claude")
+        {
+            var claude = Path.Combine(root, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
+            if (File.Exists(claude)) return (claude, []);
+        }
+        // Leave grok and other .cmd shims as-is (do not rewrite them to Claude).
+        return (path, []);
     }
 
     private static string FriendlyError(string error, int code)
@@ -311,7 +342,7 @@ public abstract class CliAiClient : IAiClient
 public sealed class CodexClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)
 {
     protected override string Command => "codex";
-    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt, string sessionDirectory)
     {
         psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral"); psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("read-only");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
@@ -338,7 +369,7 @@ public sealed class CodexClient(IRunningOperationCoordinator? operations = null)
 public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null) : CliAiClient(operations)
 {
     protected override string Command => "claude";
-    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt, string sessionDirectory)
     {
         psi.ArgumentList.Add("--print"); psi.ArgumentList.Add("--output-format"); psi.ArgumentList.Add("stream-json");
         psi.ArgumentList.Add("--include-partial-messages"); psi.ArgumentList.Add("--verbose");
@@ -358,16 +389,18 @@ public sealed class GrokClient(IRunningOperationCoordinator? operations = null) 
     protected override string Command => "grok";
     protected override bool PromptViaStandardInput => false;
 
-    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt)
+    protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt, string sessionDirectory)
     {
-        psi.ArgumentList.Add("--single");
-        psi.ArgumentList.Add(prompt);
+        // Prefer --prompt-file over -p to avoid Windows argv length limits on long chats/history.
+        var promptPath = Path.Combine(sessionDirectory, "prompt.txt");
+        File.WriteAllText(promptPath, prompt);
+        psi.ArgumentList.Add("--prompt-file");
+        psi.ArgumentList.Add(promptPath);
         psi.ArgumentList.Add("--output-format");
-        psi.ArgumentList.Add("plain");
-        psi.ArgumentList.Add("--permission-mode");
-        psi.ArgumentList.Add("plan");
+        psi.ArgumentList.Add("streaming-json");
+        // Grok Build tool IDs (not Claude Code names). Read-only for Luma's safety model.
         psi.ArgumentList.Add("--tools");
-        psi.ArgumentList.Add("Read");
+        psi.ArgumentList.Add("read_file,grep,list_dir");
         psi.ArgumentList.Add("--disable-web-search");
         psi.ArgumentList.Add("--no-memory");
         psi.ArgumentList.Add("--no-subagents");
@@ -381,5 +414,20 @@ public sealed class GrokClient(IRunningOperationCoordinator? operations = null) 
         }
     }
 
-    protected override string ParseOutput(string output) => output.Trim();
+    protected override string ParseOutput(string output)
+    {
+        // Fallback when streaming-json was not used or no text deltas arrived.
+        var trimmed = output.Trim();
+        if (trimmed.StartsWith('{'))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(trimmed);
+                if (document.RootElement.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
+                    return text.GetString()?.Trim() ?? "";
+            }
+            catch (JsonException) { }
+        }
+        return trimmed;
+    }
 }

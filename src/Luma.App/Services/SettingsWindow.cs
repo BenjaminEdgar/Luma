@@ -53,7 +53,7 @@ public sealed class SettingsWindow : Window
         _codexImage = Text(settings.CodexImageModel, "gpt-5.4-mini");
         _codexSuggest = Text(settings.CodexSuggestionModel, "gpt-5.4-mini");
         _codexEffort = Text(settings.CodexSuggestionReasoningEffort, "CLI default (low recommended)");
-        _grokChat = Text(settings.GrokChatModel, "grok-build");
+        _grokChat = Text(settings.GrokChatModel, "CLI default (grok-4.5)");
         _grokSuggest = Text(settings.GrokSuggestionModel, "grok-composer-2.5-fast");
 
         Width = 470; SizeToContent = SizeToContent.Height; CanResize = false;
@@ -135,7 +135,7 @@ public sealed class SettingsWindow : Window
                                 Section("Grok models"),
                                 Labeled("Questions and coding", _grokChat),
                                 Labeled("Routing and suggestions", _grokSuggest),
-                                Hint("Model names the Grok Code CLI accepts. The fast composer model is used for low-cost background requests."),
+                                Hint("IDs from `grok models`. Leave chat blank for the CLI default. The fast composer model is used for routing and suggestions."),
                             },
                         },
                     },

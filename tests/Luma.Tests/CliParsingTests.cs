@@ -14,6 +14,54 @@ public sealed class CliParsingTests
     }
 
     [Fact]
+    public void GrokChatModelDefaultsToCliDefault()
+    {
+        var settings = new AppSettings();
+        Assert.True(string.IsNullOrEmpty(settings.GrokChatModel));
+        Assert.Equal("grok-composer-2.5-fast", settings.GrokSuggestionModel);
+        Assert.DoesNotContain("grok-build", settings.GrokChatModel);
+    }
+
+    [Fact]
+    public void GrokStreamLineYieldsTextDelta()
+    {
+        var line = "{\"type\":\"text\",\"data\":\"Hello \"}";
+        Assert.True(TestClient.ReadStreamLine(line, out var delta, out var final));
+        Assert.Equal("Hello ", delta);
+        Assert.Null(final);
+    }
+
+    [Fact]
+    public void GrokStreamLineIgnoresThoughtAndEnd()
+    {
+        Assert.True(TestClient.ReadStreamLine("{\"type\":\"thought\",\"data\":\"hmm\"}", out var thoughtDelta, out _));
+        Assert.Null(thoughtDelta);
+
+        Assert.True(TestClient.ReadStreamLine("{\"type\":\"end\",\"stopReason\":\"EndTurn\"}", out var endDelta, out var endFinal));
+        Assert.Null(endDelta);
+        Assert.Null(endFinal);
+    }
+
+    [Fact]
+    public void GrokStreamTextAccumulatesLikeClaude()
+    {
+        string[] lines =
+        [
+            "{\"type\":\"thought\",\"data\":\"planning\"}",
+            "{\"type\":\"text\",\"data\":\"Hello\"}",
+            "{\"type\":\"text\",\"data\":\" there!\"}",
+            "{\"type\":\"end\",\"stopReason\":\"EndTurn\",\"sessionId\":\"abc\"}",
+        ];
+        var streamed = string.Empty;
+        foreach (var line in lines)
+        {
+            if (!TestClient.ReadStreamLine(line, out var delta, out _)) continue;
+            if (delta is not null) streamed += delta;
+        }
+        Assert.Equal("Hello there!", streamed);
+    }
+
+    [Fact]
     public void ScreenPromptRequiresEvidenceFirstAnalysis()
     {
         var request = new AiRequest("What is wrong?", "region.png", "screen.png", []) { TaskKind = TaskKind.Chat };
@@ -33,7 +81,39 @@ public sealed class CliParsingTests
     {
         var request = new AiRequest("Explain dependency injection", null, null, []) { TaskKind = TaskKind.Chat };
 
-        Assert.DoesNotContain("primary evidence", TestClient.Prompt(request));
+        var prompt = TestClient.Prompt(request);
+
+        Assert.DoesNotContain("primary evidence", prompt);
+        Assert.Contains("NEED_SCREEN:", prompt);
+    }
+
+    [Fact]
+    public void PromptIncludesPinnedMemory()
+    {
+        var original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { AssistantMemory = "Repo: C:\\LMLB\nPreference: keep replies concise" };
+            var prompt = TestClient.Prompt(new AiRequest("What should we do next?", null, null, []) { TaskKind = TaskKind.Chat });
+
+            Assert.Contains("Pinned memory:", prompt);
+            Assert.Contains("Repo: C:\\LMLB", prompt);
+            Assert.Contains("Preference: keep replies concise", prompt);
+        }
+        finally
+        {
+            AppSettings.Current = original;
+        }
+    }
+
+    [Fact]
+    public void ScreenRereadDirectiveIsDetectedAndRemoved()
+    {
+        var raw = "I can answer that after I see the screen.\nNEED_SCREEN: I need the settings panel.";
+
+        Assert.True(ClarifyingQuestionParser.TryExtractScreenRereadReason(raw, out var reason));
+        Assert.Equal("I need the settings panel.", reason);
+        Assert.Equal("I can answer that after I see the screen.", ClarifyingQuestionParser.RemoveScreenRereadDirective(raw));
     }
 
     [Fact]
@@ -141,7 +221,7 @@ public sealed class CliParsingTests
     private sealed class TestClient : CliAiClient
     {
         protected override string Command => "unused";
-        protected override void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt) { }
+        protected override void AddArguments(ProcessStartInfo startInfo, AiRequest request, string prompt, string sessionDirectory) { }
         public string Parse(string value) => ParseOutput(value);
         public static string Prompt(AiRequest request) => BuildPrompt(request);
         public static bool ReadStreamLine(string line, out string? delta, out string? final) => TryReadStreamLine(line, out delta, out final);
