@@ -89,6 +89,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ClearAttachedFilesCommand = new RelayCommand(ClearAttachedFiles, () => HasAttachedFiles);
         UndoFileChangeCommand = new ParameterCommand(UndoFileChange);
         ToggleChaosModeCommand = new RelayCommand(ToggleChaosMode);
+        ToggleLeanChatCommand = new RelayCommand(ToggleLeanChat);
         CycleChaosToneCommand = new RelayCommand(CycleChaosTone, () => ChaosModeEnabled);
         RoastUiCommand = new AsyncCommand(RoastUiAsync, () => IsIdle && ChaosModeEnabled && SelectedDiagnostic?.IsAvailable != false);
         ArgueWithYourselfCommand = new AsyncCommand(ArgueWithYourselfAsync, () => IsIdle && ChaosModeEnabled && SelectedDiagnostic?.IsAvailable != false);
@@ -134,6 +135,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand ClearAttachedFilesCommand { get; }
     public ParameterCommand UndoFileChangeCommand { get; }
     public RelayCommand ToggleChaosModeCommand { get; }
+    public RelayCommand ToggleLeanChatCommand { get; }
     public RelayCommand CycleChaosToneCommand { get; }
     public AsyncCommand RoastUiCommand { get; }
     public AsyncCommand ArgueWithYourselfCommand { get; }
@@ -235,6 +237,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public ChaosTone ChaosTone => (ChaosTone)AppSettings.Current.ChaosTone;
     public string ChaosToneChipLabel => ChaosMode.ToneChipLabel(ChaosTone);
     public string ChaosModeMenuLabel => ChaosModeEnabled ? "Chaos Mode: ON" : "Chaos Mode: OFF";
+    public bool LeanChatEnabled => AppSettings.Current.LeanChatMode;
+    public string LeanChatMenuLabel => LeanChatEnabled ? "Lean chat: ON" : "Lean chat: OFF";
+    public string LeanChatChipLabel => LeanChatEnabled ? "Lean ON" : "Lean";
     public bool IsFocusLocked => ChaosModeEnabled && _focusUntilUtc is { } until && until > DateTimeOffset.UtcNow;
     public string PomodoroLabel
     {
@@ -382,6 +387,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : IsImprovingPrompt ? "Improving prompt"
         : IsSuggesting ? "Preparing shortcuts"
         : ChaosModeEnabled ? "Chaos"
+        : LeanChatEnabled ? "Lean"
         : HasRegion ? "Region ready"
         : HasContext ? "Screen ready"
         : "Ready";
@@ -392,6 +398,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : IsImprovingPrompt ? "Rewriting your draft — not sent yet"
         : IsSuggesting ? "Generating quick actions"
         : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
+        : LeanChatEnabled ? "Short prompts · tighter history · fewer tokens"
         : HasRegion ? "Selected area stays in focus until you clear it"
         : HasContext ? "Screen context loaded"
         : "No screen context yet";
@@ -1604,6 +1611,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         NotifyChaosChanged();
     }
 
+    private void ToggleLeanChat()
+    {
+        AppSettings.Current.LeanChatMode = !AppSettings.Current.LeanChatMode;
+        AppSettings.Current.Save();
+        NotifyLeanChatChanged();
+    }
+
+    private void NotifyLeanChatChanged()
+    {
+        OnPropertyChanged(nameof(LeanChatEnabled));
+        OnPropertyChanged(nameof(LeanChatMenuLabel));
+        OnPropertyChanged(nameof(LeanChatChipLabel));
+        NotifySurfaceStateChanged();
+    }
+
     private void CycleChaosTone()
     {
         if (!ChaosModeEnabled) return;
@@ -1776,6 +1798,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(AssistantMemoryPreview));
         SelectedEffortIndex = AppSettings.EffortToIndex(AppSettings.Current.ChatReasoningEffort);
         NotifyChaosChanged();
+        NotifyLeanChatChanged();
         NotifyModelPickerChanged();
     }
 

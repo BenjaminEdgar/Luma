@@ -21,6 +21,7 @@ public sealed class SettingsWindow : Window
     private readonly NumericUpDown _fresh;
     private readonly NumericUpDown _imageWidth;
     private readonly CheckBox _skipUnchanged;
+    private readonly CheckBox _leanChat;
     private readonly NumericUpDown _historyMessages;
     private readonly NumericUpDown _historyChars;
     private readonly NumericUpDown _memoryChars;
@@ -47,6 +48,7 @@ public sealed class SettingsWindow : Window
         _fresh = Number(0, 3600, settings.SuggestionFreshSeconds);
         _imageWidth = Number(480, 7680, settings.SuggestionImageMaxWidth);
         _skipUnchanged = Toggle("Skip suggestions when the screen is unchanged", settings.SkipSuggestionsWhenScreenUnchanged);
+        _leanChat = Toggle("Lean chat mode (shorter prompts, tighter history)", settings.LeanChatMode);
         _historyMessages = Number(0, 500, settings.HistoryMessageLimit);
         _historyChars = Number(0, 200_000, settings.HistoryCharacterLimit);
         _memoryChars = Number(0, 20_000, settings.AssistantMemoryCharacterLimit);
@@ -123,11 +125,13 @@ public sealed class SettingsWindow : Window
                                 Labeled("Suggestion screenshot max width (px)", _imageWidth),
                                 Hint("The suggestion request ships a downscaled copy; smaller is faster and cheaper."),
                                 Section("Token budget"),
+                                _leanChat,
+                                Hint("Lean mode drops ASK_USER / SHOW_WHERE / NEED_SCREEN instructions, shortens the system playbook, and caps history (4 msgs · ~900 chars) and memory on chat turns."),
                                 _skipUnchanged,
                                 Hint("If nothing on screen changed, existing chips are reused for free instead of asking again."),
                                 Labeled("History messages per request (0 = all)", _historyMessages),
                                 Labeled("Max characters per history message (0 = full)", _historyChars),
-                                Hint("Every request re-sends the conversation; trimming old or long messages cuts cost on long chats."),
+                                Hint("Every request re-sends the conversation; trimming old or long messages cuts cost on long chats. Lean mode applies tighter caps on top."),
                                 Section("Assistant memory"),
                                 Labeled("Pinned memory max characters", _memoryChars),
                                 _assistantMemory,
@@ -187,6 +191,7 @@ public sealed class SettingsWindow : Window
         settings.SuggestionFreshSeconds = (int)(_fresh.Value ?? 90);
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);
         settings.SkipSuggestionsWhenScreenUnchanged = _skipUnchanged.IsChecked ?? true;
+        settings.LeanChatMode = _leanChat.IsChecked ?? false;
         settings.HistoryMessageLimit = (int)(_historyMessages.Value ?? 12);
         settings.HistoryCharacterLimit = (int)(_historyChars.Value ?? 4000);
         settings.AssistantMemoryCharacterLimit = (int)(_memoryChars.Value ?? 2000);

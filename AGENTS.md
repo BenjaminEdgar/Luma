@@ -23,6 +23,8 @@ Always-on-top **Avalonia 12** / **.NET 10** dock (`src/Luma.App`, assembly `Luma
 - **Directives:** `ASK_USER:`, `NEED_SCREEN:`, `SHOW_WHERE: label \| x,y,w,h` (0–1 screen fractions) → `ShowWhereParser` + `GhostCursorWindow`.
 - **History:** limits in `AppSettings`; built in `CliAiClient.BuildPrompt`.
 
+**Lean chat:** `AppSettings.LeanChatMode` — short system preamble, no ASK_USER/SHOW_WHERE/NEED_SCREEN playbook, history capped at 4×~900 chars (and memory ~600). Toggle via Settings or `+` menu.
+
 ## Providers (`AiClients.cs`)
 
 | Provider | Tools / sandbox notes |

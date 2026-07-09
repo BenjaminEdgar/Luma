@@ -172,68 +172,112 @@ public abstract class CliAiClient : IAiClient
         return destination;
     }
 
+    /// <summary>Lean mode history caps (applied as upper bounds on the user's token-budget settings).</summary>
+    public const int LeanHistoryMessageCap = 4;
+    public const int LeanHistoryCharacterCap = 900;
+    public const int LeanMemoryCharacterCap = 600;
+
     protected static string BuildPrompt(AiRequest request)
     {
-        var builder = new StringBuilder(
-            "You are helping inside Luma. Be concise.\n" +
-            "You may use tools to list, search, read, create, and edit files when that helps complete the user's request. " +
-            "Prefer real project files over guessing. Keep edits small and focused; summarize what you changed.\n" +
-            "Do not run destructive shell commands (for example mass deletes, disk format, or rewriting system paths).\n" +
-            "When one specific detail would materially improve your answer, ask exactly one clarifying question by ending your reply with a final line:\n" +
-            "ASK_USER: <short question> || <choice1> || <choice2>\n" +
-            "Prefer 2–4 short multiple-choice options when sensible; omit choices only when free text is required. " +
-            "Do not ask more than one question per turn. If you can help well without asking, answer directly.\n");
-        if (AppSettings.Current.ChaosMode &&
-            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
+        var lean = AppSettings.Current.LeanChatMode;
+        var garnish = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt;
+        var builder = new StringBuilder();
+
+        if (lean || garnish)
+        {
+            // Minimal preamble — garnish tasks and lean chat skip the long Luma playbook.
+            builder.AppendLine(lean
+                ? "You are Luma. Be concise. Prefer project files via tools over guessing. No destructive shell."
+                : "You are Luma. Be concise.");
+        }
+        else
+        {
+            builder.Append(
+                "You are helping inside Luma. Be concise.\n" +
+                "You may use tools to list, search, read, create, and edit files when that helps complete the user's request. " +
+                "Prefer real project files over guessing. Keep edits small and focused; summarize what you changed.\n" +
+                "Do not run destructive shell commands (for example mass deletes, disk format, or rewriting system paths).\n" +
+                "When one specific detail would materially improve your answer, ask exactly one clarifying question by ending your reply with a final line:\n" +
+                "ASK_USER: <short question> || <choice1> || <choice2>\n" +
+                "Prefer 2–4 short multiple-choice options when sensible; omit choices only when free text is required. " +
+                "Do not ask more than one question per turn. If you can help well without asking, answer directly.\n");
+        }
+
+        if (!lean && AppSettings.Current.ChaosMode && !garnish)
         {
             var tone = (ChaosTone)AppSettings.Current.ChaosTone;
             var directive = ChaosMode.ToneDirective(tone);
             if (directive is not null) builder.AppendLine(directive);
         }
+
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
-        if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
+        if (hasVisualContext && !garnish)
         {
-            builder.AppendLine(
-                "Treat the supplied screenshot as primary evidence and inspect it before answering. " +
-                "If a selected-region image is present, it is the user's main focus; use the full-screen image only to understand surrounding context. " +
-                "Quote or transcribe visible text exactly when it matters. Clearly distinguish what is visibly present from what you infer. " +
-                "Never invent text, values, controls, or states that are cropped, blurred, or unreadable. " +
-                "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
-                "If an unreadable visual detail is essential, use ASK_USER with a tighter-selection choice or a best-effort option. " +
-                "When it helps the user find something on screen, end with a final line: " +
-                "SHOW_WHERE: optional label | x,y,w,h using normalized 0–1 fractions of the full screen " +
-                "(example: SHOW_WHERE: Apply button | 0.72,0.81,0.14,0.06).");
+            if (lean)
+            {
+                builder.AppendLine(
+                    "Screenshot is primary evidence. Prefer the region image when present. " +
+                    "Do not invent unreadable text. Answer the user first.");
+            }
+            else
+            {
+                builder.AppendLine(
+                    "Treat the supplied screenshot as primary evidence and inspect it before answering. " +
+                    "If a selected-region image is present, it is the user's main focus; use the full-screen image only to understand surrounding context. " +
+                    "Quote or transcribe visible text exactly when it matters. Clearly distinguish what is visibly present from what you infer. " +
+                    "Never invent text, values, controls, or states that are cropped, blurred, or unreadable. " +
+                    "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
+                    "If an unreadable visual detail is essential, use ASK_USER with a tighter-selection choice or a best-effort option. " +
+                    "When it helps the user find something on screen, end with a final line: " +
+                    "SHOW_WHERE: optional label | x,y,w,h using normalized 0–1 fractions of the full screen " +
+                    "(example: SHOW_WHERE: Apply button | 0.72,0.81,0.14,0.06).");
+            }
         }
-        if (!hasVisualContext && request.TaskKind is TaskKind.Chat or TaskKind.Generic)
+        if (!lean && !hasVisualContext && request.TaskKind is TaskKind.Chat or TaskKind.Generic)
             builder.AppendLine("If you need the current screen to answer accurately and no screenshot is included yet, end with NEED_SCREEN: <short reason>. Otherwise answer directly.");
-        if (!string.IsNullOrWhiteSpace(request.WorkingDirectory) &&
-            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route or TaskKind.ImprovePrompt))
+
+        if (!string.IsNullOrWhiteSpace(request.WorkingDirectory) && !garnish)
         {
-            builder.AppendLine(
-                $"Project directory (working root): {request.WorkingDirectory}. " +
-                "Use tools to list, search, read, create, and edit files under this root when the task needs local code, configs, logs, or docs. " +
-                "Stay inside this root unless the user explicitly points elsewhere. Quote paths relative to the project root when you can.");
+            if (lean)
+            {
+                builder.AppendLine($"Project root: {request.WorkingDirectory}. Use tools under this root when needed.");
+            }
+            else
+            {
+                builder.AppendLine(
+                    $"Project directory (working root): {request.WorkingDirectory}. " +
+                    "Use tools to list, search, read, create, and edit files under this root when the task needs local code, configs, logs, or docs. " +
+                    "Stay inside this root unless the user explicitly points elsewhere. Quote paths relative to the project root when you can.");
+            }
         }
+
         switch (request.TaskKind)
         {
             case TaskKind.Email:
-                builder.AppendLine("Draft the email reply. When ready, put the complete reply after a line containing exactly DRAFT:. Never claim to send the email.");
+                builder.AppendLine(lean
+                    ? "Draft the email. Put the full reply after a line: DRAFT:"
+                    : "Draft the email reply. When ready, put the complete reply after a line containing exactly DRAFT:. Never claim to send the email.");
                 break;
             case TaskKind.Code:
-                builder.AppendLine(
-                    "Inspect the project folder with tools before changing it — Git is not required. " +
-                    "You may create and edit files under the project root with your tools when the user wants changes applied. " +
-                    "Prefer small, focused edits and briefly explain what you changed. " +
-                    "When a structured patch for Luma's review card is still useful, also include one complete unified diff in a ```diff fenced block with project-relative paths.");
+                builder.AppendLine(lean
+                    ? "Use tools to inspect/edit the project. Prefer small edits; optional ```diff for review."
+                    : "Inspect the project folder with tools before changing it — Git is not required. " +
+                      "You may create and edit files under the project root with your tools when the user wants changes applied. " +
+                      "Prefer small, focused edits and briefly explain what you changed. " +
+                      "When a structured patch for Luma's review card is still useful, also include one complete unified diff in a ```diff fenced block with project-relative paths.");
                 break;
             case TaskKind.Generic:
-                builder.AppendLine("Work methodically and finish with a useful deliverable. You may edit project files when that is the deliverable.");
+                builder.AppendLine(lean
+                    ? "Deliver a useful result; edit project files if that is the work."
+                    : "Work methodically and finish with a useful deliverable. You may edit project files when that is the deliverable.");
                 break;
             case TaskKind.Shell:
                 builder.AppendLine("Propose exactly one shell command in a fenced code block (```bash). Do not execute anything yourself.");
                 break;
             case TaskKind.Browser:
-                builder.AppendLine("Draft the reply to paste into the page. When ready, put the complete text after a line containing exactly DRAFT:.");
+                builder.AppendLine(lean
+                    ? "Draft paste text after a line: DRAFT:"
+                    : "Draft the reply to paste into the page. When ready, put the complete text after a line containing exactly DRAFT:.");
                 break;
             case TaskKind.Suggest:
                 builder.AppendLine(
@@ -254,10 +298,13 @@ public abstract class CliAiClient : IAiClient
                     "Do not answer the draft, ask questions, or use tools.");
                 break;
         }
+
         if (!string.IsNullOrWhiteSpace(AppSettings.Current.AssistantMemory))
         {
             var memory = AppSettings.Current.AssistantMemory.Trim();
             var max = AppSettings.Current.AssistantMemoryCharacterLimit;
+            if (lean && (max <= 0 || max > LeanMemoryCharacterCap))
+                max = LeanMemoryCharacterCap;
             if (max > 0 && memory.Length > max) memory = memory[..max] + " ...[trimmed]";
             builder.AppendLine($"Pinned memory:\n{memory}");
         }
@@ -265,8 +312,16 @@ public abstract class CliAiClient : IAiClient
         if (request.History.Count > 0)
         {
             // Every call re-sends the conversation, so trim it to the configured token budget.
+            // Lean chat applies stricter upper bounds so long threads stay cheap.
             var messageLimit = AppSettings.Current.HistoryMessageLimit;
             var characterLimit = AppSettings.Current.HistoryCharacterLimit;
+            if (lean && !garnish)
+            {
+                if (messageLimit <= 0 || messageLimit > LeanHistoryMessageCap)
+                    messageLimit = LeanHistoryMessageCap;
+                if (characterLimit <= 0 || characterLimit > LeanHistoryCharacterCap)
+                    characterLimit = LeanHistoryCharacterCap;
+            }
             var omitted = messageLimit > 0 && request.History.Count > messageLimit;
             builder.AppendLine(omitted ? $"Recent conversation (latest {messageLimit}):" : "Conversation:");
             if (omitted)

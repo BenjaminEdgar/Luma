@@ -600,6 +600,10 @@
                       Command="{Binding ClearAttachedFilesCommand}"
                       VerticalAlignment="Center" Margin="0,0,0,4" />
               <!-- Compact mode chips (roast/argue live in + menu) -->
+              <Button Classes="cwdchip" Content="{Binding LeanChatChipLabel}" Margin="0,0,6,4"
+                      IsVisible="{Binding LeanChatEnabled}"
+                      Command="{Binding ToggleLeanChatCommand}"
+                      ToolTip.Tip="Lean chat is on — shorter prompts &amp; history. Click to turn off." />
               <Button Classes="chaoschip" Content="{Binding ChaosToneChipLabel}" Margin="0,0,6,4"
                       IsVisible="{Binding ChaosModeEnabled}"
                       Command="{Binding CycleChaosToneCommand}"
@@ -648,6 +652,9 @@
                               Command="{Binding ClearAttachedFilesCommand}"
                               IsVisible="{Binding HasAttachedFiles}" />
                     <MenuItem Header="-" />
+                    <MenuItem Header="{Binding LeanChatMenuLabel}"
+                              Command="{Binding ToggleLeanChatCommand}"
+                              ToolTip.Tip="Shorter system prompts and tighter history to save tokens" />
                     <MenuItem Header="{Binding ChaosModeMenuLabel}"
                               Command="{Binding ToggleChaosModeCommand}"
                               ToolTip.Tip="Roast, debate, tone flip, and evil focus lock" />

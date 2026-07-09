@@ -64,60 +64,136 @@ public sealed class CliParsingTests
     [Fact]
     public void ScreenPromptRequiresEvidenceFirstAnalysis()
     {
-        var request = new AiRequest("What is wrong?", "region.png", "screen.png", []) { TaskKind = TaskKind.Chat };
+        var original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var request = new AiRequest("What is wrong?", "region.png", "screen.png", []) { TaskKind = TaskKind.Chat };
 
-        var prompt = TestClient.Prompt(request);
+            var prompt = TestClient.Prompt(request);
 
-        Assert.Contains("primary evidence", prompt);
-        Assert.Contains("main focus", prompt);
-        Assert.Contains("transcribe visible text exactly", prompt);
-        Assert.Contains("distinguish what is visibly present from what you infer", prompt);
-        Assert.Contains("Never invent text", prompt);
-        Assert.Contains("most useful next action", prompt);
+            Assert.Contains("primary evidence", prompt);
+            Assert.Contains("main focus", prompt);
+            Assert.Contains("transcribe visible text exactly", prompt);
+            Assert.Contains("distinguish what is visibly present from what you infer", prompt);
+            Assert.Contains("Never invent text", prompt);
+            Assert.Contains("most useful next action", prompt);
+        }
+        finally { AppSettings.Current = original; }
+    }
+
+    [Fact]
+    public void LeanChatPromptDropsDirectivesAndShortensPreamble()
+    {
+        var original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { LeanChatMode = true, HistoryMessageLimit = 20, HistoryCharacterLimit = 4000 };
+            var history = Enumerable.Range(0, 10)
+                .Select(i => new ChatMessage(i % 2 == 0 ? "user" : "assistant", $"msg{i}-" + new string('x', 1200)))
+                .ToArray();
+            var request = new AiRequest("Fix the bug", null, null, history)
+            {
+                TaskKind = TaskKind.Chat,
+                WorkingDirectory = @"C:\LMLB",
+            };
+
+            var prompt = TestClient.Prompt(request);
+
+            Assert.Contains("You are Luma. Be concise.", prompt);
+            Assert.DoesNotContain("ASK_USER:", prompt);
+            Assert.DoesNotContain("NEED_SCREEN:", prompt);
+            Assert.DoesNotContain("SHOW_WHERE:", prompt);
+            Assert.DoesNotContain("create, and edit files under this root", prompt);
+            Assert.Contains("Project root: C:\\LMLB", prompt);
+            Assert.Contains("latest 4", prompt); // lean history cap
+            Assert.Contains("Earlier context summary:", prompt);
+            // Last turn is kept as a full line (trimmed body).
+            Assert.Contains("A: msg9-", prompt);
+            // Lean char cap trims 1200-char bodies.
+            Assert.DoesNotContain(new string('x', 1200), prompt);
+            Assert.Contains("...[trimmed]", prompt);
+        }
+        finally { AppSettings.Current = original; }
+    }
+
+    [Fact]
+    public void LeanChatScreenPromptIsCompact()
+    {
+        var original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { LeanChatMode = true };
+            var prompt = TestClient.Prompt(new AiRequest("What is wrong?", "region.png", "screen.png", [])
+            { TaskKind = TaskKind.Chat });
+
+            Assert.Contains("Screenshot is primary evidence", prompt);
+            Assert.DoesNotContain("transcribe visible text exactly", prompt);
+            Assert.DoesNotContain("SHOW_WHERE:", prompt);
+        }
+        finally { AppSettings.Current = original; }
     }
 
     [Fact]
     public void TextOnlyPromptDoesNotClaimVisualEvidence()
     {
-        var request = new AiRequest("Explain dependency injection", null, null, []) { TaskKind = TaskKind.Chat };
+        var original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var request = new AiRequest("Explain dependency injection", null, null, []) { TaskKind = TaskKind.Chat };
 
-        var prompt = TestClient.Prompt(request);
+            var prompt = TestClient.Prompt(request);
 
-        Assert.DoesNotContain("primary evidence", prompt);
-        Assert.Contains("NEED_SCREEN:", prompt);
-        Assert.Contains("create, and edit files", prompt);
+            Assert.DoesNotContain("primary evidence", prompt);
+            Assert.Contains("NEED_SCREEN:", prompt);
+            Assert.Contains("create, and edit files", prompt);
+        }
+        finally { AppSettings.Current = original; }
     }
 
     [Fact]
     public void PromptWithWorkingDirectoryAllowsFileReadsAndWrites()
     {
-        var request = new AiRequest("Where is the router configured?", null, null, [])
+        var original = AppSettings.Current;
+        try
         {
-            TaskKind = TaskKind.Chat,
-            WorkingDirectory = @"C:\LMLB",
-        };
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var request = new AiRequest("Where is the router configured?", null, null, [])
+            {
+                TaskKind = TaskKind.Chat,
+                WorkingDirectory = @"C:\LMLB",
+            };
 
-        var prompt = TestClient.Prompt(request);
+            var prompt = TestClient.Prompt(request);
 
-        Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
-        Assert.Contains("create, and edit files under this root", prompt);
-        Assert.DoesNotContain("primary evidence", prompt);
+            Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
+            Assert.Contains("create, and edit files under this root", prompt);
+            Assert.DoesNotContain("primary evidence", prompt);
+        }
+        finally { AppSettings.Current = original; }
     }
 
     [Fact]
     public void CodePromptAllowsDirectEditsAndOptionalDiff()
     {
-        var request = new AiRequest("Fix the null ref", null, null, [])
+        var original = AppSettings.Current;
+        try
         {
-            TaskKind = TaskKind.Code,
-            WorkingDirectory = @"C:\LMLB",
-        };
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var request = new AiRequest("Fix the null ref", null, null, [])
+            {
+                TaskKind = TaskKind.Code,
+                WorkingDirectory = @"C:\LMLB",
+            };
 
-        var prompt = TestClient.Prompt(request);
+            var prompt = TestClient.Prompt(request);
 
-        Assert.Contains("create and edit files", prompt);
-        Assert.Contains("```diff", prompt);
-        Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
+            Assert.Contains("create and edit files", prompt);
+            Assert.Contains("```diff", prompt);
+            Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
+        }
+        finally { AppSettings.Current = original; }
     }
 
     [Fact]

@@ -42,6 +42,11 @@ public sealed class AppSettings
     public int HistoryCharacterLimit { get; set; } = 2200;
     /// <summary>Caps the pinned memory text so the assistant stays concise.</summary>
     public int AssistantMemoryCharacterLimit { get; set; } = 2000;
+    /// <summary>
+    /// Lean chat: short system preamble, no ASK_USER/SHOW_WHERE/NEED_SCREEN instructions,
+    /// and tighter history caps on chat turns — lower token use at the cost of fewer structured UX hooks.
+    /// </summary>
+    public bool LeanChatMode { get; set; }
 
     // Per-provider model overrides.
     public string ClaudeChatModel { get; set; } = "";
