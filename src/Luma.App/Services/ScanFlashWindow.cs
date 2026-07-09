@@ -19,7 +19,12 @@ public sealed class ScanFlashWindow : Window
             Background = new LinearGradientBrush
             {
                 StartPoint = new RelativePoint(0, .5, RelativeUnit.Relative), EndPoint = new RelativePoint(1, .5, RelativeUnit.Relative),
-                GradientStops = { new GradientStop(Color.Parse("#008A63F5"), 0), new GradientStop(Color.Parse("#558A63F5"), .5), new GradientStop(Color.Parse("#004F7CFF"), 1) },
+                GradientStops =
+                {
+                    new GradientStop(Color.FromArgb(0, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B), 0),
+                    new GradientStop(Color.FromArgb(0x77, LumaTheme.AccentStart.R, LumaTheme.AccentStart.G, LumaTheme.AccentStart.B), .45),
+                    new GradientStop(Color.FromArgb(0, LumaTheme.AccentEnd.R, LumaTheme.AccentEnd.G, LumaTheme.AccentEnd.B), 1),
+                },
             },
         };
         flash.Styles.Add(new Style(x => x.OfType<Border>())

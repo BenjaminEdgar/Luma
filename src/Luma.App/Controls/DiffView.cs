@@ -45,10 +45,17 @@ public sealed class DiffView : ContentControl
         var document = Document;
         if (document is null || document.Files.Count == 0) { Content = null; return; }
 
-        var root = new StackPanel { Spacing = 10 };
+        var root = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Stretch };
         root.Children.Add(Toolbar(document));
         foreach (var file in document.Files) root.Children.Add(FileCard(file));
-        Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        Content = new ScrollViewer
+        {
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            MaxHeight = 340,
+            ClipToBounds = true,
+        };
     }
 
     private Control Toolbar(DiffDocument document)
@@ -178,13 +185,14 @@ public sealed class DiffView : ContentControl
             FontSize = 11.5,
             Foreground = MutedFg,
             VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.WrapWithOverflow,
         };
-        var header = new StackPanel
+        var header = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 8,
             Margin = new Thickness(28, 0, 0, 0),
-            Children = { check, headerText },
+            Children = { check, At(headerText, 0, 1) },
         };
 
         return new StackPanel
@@ -211,21 +219,21 @@ public sealed class DiffView : ContentControl
             {
                 Background = background,
                 Padding = new Thickness(8, 0),
+                ClipToBounds = true,
                 Child = new TextBlock
                 {
                     Text = line.Text,
                     FontFamily = Mono,
                     FontSize = 12,
                     Foreground = foreground,
-                    TextWrapping = TextWrapping.NoWrap,
+                    TextWrapping = TextWrapping.WrapWithOverflow,
                 },
             });
         }
-        return new ScrollViewer
+        return new Border
         {
-            Content = panel,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            ClipToBounds = true,
+            Child = panel,
         };
     }
 

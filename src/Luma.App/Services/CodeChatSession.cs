@@ -62,16 +62,34 @@ public sealed class CodeChatSession : INotifyPropertyChanged
 
     public async Task RunAsync(string prompt, CancellationToken token)
     {
-        if (!await _git.IsRepositoryAsync(_workingDirectory, token))
-            throw new InvalidOperationException("Choose a valid Git repository.");
-        _protectedPaths = (await _git.GetStatusAsync(_workingDirectory, token)).ChangedPaths;
-        var files = await _git.ListFilesAsync(_workingDirectory, token);
+        if (string.IsNullOrWhiteSpace(_workingDirectory) || !Directory.Exists(_workingDirectory))
+            throw new InvalidOperationException("Choose a valid project folder.");
+
+        // Git is optional: any folder works for reading. When it is a repo, reuse git listing + protect dirty paths.
+        var isGitRepo = await _git.IsRepositoryAsync(_workingDirectory, token);
+        IReadOnlyList<string> files;
+        if (isGitRepo)
+        {
+            _protectedPaths = (await _git.GetStatusAsync(_workingDirectory, token)).ChangedPaths;
+            files = await _git.ListFilesAsync(_workingDirectory, token);
+        }
+        else
+        {
+            _protectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            files = WorkspaceFileListing.ListFiles(_workingDirectory);
+        }
+
         var listing = RepoContextFormatter.BuildFileListSummary(files);
+        var protectedNote = _protectedPaths.Count == 0
+            ? "No protected paths."
+            : $"Existing changed paths are protected and must not be included: {string.Join(", ", _protectedPaths)}";
+        var listingNote = isGitRepo
+            ? "Project file listing (respects .gitignore; use this to decide which files to inspect further; this does not replace your own read-tool exploration)"
+            : "Project file listing (non-git folder; use this to decide which files to inspect further; this does not replace your own read-tool exploration)";
         _persistentContext =
-            $"Repository root: {_workingDirectory}\n" +
-            $"Existing changed paths are protected and must not be included: {string.Join(", ", _protectedPaths)}\n" +
-            "Repository file listing (respects .gitignore; use this to decide which files to inspect further; " +
-            $"this does not replace your own read-tool exploration):\n{listing}";
+            $"Project root: {_workingDirectory}\n" +
+            $"{protectedNote}\n" +
+            $"{listingNote}:\n{listing}";
         await RunTurnAsync(prompt, _persistentContext, token);
     }
 

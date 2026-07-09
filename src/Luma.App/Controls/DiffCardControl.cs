@@ -18,20 +18,21 @@ public sealed class DiffCardControl : ContentControl
     public static readonly StyledProperty<CodeChatSession?> SessionProperty =
         AvaloniaProperty.Register<DiffCardControl, CodeChatSession?>(nameof(Session));
 
-    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#99FFFFFF"));
-    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#66090A10"));
-    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#22FFFFFF"));
+    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#B0A8C8"));
+    private static readonly IBrush CardBg = new SolidColorBrush(Color.Parse("#88090A12"));
+    private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#448A63F5"));
 
-    private readonly TextBlock _status = new() { FontSize = 12, Foreground = MutedFg, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { FontSize = 12, Foreground = MutedFg, TextWrapping = TextWrapping.WrapWithOverflow };
     private readonly Button _toggle = new() { Padding = new Thickness(10, 5), HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly DiffView _diffView = new();
+    private readonly DiffView _diffView = new() { MaxHeight = 360 };
     private readonly TextBox _rawBox = new()
     {
         AcceptsReturn = true,
-        TextWrapping = TextWrapping.NoWrap,
+        TextWrapping = TextWrapping.Wrap,
         FontFamily = FontFamily.Parse("Consolas"),
         FontSize = 12,
         MinHeight = 160,
+        MaxHeight = 360,
     };
     private readonly Grid _artifactHost = new();
     private readonly Button _apply = new() { Content = "Apply patch", Padding = new Thickness(16, 9), CornerRadius = new CornerRadius(10) };
@@ -83,11 +84,11 @@ public sealed class DiffCardControl : ContentControl
             if (Session is { } session) await session.RevertAsync(CancellationToken.None);
         };
 
-        var actions = new StackPanel
+        var actions = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 9,
+            ItemSpacing = 9,
             Children = { _verifyCommandBox, _verifyButton, _revertButton, _apply },
         };
 
@@ -98,7 +99,14 @@ public sealed class DiffCardControl : ContentControl
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(12),
-            Child = new StackPanel { Spacing = 8, Children = { _status, _toggle, _artifactHost, actions } },
+            ClipToBounds = true,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Child = new StackPanel
+            {
+                Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Children = { _status, _toggle, _artifactHost, actions },
+            },
         };
     }
 

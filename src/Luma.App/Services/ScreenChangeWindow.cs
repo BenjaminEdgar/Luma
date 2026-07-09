@@ -25,21 +25,23 @@ public sealed class ScreenChangeWindow : Window
         Content = new Border
         {
             Padding = new Thickness(22),
-            CornerRadius = new CornerRadius(17),
-            Background = new SolidColorBrush(Color.Parse("#F214161E")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#3DFFFFFF")),
+            CornerRadius = new CornerRadius(LumaTheme.FloatingCornerRadius),
+            Background = LumaTheme.GlassFillBrush,
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
+            BoxShadow = LumaTheme.SoftShadow,
             Child = new StackPanel
             {
                 Spacing = 14,
                 Children =
                 {
-                    new TextBlock { Text = "Your screen looks different", FontSize = 19, FontWeight = FontWeight.Bold },
+                    new TextBlock { Text = "Your screen looks different", FontSize = 19, FontWeight = FontWeight.Bold, Foreground = LumaTheme.TextBrightBrush },
                     new TextBlock
                     {
                         Text = "Do you want to start a new chat for what is on screen now?",
                         TextWrapping = TextWrapping.Wrap,
-                        Opacity = .72
+                        Opacity = .82,
+                        Foreground = LumaTheme.TextMutedBrush,
                     },
                     new StackPanel
                     {

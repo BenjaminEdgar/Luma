@@ -2,34 +2,69 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Luma.App.App"
              RequestedThemeVariant="Dark">
-    <!-- The shell is designed dark-glass; pin the Dark variant so Fluent controls match. -->
+    <!-- Luma Violet Glass: the familiar violet→blue accent, tuned for clarity, motion, and delight. -->
 
     <Application.Resources>
         <ResourceDictionary>
             <Color x:Key="AccentStart">#8A63F5</Color>
             <Color x:Key="AccentEnd">#4F7CFF</Color>
+            <Color x:Key="AccentSoft">#B3A6FF</Color>
+            <Color x:Key="InkPanel">#14161E</Color>
+            <Color x:Key="TextBright">#F7F6FF</Color>
+            <Color x:Key="TextBody">#E4E2F0</Color>
+            <Color x:Key="TextMuted">#A8A4BE</Color>
+
             <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
                 <GradientStop Color="{StaticResource AccentStart}" Offset="0" />
                 <GradientStop Color="{StaticResource AccentEnd}" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="AccentGradientBright" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#9D7BFF" Offset="0" />
-                <GradientStop Color="#6690FF" Offset="1" />
+                <GradientStop Color="#A07BFF" Offset="0" />
+                <GradientStop Color="#6B92FF" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="UserBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#B38A63F5" Offset="0" />
+                <GradientStop Color="#C48A63F5" Offset="0" />
                 <GradientStop Color="#B34F7CFF" Offset="1" />
             </LinearGradientBrush>
-            <!-- Panel edge: accent-tinted at the top, fading to neutral glass below. -->
-            <LinearGradientBrush x:Key="PanelBorderBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Color="#668A63F5" Offset="0" />
-                <GradientStop Color="#2EFFFFFF" Offset="0.35" />
-                <GradientStop Color="#1FFFFFFF" Offset="1" />
+            <LinearGradientBrush x:Key="PanelFillBrush" StartPoint="0%,0%" EndPoint="50%,100%">
+                <GradientStop Color="#F5181A24" Offset="0" />
+                <GradientStop Color="#F214161E" Offset="0.55" />
+                <GradientStop Color="#F010121A" Offset="1" />
             </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PanelBorderBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#998A63F5" Offset="0" />
+                <GradientStop Color="#44FFFFFF" Offset="0.28" />
+                <GradientStop Color="#22FFFFFF" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="HeaderSheenBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="#668A63F5" Offset="0" />
+                <GradientStop Color="#334F7CFF" Offset="0.55" />
+                <GradientStop Color="#228A63F5" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="ComposeBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Color="#778A63F5" Offset="0" />
+                <GradientStop Color="#554F7CFF" Offset="1" />
+            </LinearGradientBrush>
+            <RadialGradientBrush x:Key="DockGlowBrush" Center="50%,50%" GradientOrigin="45%,40%">
+                <GradientStop Color="#E08A63F5" Offset="0" />
+                <GradientStop Color="#904F7CFF" Offset="0.55" />
+                <GradientStop Color="#00000000" Offset="1" />
+            </RadialGradientBrush>
+            <RadialGradientBrush x:Key="OrbTopBrush" Center="18%,12%" GradientOrigin="18%,12%">
+                <GradientStop Color="#558A63F5" Offset="0" />
+                <GradientStop Color="#188A63F5" Offset="0.45" />
+                <GradientStop Color="#00000000" Offset="1" />
+            </RadialGradientBrush>
+            <RadialGradientBrush x:Key="OrbBottomBrush" Center="88%,88%" GradientOrigin="88%,88%">
+                <GradientStop Color="#404F7CFF" Offset="0" />
+                <GradientStop Color="#144F7CFF" Offset="0.5" />
+                <GradientStop Color="#00000000" Offset="1" />
+            </RadialGradientBrush>
             <ConicGradientBrush x:Key="ThinkingBrush" Center="50%,50%">
                 <GradientStop Color="#008A63F5" Offset="0" />
-                <GradientStop Color="#FF8A63F5" Offset="0.82" />
-                <GradientStop Color="#FFB3A6FF" Offset="1" />
+                <GradientStop Color="#FF8A63F5" Offset="0.72" />
+                <GradientStop Color="#FFB3A6FF" Offset="0.92" />
+                <GradientStop Color="#008A63F5" Offset="1" />
             </ConicGradientBrush>
         </ResourceDictionary>
     </Application.Resources>
@@ -37,16 +72,18 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- Accent-filled circular buttons (dock toggle, send). -->
+        <!-- Primary actions: white on violet — high contrast, familiar Luma feel. -->
         <Style Selector="Button.accent">
             <Setter Property="Background" Value="{StaticResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
                 </Transitions>
             </Setter>
         </Style>
@@ -61,94 +98,138 @@
         <Style Selector="Button.accent:pointerover">
             <Setter Property="RenderTransform" Value="scale(1.05)" />
         </Style>
+        <Style Selector="Button.accent:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)" />
+        </Style>
         <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#26FFFFFF" />
-            <Setter Property="Foreground" Value="#55FFFFFF" />
+            <Setter Property="Background" Value="#28FFFFFF" />
+            <Setter Property="Foreground" Value="#66FFFFFF" />
         </Style>
 
-        <!-- Quiet ghost buttons (close, clear capture). -->
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="Foreground" Value="#B8B4CC" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#22FFFFFF" />
+            <Setter Property="Background" Value="#24FFFFFF" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.ghost:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        </Style>
 
-        <!-- Outlined utility button (capture). -->
         <Style Selector="Button.outline">
-            <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="Foreground" Value="#E6FFFFFF" />
-            <Setter Property="BorderBrush" Value="#2EFFFFFF" />
+            <Setter Property="Background" Value="#16FFFFFF" />
+            <Setter Property="Foreground" Value="#F0EEF8" />
+            <Setter Property="BorderBrush" Value="#3AFFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#22FFFFFF" />
-            <Setter Property="BorderBrush" Value="#4D8A7CFF" />
+            <Setter Property="Background" Value="#288A63F5" />
+            <Setter Property="BorderBrush" Value="#888A63F5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.outline:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.03)" />
+        </Style>
+        <Style Selector="Button.outline:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
 
-        <!-- Small status pill used in the header. -->
         <Style Selector="Border.statuspill">
-            <Setter Property="Background" Value="#14FFFFFF" />
-            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#368A63F5" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Padding" Value="11,5" />
         </Style>
 
-        <!-- Screen-suggestion chips shown in the empty state. -->
+        <!-- Suggestion chips: inviting, readable, playful on hover. -->
         <Style Selector="Button.chip">
-            <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="Foreground" Value="#D9FFFFFF" />
-            <Setter Property="BorderBrush" Value="#388A7CFF" />
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Foreground" Value="#F0EEF8" />
+            <Setter Property="BorderBrush" Value="#4A8A63F5" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="15" />
-            <Setter Property="Padding" Value="13,6" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="FontSize" Value="12.5" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#298A63F5" />
-            <Setter Property="BorderBrush" Value="#738A7CFF" />
+            <Setter Property="Background" Value="#3D8A63F5" />
+            <Setter Property="BorderBrush" Value="#A08A63F5" />
             <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
         </Style>
         <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#408A63F5" />
+            <Setter Property="Background" Value="#558A63F5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.chip:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)" />
+        </Style>
 
-        <!-- Stop button shown while a request is in flight. -->
         <Style Selector="Button.stop">
-            <Setter Property="Background" Value="#2EFF5D6E" />
-            <Setter Property="Foreground" Value="#FFFF9AA6" />
-            <Setter Property="BorderBrush" Value="#59FF5D6E" />
+            <Setter Property="Background" Value="#33FF5D6E" />
+            <Setter Property="Foreground" Value="#FFFFB0B8" />
+            <Setter Property="BorderBrush" Value="#66FF5D6E" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.stop:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4DFF5D6E" />
+            <Setter Property="Background" Value="#55FF5D6E" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.stop:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
 
-        <!-- Hover-revealed copy button on assistant bubbles. -->
         <Style Selector="Button.msgcopy">
-            <Setter Property="Background" Value="#33000000" />
-            <Setter Property="Foreground" Value="#99FFFFFF" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="#66000000" />
+            <Setter Property="Foreground" Value="#E8E4F8" />
+            <Setter Property="BorderBrush" Value="#448A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="10.5" />
-            <Setter Property="Padding" Value="7,3" />
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Opacity" Value="0" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.14" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
                 </Transitions>
             </Setter>
         </Style>
@@ -156,62 +237,241 @@
             <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="Button.msgcopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#59000000" />
+            <Setter Property="Background" Value="#8A63F5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <Style Selector="Button.msgcopy:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        </Style>
 
-        <!-- Tiny copy button rendered inside markdown code blocks. -->
         <Style Selector="Button.codecopy">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#80FFFFFF" />
+            <Setter Property="Foreground" Value="#B0A8C8" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Padding" Value="7,2" />
             <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.codecopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="Background" Value="#2AFFFFFF" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
+        <!-- Living dock: soft violet breath. -->
         <Style Selector="Border.dockglow">
-            <Setter Property="Opacity" Value="0.35" />
-            <Setter Property="Effect"><BlurEffect Radius="10" /></Setter>
-            <Style.Animations><Animation Duration="0:0:1.8" IterationCount="Infinite" PlaybackDirection="Alternate">
-                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.3" /></KeyFrame>
-                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.75" /></KeyFrame>
-            </Animation></Style.Animations>
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Effect"><BlurEffect Radius="12" /></Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:2.2" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.32" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.88" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
-        <Style Selector="Ellipse.thinkingring">
-            <Setter Property="Width" Value="16" /><Setter Property="Height" Value="16" />
-            <Setter Property="Fill" Value="Transparent" /><Setter Property="Stroke" Value="{StaticResource ThinkingBrush}" />
-            <Setter Property="StrokeThickness" Value="2" /><Setter Property="RenderTransformOrigin" Value="50%,50%" />
-            <Setter Property="RenderTransform"><RotateTransform /></Setter>
-            <Style.Animations><Animation Duration="0:0:0.9" IterationCount="Infinite">
-                <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
-                <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
-            </Animation></Style.Animations>
-        </Style>
-        <Style Selector="TextBlock.streamcursor">
-            <Style.Animations><Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
-                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.15" /></KeyFrame>
-                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-            </Animation></Style.Animations>
-        </Style>
-        <Style Selector="Border.questionhint">
-            <Setter Property="Background" Value="#208A63F5" /><Setter Property="BorderBrush" Value="#4D8A63F5" /><Setter Property="BorderThickness" Value="1" />
-            <Style.Animations><Animation Duration="0:0:1.1" IterationCount="Infinite" PlaybackDirection="Alternate">
-                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.55" /></KeyFrame>
-                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-            </Animation></Style.Animations>
+        <Style Selector="Border.dockring">
+            <Setter Property="Opacity" Value="0.65" />
+            <Style.Animations>
+                <Animation Duration="0:0:2.8" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.95" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
 
-        <!-- Legacy dot styles retained for compatibility with older templates. -->
-        <Style Selector="Ellipse.dot">
+        <Style Selector="Border.ambientorb">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Style.Animations>
+                <Animation Duration="0:0:6" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.85" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.ambientorb.slow">
+            <Style.Animations>
+                <Animation Duration="0:0:8" IterationCount="Infinite" PlaybackDirection="Alternate" Delay="0:0:1" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.7" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="Ellipse.thinkingring">
+            <Setter Property="Width" Value="15" /><Setter Property="Height" Value="15" />
+            <Setter Property="Fill" Value="Transparent" /><Setter Property="Stroke" Value="{StaticResource ThinkingBrush}" />
+            <Setter Property="StrokeThickness" Value="2.2" /><Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform"><RotateTransform /></Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:0.85" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="TextBlock.streamcursor">
+            <Style.Animations>
+                <Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.15" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <!-- Clarifying question: soft violet card nested in the assistant bubble. -->
+        <Style Selector="Border.questioncard">
+            <Setter Property="Background" Value="#2A1E2A44" />
+            <Setter Property="BorderBrush" Value="#7A8A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="BoxShadow" Value="0 0 24 0 #338A63F5, inset 0 1 0 0 #33FFFFFF" />
+            <Style.Animations>
+                <Animation Duration="0:0:0.28" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="TranslateTransform.Y" Value="6" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                        <Setter Property="TranslateTransform.Y" Value="0" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.questionbadge">
+            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #558A63F5" />
+        </Style>
+        <Style Selector="TextBlock.questionprompt">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#F7F6FF" />
+            <Setter Property="LineHeight" Value="22" />
+        </Style>
+        <Style Selector="Button.qchoice">
+            <Setter Property="Background" Value="#24FFFFFF" />
+            <Setter Property="Foreground" Value="#F0EEF8" />
+            <Setter Property="BorderBrush" Value="#708A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MaxWidth" Value="280" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.14" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.qchoice:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4D8A63F5" />
+            <Setter Property="BorderBrush" Value="#B08A63F5" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.qchoice:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.04)" />
+        </Style>
+        <Style Selector="Button.qchoice:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)" />
+        </Style>
+        <Style Selector="TextBox.qanswer">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#F7F6FF" />
+            <Setter Property="CaretBrush" Value="#B3A6FF" />
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Button.qskip">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#A8A4BE" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.qskip:pointerover">
+            <Setter Property="Foreground" Value="#E4E2F0" />
+        </Style>
+        <Style Selector="Border.bubble.question">
+            <Setter Property="BorderBrush" Value="#888A63F5" />
+            <Setter Property="BoxShadow" Value="0 8 28 0 #448A63F5" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- In-chat screenshot chip (keep small — full-size previews look oversized in bubbles). -->
+        <Style Selector="Border.chatimage">
+            <Setter Property="Background" Value="#22000000" />
+            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="MaxWidth" Value="128" />
+            <Setter Property="MaxHeight" Value="80" />
+            <Setter Property="BoxShadow" Value="0 3 10 0 #30000000" />
+        </Style>
+        <Style Selector="Border.chatimagelabel">
+            <Setter Property="Background" Value="#C014161E" />
+            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+        <!-- Larger dual explain actions: room for title + short how-to line. -->
+        <Style Selector="Button.actioncard">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.actioncard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2E8A63F5" />
+            <Setter Property="BorderBrush" Value="#A08A63F5" />
+        </Style>
+
+        <!-- Bouncing thinking dots for pending messages. -->
+        <Style Selector="Ellipse.thinkdot">
             <Setter Property="Width" Value="6" />
             <Setter Property="Height" Value="6" />
             <Setter Property="Fill" Value="#CCB3A6FF" />
-            <Setter Property="Opacity" Value="0.25" />
+            <Setter Property="Opacity" Value="0.35" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Ellipse.thinkdot.d1">
+            <Style.Animations>
+                <Animation Duration="0:0:1.05" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /><Setter Property="TranslateTransform.Y" Value="-3" /></KeyFrame>
+                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.35" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Ellipse.thinkdot.d2">
+            <Style.Animations>
+                <Animation Duration="0:0:1.05" IterationCount="Infinite" Delay="0:0:0.14">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /><Setter Property="TranslateTransform.Y" Value="-3" /></KeyFrame>
+                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.35" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Ellipse.thinkdot.d3">
+            <Style.Animations>
+                <Animation Duration="0:0:1.05" IterationCount="Infinite" Delay="0:0:0.28">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /><Setter Property="TranslateTransform.Y" Value="-3" /></KeyFrame>
+                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.35" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.3" /><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Legacy dots kept for older templates. -->
+        <Style Selector="Ellipse.dot">
+            <Setter Property="Width" Value="6" /><Setter Property="Height" Value="6" />
+            <Setter Property="Fill" Value="#CCB3A6FF" /><Setter Property="Opacity" Value="0.25" />
         </Style>
         <Style Selector="Ellipse.dot">
             <Style.Animations>
@@ -244,25 +504,25 @@
             </Style.Animations>
         </Style>
 
-        <!-- Chat bubbles. -->
+        <!-- Chat bubbles: frosted glass. Width is constrained by the chat ScrollViewer
+             (HorizontalScrollBarVisibility=Disabled + MaxWidth binding in the template). -->
         <Style Selector="Border.bubble">
-            <Setter Property="Background" Value="#18FFFFFF" />
-            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+            <Setter Property="Background" Value="#22FFFFFF" />
+            <Setter Property="BorderBrush" Value="#28FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14,14,14,4" />
-            <Setter Property="Padding" Value="12,9" />
-            <Setter Property="Margin" Value="0,4" />
+            <Setter Property="CornerRadius" Value="16,16,16,5" />
+            <Setter Property="Padding" Value="13,10" />
+            <Setter Property="Margin" Value="0,5" />
             <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="MaxWidth" Value="480" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="BoxShadow" Value="0 6 16 0 #40000000" />
         </Style>
         <Style Selector="Border.bubble">
             <Style.Animations>
-                <!-- Keyframe animations need per-property animators; RenderTransform itself has
-                     none, so animate the transform's own property instead. -->
-                <Animation Duration="0:0:0.16" Easing="CubicEaseOut">
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
                     <KeyFrame Cue="0%">
                         <Setter Property="Opacity" Value="0" />
-                        <Setter Property="TranslateTransform.Y" Value="7" />
+                        <Setter Property="TranslateTransform.Y" Value="8" />
                     </KeyFrame>
                     <KeyFrame Cue="100%">
                         <Setter Property="Opacity" Value="1" />
@@ -273,27 +533,178 @@
         </Style>
         <Style Selector="Border.bubble.user">
             <Setter Property="Background" Value="{StaticResource UserBubbleBrush}" />
-            <Setter Property="BorderBrush" Value="#00FFFFFF" />
-            <Setter Property="CornerRadius" Value="14,14,4,14" />
+            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="CornerRadius" Value="16,16,5,16" />
             <Setter Property="HorizontalAlignment" Value="Right" />
-        </Style>
-
-        <!-- Accent focus ring on text inputs so the compose box feels alive. -->
-        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#18FFFFFF" />
-            <Setter Property="BorderBrush" Value="#3FFFFFFF" />
-        </Style>
-        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#1AFFFFFF" />
-            <Setter Property="BorderBrush" Value="#918A63F5" />
+            <Setter Property="BoxShadow" Value="0 8 20 0 #408A63F5" />
         </Style>
         <Style Selector="Border.bubble.error">
-            <Setter Property="Background" Value="#26FF5D6E" />
-            <Setter Property="BorderBrush" Value="#40FF5D6E" />
+            <Setter Property="Background" Value="#33FF5D6E" />
+            <Setter Property="BorderBrush" Value="#55FF5D6E" />
         </Style>
-        <!-- Coding-task bubbles carry a diff review card, so they get more room than prose bubbles. -->
         <Style Selector="Border.bubble.codecard">
-            <Setter Property="MaxWidth" Value="580" />
+            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- Keep long suggestion chips from blowing out the panel width. -->
+        <Style Selector="Button.chip">
+            <Setter Property="MaxWidth" Value="420" />
+        </Style>
+
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#1CFFFFFF" />
+            <Setter Property="BorderBrush" Value="#50FFFFFF" />
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#1EFFFFFF" />
+            <Setter Property="BorderBrush" Value="#A08A63F5" />
+        </Style>
+
+        <Style Selector="TextBlock.brandmark">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="LetterSpacing" Value="0.3" />
+            <Setter Property="Foreground" Value="#F7F6FF" />
+        </Style>
+        <Style Selector="TextBlock.sectionlabel">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1.1" />
+            <Setter Property="Foreground" Value="#B3A6FF" />
+            <Setter Property="Opacity" Value="0.95" />
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="#A8A4BE" />
+        </Style>
+        <Style Selector="TextBlock.body">
+            <Setter Property="Foreground" Value="#E4E2F0" />
+        </Style>
+
+        <Style Selector="Border.panelshell">
+            <Setter Property="Background" Value="{StaticResource PanelFillBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="BoxShadow" Value="0 18 52 0 #99000000, 0 0 32 0 #338A63F5" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+
+        <Style Selector="Border.infostrip">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#368A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="11,8" />
+        </Style>
+        <Style Selector="Border.warnstrip">
+            <Setter Property="Background" Value="#28FFB347" />
+            <Setter Property="BorderBrush" Value="#66FFB347" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="11,8" />
+        </Style>
+        <Style Selector="Border.runstrip">
+            <Setter Property="Background" Value="#288A63F5" />
+            <Setter Property="BorderBrush" Value="#668A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="11,8" />
+        </Style>
+        <Style Selector="Border.memorystrip">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="11,8" />
+        </Style>
+
+        <!-- Compose + menu trigger (bottom-left). -->
+        <Style Selector="Button.composemore">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#4A8A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.composemore:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#3D8A63F5" />
+            <Setter Property="BorderBrush" Value="#A08A63F5" />
+        </Style>
+        <Style Selector="Button.composemore:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        </Style>
+        <Style Selector="Button.composemore:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.96)" />
+        </Style>
+        <Style Selector="Border.cwdchip">
+            <Setter Property="Background" Value="#228A63F5" />
+            <Setter Property="BorderBrush" Value="#558A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+        <Style Selector="Border.writeaudit">
+            <Setter Property="Background" Value="#1A1E2A44" />
+            <Setter Property="BorderBrush" Value="#668A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Button.chaoschip">
+            <Setter Property="Background" Value="#33FF5D6E" />
+            <Setter Property="Foreground" Value="#FFE8E2FF" />
+            <Setter Property="BorderBrush" Value="#88FF5D6E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.chaoschip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#55FF5D6E" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.splitbrain">
+            <Setter Property="Background" Value="#221E2A44" />
+            <Setter Property="BorderBrush" Value="#778A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+
+        <Style Selector="Border.composeshell">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource ComposeBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="BoxShadow" Value="0 8 24 0 #44000000" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.composeshell:pointerover">
+            <Setter Property="BoxShadow" Value="0 10 28 0 #558A63F5" />
+        </Style>
+
+        <!-- Empty-state hero mark gently floats. -->
+        <Style Selector="Border.heromark">
+            <Style.Animations>
+                <Animation Duration="0:0:3.6" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="TranslateTransform.Y" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="TranslateTransform.Y" Value="-4" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
     </Application.Styles>
 </Application>

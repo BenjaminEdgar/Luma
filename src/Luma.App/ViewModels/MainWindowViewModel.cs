@@ -39,6 +39,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _diagnosticsReady;
     private bool _globalExplainShortcutAvailable;
     private string _runningStatus = string.Empty;
+    private string? _clipboardSnippet;
+    private readonly List<string> _attachedFilePaths = [];
+    private DateTimeOffset? _focusUntilUtc;
+    private readonly DispatcherTimer _chaosTicker;
+    private bool _splitBrainEnabled;
 
     public MainWindowViewModel(Window owner, IScreenCaptureService captureService, IAiClientFactory clientFactory,
         IRunningOperationCoordinator operations, ProviderDiagnostics diagnostics, IScreenDifferenceService screenDifference)
@@ -51,17 +56,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _screenDifference = screenDifference;
         _operationTicker = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
             (_, _) => RefreshOperationStatus());
+        _chaosTicker = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
+            (_, _) => TickChaosFocus());
         CaptureCommand = new AsyncCommand(CaptureAsync, () => IsIdle);
-        ExplainSelectionCommand = new AsyncCommand(ExplainSelectionAsync, () => IsIdle && SelectedDiagnostic?.IsAvailable != false);
-        ExplainScreenCommand = new AsyncCommand(ExplainScreenAsync, () => IsIdle && HasContext && SelectedDiagnostic?.IsAvailable != false);
+        ExplainSelectionCommand = new AsyncCommand(ExplainSelectionAsync, () => IsIdle && !IsFocusLocked && SelectedDiagnostic?.IsAvailable != false);
+        ExplainScreenCommand = new AsyncCommand(ExplainScreenAsync, () => IsIdle && !IsFocusLocked && SelectedDiagnostic?.IsAvailable != false);
         SendCommand = new AsyncCommand(SendAsync, () => CanSend);
         ClearCaptureCommand = new RelayCommand(ClearCapture);
+        NewChatCommand = new RelayCommand(StartNewChat, () => CanStartNewChat);
         StopCommand = new RelayCommand(_operations.CancelAll, () => HasRunningOperations);
         CopyMessageCommand = new ParameterCommand(CopyMessage);
         AnswerQuestionCommand = new AsyncParameterCommand(AnswerQuestionAsync);
         SkipQuestionCommand = new AsyncParameterCommand(SkipQuestionAsync);
         UseSuggestionCommand = new AsyncParameterCommand(UseSuggestionAsync);
+        UseClipboardCommand = new AsyncCommand(UseClipboardAsync, () => IsIdle);
+        ClearClipboardCommand = new RelayCommand(ClearClipboardSnippet, () => HasClipboardSnippet);
+        ClearAttachedFilesCommand = new RelayCommand(ClearAttachedFiles, () => HasAttachedFiles);
+        UndoFileChangeCommand = new ParameterCommand(UndoFileChange);
+        ToggleChaosModeCommand = new RelayCommand(ToggleChaosMode);
+        CycleChaosToneCommand = new RelayCommand(CycleChaosTone, () => ChaosModeEnabled);
+        RoastUiCommand = new AsyncCommand(RoastUiAsync, () => IsIdle && ChaosModeEnabled && SelectedDiagnostic?.IsAvailable != false);
+        ArgueWithYourselfCommand = new AsyncCommand(ArgueWithYourselfAsync, () => IsIdle && ChaosModeEnabled && SelectedDiagnostic?.IsAvailable != false);
+        TogglePomodoroCommand = new RelayCommand(TogglePomodoro, () => ChaosModeEnabled);
+        ToggleSplitBrainCommand = new RelayCommand(ToggleSplitBrain);
+        ShowWhereCommand = new ParameterCommand(ShowWhereOnScreen);
+        ChooseSplitBrainCommand = new ParameterCommand(ChooseSplitBrainSide);
         _operations.Changed += OnOperationsChanged;
+        Messages.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(CanStartNewChat));
+            NewChatCommand.RaiseCanExecuteChanged();
+        };
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -72,13 +97,30 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ExplainScreenCommand { get; }
     public AsyncCommand SendCommand { get; }
     public RelayCommand ClearCaptureCommand { get; }
+    public RelayCommand NewChatCommand { get; }
     public RelayCommand StopCommand { get; }
     public ParameterCommand CopyMessageCommand { get; }
     public AsyncParameterCommand AnswerQuestionCommand { get; }
     public AsyncParameterCommand SkipQuestionCommand { get; }
     public AsyncParameterCommand UseSuggestionCommand { get; }
+    public AsyncCommand UseClipboardCommand { get; }
+    public RelayCommand ClearClipboardCommand { get; }
+    public RelayCommand ClearAttachedFilesCommand { get; }
+    public ParameterCommand UndoFileChangeCommand { get; }
+    public RelayCommand ToggleChaosModeCommand { get; }
+    public RelayCommand CycleChaosToneCommand { get; }
+    public AsyncCommand RoastUiCommand { get; }
+    public AsyncCommand ArgueWithYourselfCommand { get; }
+    public RelayCommand TogglePomodoroCommand { get; }
+    public RelayCommand ToggleSplitBrainCommand { get; }
+    public ParameterCommand ShowWhereCommand { get; }
+    public ParameterCommand ChooseSplitBrainCommand { get; }
+    /// <summary>Opens a file picker (wired from MainWindow) and returns absolute paths.</summary>
+    public Func<Task<IReadOnlyList<string>>>? AttachFilesRequested { get; set; }
     /// <summary>Short prompt ideas derived from the ambient screen capture, shown as chips.</summary>
     public ObservableCollection<string> Suggestions { get; } = [];
+    /// <summary>Display names of files attached for the next send (@file or picker).</summary>
+    public ObservableCollection<string> AttachedFileLabels { get; } = [];
     public bool IsSuggesting
     {
         get => _suggesting;
@@ -88,14 +130,81 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             NotifySurfaceStateChanged();
         }
     }
+    public string? ClipboardSnippet
+    {
+        get => _clipboardSnippet;
+        private set
+        {
+            Set(ref _clipboardSnippet, value);
+            OnPropertyChanged(nameof(HasClipboardSnippet));
+            OnPropertyChanged(nameof(ClipboardSnippetPreview));
+            ClearClipboardCommand.RaiseCanExecuteChanged();
+        }
+    }
+    public bool HasClipboardSnippet => !string.IsNullOrWhiteSpace(ClipboardSnippet);
+    public string ClipboardSnippetPreview
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(ClipboardSnippet)) return string.Empty;
+            var one = ClipboardSnippet.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return one.Length <= 64 ? one : one[..64].TrimEnd() + "…";
+        }
+    }
+    public bool HasAttachedFiles => _attachedFilePaths.Count > 0;
+    public bool ChaosModeEnabled => AppSettings.Current.ChaosMode;
+    public ChaosTone ChaosTone => (ChaosTone)AppSettings.Current.ChaosTone;
+    public string ChaosToneChipLabel => ChaosMode.ToneChipLabel(ChaosTone);
+    public string ChaosModeMenuLabel => ChaosModeEnabled ? "Chaos Mode: ON" : "Chaos Mode: OFF";
+    public bool IsFocusLocked => ChaosModeEnabled && _focusUntilUtc is { } until && until > DateTimeOffset.UtcNow;
+    public string PomodoroLabel
+    {
+        get
+        {
+            if (!IsFocusLocked || _focusUntilUtc is null) return "Start focus lock";
+            var left = _focusUntilUtc.Value - DateTimeOffset.UtcNow;
+            return $"🍅 {ChaosMode.FormatRemaining(left)}";
+        }
+    }
+    public string PomodoroMenuLabel => IsFocusLocked ? "Cancel focus lock" : $"Start {AppSettings.Current.ChaosPomodoroMinutes}m focus lock";
+    public bool SplitBrainEnabled
+    {
+        get => _splitBrainEnabled;
+        private set
+        {
+            if (_splitBrainEnabled == value) return;
+            Set(ref _splitBrainEnabled, value);
+            OnPropertyChanged(nameof(SplitBrainMenuLabel));
+            OnPropertyChanged(nameof(SplitBrainChipLabel));
+        }
+    }
+    public string SplitBrainMenuLabel => SplitBrainEnabled ? "Split-brain: ON" : "Split-brain: OFF";
+    public string SplitBrainChipLabel => SplitBrainEnabled ? "Split-brain ON" : "Split-brain";
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
     public Func<Task<string?>>? WorkingDirectoryRequested { get; set; }
     public Func<Task<bool>>? NewChatConfirmationRequested { get; set; }
     public Action? ScreenExplanationReadyToShow { get; set; }
 
-    public int SelectedProviderIndex { get => _selectedProviderIndex; set { Set(ref _selectedProviderIndex, value); OnPropertyChanged(nameof(CanSend)); OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); SendCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged(); } }
-    public string? WorkingDirectory { get => _workingDirectory; set { Set(ref _workingDirectory, value); OnPropertyChanged(nameof(WorkingDirectoryLabel)); } }
-    public string WorkingDirectoryLabel => WorkingDirectory is null ? "Choose project..." : Path.GetFileName(WorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public int SelectedProviderIndex { get => _selectedProviderIndex; set { Set(ref _selectedProviderIndex, value); OnPropertyChanged(nameof(CanSend)); OnPropertyChanged(nameof(ProviderStatus)); OnPropertyChanged(nameof(HasProviderProblem)); SendCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged(); RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged(); } }
+    public string? WorkingDirectory
+    {
+        get => _workingDirectory;
+        set
+        {
+            Set(ref _workingDirectory, value);
+            OnPropertyChanged(nameof(WorkingDirectoryLabel));
+            OnPropertyChanged(nameof(HasWorkingDirectory));
+            OnPropertyChanged(nameof(WorkingDirectoryTip));
+        }
+    }
+    public bool HasWorkingDirectory => !string.IsNullOrWhiteSpace(WorkingDirectory);
+    /// <summary>Folder name for the compose chip; full path is in <see cref="WorkingDirectoryTip"/>.</summary>
+    public string WorkingDirectoryLabel => WorkingDirectory is null
+        ? "No project folder"
+        : Path.GetFileName(WorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public string WorkingDirectoryTip => WorkingDirectory is null
+        ? "Set a project folder so Luma can read local files"
+        : WorkingDirectory;
     public string Question { get => _question; set { Set(ref _question, value); OnPropertyChanged(nameof(CanSend)); SendCommand.RaiseCanExecuteChanged(); } }
     public Bitmap? Preview { get => _preview; private set => Set(ref _preview, value); }
     public bool HasCapture => _regionPath is not null || _contextPath is not null;
@@ -107,12 +216,35 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string PreviewLabel => _regionPath is not null ? "Selected region" : "Your screen";
     public bool HasAssistantMemory => !string.IsNullOrWhiteSpace(AppSettings.Current.AssistantMemory);
     public string AssistantMemoryPreview => MemoryPreview(AppSettings.Current.AssistantMemory);
-    public string SurfaceStatus => _refreshingContext ? "Capturing" : _busy ? "Working" : IsSuggesting ? "Preparing shortcuts" : HasRegion ? "Region ready" : HasContext ? "Screen ready" : "Ready";
-    public string SurfaceDetail => _refreshingContext ? "Refreshing screen context" : _busy ? (HasRunningOperations ? RunningStatus : "Waiting for the provider") : IsSuggesting ? "Generating quick actions" : HasRegion ? "Selected area stays in focus until you clear it" : HasContext ? "Screen context loaded" : "No screen context yet";
-    public string LandingTitle => HasCapture ? "Ask about what is on your screen." : "Start with the screen.";
-    public string LandingSubtitle => HasCapture ? "Use a shortcut chip, type a question, or snip a tighter region." : "Explain the screen, snip a region, or just ask.";
+    public string SurfaceStatus =>
+        IsFocusLocked ? PomodoroLabel
+        : _refreshingContext ? "Capturing"
+        : _busy ? "Working"
+        : IsSuggesting ? "Preparing shortcuts"
+        : ChaosModeEnabled ? "Chaos"
+        : HasRegion ? "Region ready"
+        : HasContext ? "Screen ready"
+        : "Ready";
+    public string SurfaceDetail =>
+        IsFocusLocked ? ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow)
+        : _refreshingContext ? "Refreshing screen context"
+        : _busy ? (HasRunningOperations ? RunningStatus : "Waiting for the provider")
+        : IsSuggesting ? "Generating quick actions"
+        : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
+        : HasRegion ? "Selected area stays in focus until you clear it"
+        : HasContext ? "Screen context loaded"
+        : "No screen context yet";
+    public string LandingTitle => ChaosModeEnabled
+        ? "Chaos Mode is on. Behave irresponsibly (with taste)."
+        : HasCapture ? "Ask about what is on your screen." : "Start with the screen.";
+    public string LandingSubtitle => ChaosModeEnabled
+        ? "Roast the UI, flip tone, or make two models argue. Focus lock can freeze Explain for evil productivity."
+        : HasCapture
+            ? "Use a shortcut chip, type a question, or explain part of the screen."
+            : "Explain the whole screen, pick a part to focus on, or just ask.";
     public bool IsIdle => !_busy;
     public bool IsBusy => _busy;
+    public bool CanStartNewChat => !_busy && Messages.Count > 0;
     public bool CanSend => !_busy && !string.IsNullOrWhiteSpace(Question) && SelectedDiagnostic?.IsAvailable != false;
     public bool HasProviderProblem => SelectedDiagnostic?.IsAvailable == false;
     public string ProviderStatus => SelectedDiagnostic?.Message ?? string.Empty;
@@ -172,14 +304,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var path = await _captureService.CaptureScreenAsync(_owner, _lifetime.Token);
             var difference = _contextPath is null ? 1d : _screenDifference.Measure(_contextPath, path);
-            if (Messages.Count > 0 && difference >= .16 &&
-                NewChatConfirmationRequested is not null && await NewChatConfirmationRequested())
+            var hadMessages = Messages.Count > 0;
+            var bigChange = hadMessages && difference >= .16;
+            if (bigChange && NewChatConfirmationRequested is not null && await NewChatConfirmationRequested())
             {
-                Messages.Clear();
+                DisposeMessages();
                 Suggestions.Clear();
+                hadMessages = false;
             }
             ReplaceCapture(ref _contextPath, path);
-            _ = GenerateSuggestionsAsync(difference);
+            if (bigChange && hadMessages)
+                _ = GenerateScreenDigestAsync();
+            else
+                _ = GenerateSuggestionsAsync(difference);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Messages.Add(new ChatMessage("assistant", $"Screen context capture failed: {ex.Message}") { IsError = true }); }
@@ -187,6 +324,47 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             _refreshingContext = false;
             NotifySurfaceStateChanged();
+        }
+    }
+
+    /// <summary>When the screen changes mid-conversation, summarize what's important + offer action chips.</summary>
+    private async Task GenerateScreenDigestAsync()
+    {
+        if (_contextPath is null || !_diagnosticsReady) return;
+        var digest = new ChatMessage("assistant", "Scanning what’s on screen…")
+        {
+            Caption = "✦ Screen changed",
+            IsPending = true,
+        };
+        Messages.Add(digest);
+        string? thumbnailPath = null;
+        try
+        {
+            thumbnailPath = await Task.Run(() => CreateSuggestionThumbnail(_contextPath), _lifetime.Token);
+            var request = new AiRequest(
+                "The user's screen just changed. Reply with:\n" +
+                "1) Up to 3 short bullets of what looks important right now (each line starts with - ).\n" +
+                "2) A blank line, then up to 3 verb-led next actions (under 8 words each, one per line).\n" +
+                "No preamble.",
+                null, thumbnailPath ?? _contextPath, [])
+            { TaskKind = TaskKind.Suggest };
+            var text = await _clientFactory.Create((AiProvider)SelectedProviderIndex).AskAsync(request, null, _lifetime.Token);
+            var (summary, actions) = ScreenDigestParser.Parse(text);
+            digest.Text = summary;
+            digest.SetActionChips(actions.Concat(["Start new chat"]));
+            digest.Caption = "✦ Screen changed";
+        }
+        catch (Exception ex)
+        {
+            digest.Text = "Your screen looks different than last time.";
+            digest.SetActionChips(["Explain this screen", "Start new chat"]);
+            if (!string.IsNullOrWhiteSpace(ex.Message))
+                digest.Text += $"\n\n*(Digest unavailable: {ex.Message})*";
+        }
+        finally
+        {
+            digest.IsPending = false;
+            if (thumbnailPath is not null) { try { File.Delete(thumbnailPath); } catch { } }
         }
     }
 
@@ -287,7 +465,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         if (parameter is not string suggestion || _busy) return;
         _suggestCts?.Cancel();
         Suggestions.Clear();
-        await RunTurnAsync(suggestion);
+        if (string.Equals(suggestion, "Start new chat", StringComparison.OrdinalIgnoreCase))
+        {
+            // Allow force-clear even when CanStartNewChat would normally require messages+idle.
+            ForceNewChat();
+            return;
+        }
+        // Outcome chips are phrased as Avoid:/Retry: — strip prefix for the actual prompt.
+        var prompt = suggestion;
+        if (prompt.StartsWith("Avoid: ", StringComparison.OrdinalIgnoreCase))
+            prompt = "Don't do this again; try another approach instead of: " + prompt["Avoid: ".Length..];
+        else if (prompt.StartsWith("Retry: ", StringComparison.OrdinalIgnoreCase))
+            prompt = "Do this again carefully: " + prompt["Retry: ".Length..];
+        // Chips are derived from the ambient capture — attach screen on the first request.
+        await RunTurnAsync(prompt, displayPrompt: suggestion, attachCaptures: true);
+    }
+
+    private void ForceNewChat()
+    {
+        if (_busy) return;
+        _suggestCts?.Cancel();
+        _requestCts?.Cancel();
+        DisposeMessages();
+        Suggestions.Clear();
+        Question = string.Empty;
+        ClearClipboardSnippet();
+        ClearAttachedFiles();
+        if (_regionPath is not null) ReplaceCapture(ref _regionPath, null);
+        OnPropertyChanged(nameof(CanStartNewChat));
+        NewChatCommand.RaiseCanExecuteChanged();
+        NotifySurfaceStateChanged();
+        if (_contextPath is not null) _ = GenerateSuggestionsAsync();
     }
 
     private async Task CaptureAsync()
@@ -295,6 +503,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task ExplainSelectionAsync()
     {
+        if (IsFocusLocked)
+        {
+            Messages.Add(new ChatMessage("assistant", ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow))
+            { Caption = "🍅 Focus lock" });
+            return;
+        }
         _suggestCts?.Cancel();
         Suggestions.Clear();
         if (!await CaptureRegionForContextAsync()) return;
@@ -302,11 +516,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         await RunTurnAsync(
             "Explain the selected region clearly. Identify what is shown, what it means in context, and any important " +
             "error, warning, control, data, or next action visible there. Be specific and practical; do not merely describe the pixels.",
-            "Explain this selection");
+            "Explain this selection",
+            attachCaptures: true);
     }
 
     private async Task ExplainScreenAsync()
     {
+        if (IsFocusLocked)
+        {
+            Messages.Add(new ChatMessage("assistant", ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow))
+            { Caption = "🍅 Focus lock" });
+            return;
+        }
         _suggestCts?.Cancel();
         Suggestions.Clear();
         if (!await CaptureFullScreenForContextAsync()) return;
@@ -315,7 +536,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             "Explain what is important on this screen. Identify the application or content, summarize what the user is " +
             "looking at, call out any error, warning, unusual state, or likely point of confusion, and suggest the most useful next action. " +
             "Prioritize meaning over a generic visual description.",
-            "Explain this screen");
+            "Explain this screen",
+            attachCaptures: true);
     }
 
     private async Task<bool> CaptureFullScreenForContextAsync()
@@ -377,7 +599,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         if (kind == TaskKind.Shell && TaskLaunchRequested is not null &&
             await TaskLaunchRequested(new TaskLaunchRequest(kind, prompt, (AiProvider)SelectedProviderIndex, _regionPath, _contextPath))) return;
-        await RunTurnAsync(prompt);
+        if (SplitBrainEnabled)
+        {
+            await RunSplitBrainTurnAsync(prompt, attachCaptures: false);
+            return;
+        }
+        // Straight chat starts text-only; the model may return NEED_SCREEN if a capture is required.
+        await RunTurnAsync(prompt, attachCaptures: false);
     }
 
     /// <summary>Sends the user's typed reply to a pending clarifying question as the next turn.</summary>
@@ -403,18 +631,28 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     /// the ASK_USER convention is shared across all task kinds, so a code task's question must not
     /// be answered by spawning an unrelated plain-chat turn.</summary>
     private Task ContinueQuestionAsync(ChatMessage source, string answer) =>
-        source.CodeSession is { } session ? RunCodeContinuationAsync(source, session, answer) : RunTurnAsync(answer);
+        source.CodeSession is { } session
+            ? RunCodeContinuationAsync(source, session, answer)
+            : RunTurnAsync(answer, attachCaptures: false);
 
-    private async Task RunTurnAsync(string prompt, string? displayPrompt = null)
+    /// <param name="attachCaptures">
+    /// When true (explain screen/selection, suggestion chips), attach available screenshots on the first request.
+    /// When false (typed chat), start text-only so the model can answer without screen tokens and request
+    /// NEED_SCREEN only when visual evidence is actually needed.
+    /// </param>
+    private async Task RunTurnAsync(string prompt, string? displayPrompt = null, bool attachCaptures = false)
     {
         var provider = (AiProvider)SelectedProviderIndex;
         var providerName = Providers[SelectedProviderIndex];
-        var hadCapture = HasCapture;
-        Messages.Add(new ChatMessage("user", displayPrompt ?? prompt));
+        var (region, context) = ChatCaptureAttachment.ForFirstRequest(attachCaptures, _regionPath, _contextPath);
+        var sentVisual = ChatCaptureAttachment.HasVisual(region, context);
+        var user = new ChatMessage("user", displayPrompt ?? prompt);
+        AttachCaptureToMessage(user, region, context);
+        Messages.Add(user);
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
-            Caption = hadCapture ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
-            Text = hadCapture ? "Reading screen…" : "Thinking…",
+            Caption = sentVisual ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
+            Text = sentVisual ? "Reading screen…" : "Thinking…",
         };
         Messages.Add(answer);
         SetBusy(true);
@@ -431,13 +669,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         {
             var history = Messages.Take(Messages.Count - 2).ToArray();
             var client = _clientFactory.Create(provider);
-            // Always attach available captures on the first request. An earlier regression set
-            // probeWithoutScreen = HasCapture, which stripped images whenever a screenshot existed.
-            var request = new AiRequest(prompt, _regionPath, _contextPath, history);
+            var taskContext = BuildTurnContext(prompt);
+            // Snapshot project files so we can audit agent writes after the turn.
+            var writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+            // Attach the chosen project folder so providers can read files (cwd + prompt root).
+            var request = new AiRequest(prompt, region, context, history)
+            {
+                WorkingDirectory = WorkingDirectory,
+                TaskContext = taskContext,
+            };
             var text = await client.AskAsync(request, streamBridge.OnPartial, cts.Token);
             streamBridge.SealPartials();
-            // Text-only first turn: if the model asks for the screen, capture once and retry with it.
-            if (!hadCapture && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
+            // Text-first turn: if the model needs the screen, capture once and retry with it.
+            if (!sentVisual && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
             {
                 answer.Caption = $"* {providerName} is reading the screen";
                 answer.Text = string.IsNullOrWhiteSpace(reason) ? "Reading screen…" : $"Reading screen: {reason}";
@@ -449,21 +693,33 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
                     await Task.Delay(150, cts.Token);
                     var path = await _captureService.CaptureScreenAsync(_owner, cts.Token);
                     ReplaceCapture(ref _contextPath, path);
+                    // Show the capture that was just taken in the user bubble.
+                    AttachCaptureToMessage(user, _regionPath, _contextPath);
                 }
                 finally { _owner.Show(); _owner.Activate(); }
 
                 streamBridge.Reopen();
-                var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history);
+                writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+                var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history)
+                {
+                    WorkingDirectory = WorkingDirectory,
+                    TaskContext = taskContext,
+                };
                 text = await client.AskAsync(screenRequest, streamBridge.OnPartial, cts.Token);
                 streamBridge.SealPartials();
             }
             text = ClarifyingQuestionParser.RemoveScreenRereadDirective(text);
             if (string.IsNullOrWhiteSpace(text))
-                text = hadCapture || HasCapture
+                text = sentVisual || HasCapture
                     ? "I still need a clearer screen capture."
                     : "I need a screenshot to answer that.";
             ApplyFinalAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
             answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            AttachWriteAudit(answer, writeSnapshot);
+            ConsumeEphemeralAttachments();
+            RefreshOutcomeChips(prompt);
+            if (answer.HasShowWhere)
+                ShowWhereOnScreen(answer);
             // Follow-up chips must not delay marking the main answer turn complete.
             _ = GenerateFollowUpSuggestionsAsync();
         }
@@ -497,7 +753,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         var provider = (AiProvider)SelectedProviderIndex;
         var providerName = Providers[SelectedProviderIndex];
-        Messages.Add(new ChatMessage("user", prompt));
+        var user = new ChatMessage("user", prompt);
+        AttachCaptureToMessage(user, _regionPath, _contextPath);
+        Messages.Add(user);
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
             Caption = $"✦ {providerName} is inspecting the repository",
@@ -513,10 +771,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ticker.Start();
         try
         {
+            var writeSnapshot = WorkspaceWriteAuditor.Capture(repository);
             var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
             answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            AttachWriteAudit(answer, writeSnapshot);
+            ConsumeEphemeralAttachments();
             _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
@@ -572,13 +833,112 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>Final answer apply: full clean/extract and promote IsQuestion only when complete.</summary>
     private static void ApplyFinalAnswerText(ChatMessage answer, string rawText)
     {
-        var applied = ChatStreamTextPolicy.ApplyFinal(rawText);
+        var (withoutWhere, where) = ShowWhereParser.Extract(rawText);
+        var applied = ChatStreamTextPolicy.ApplyFinal(withoutWhere);
         answer.Text = applied.Text;
+        answer.ShowWhere = where;
         if (!applied.IsQuestion) return;
         answer.Question = applied.Question;
         answer.QuestionChoices = applied.QuestionChoices;
         answer.IsQuestion = true;
     }
+
+    private void ShowWhereOnScreen(object? parameter)
+    {
+        if (parameter is not ChatMessage { ShowWhere: { } target }) return;
+        GhostCursorWindow.PointAt(_owner, target.X, target.Y, target.Width, target.Height, target.Label);
+    }
+
+    private void ToggleSplitBrain() => SplitBrainEnabled = !SplitBrainEnabled;
+
+    private void ChooseSplitBrainSide(object? parameter)
+    {
+        // Parameter format: message via Tag isn't easy — use SplitBrainChoice record
+        if (parameter is not SplitBrainChoice choice) return;
+        if (choice.Message.SplitBrain is null) return;
+        choice.Message.SplitBrain.Choose(choice.Side);
+        choice.Message.Text = choice.Message.SplitBrain.MergedText;
+        if (choice.Side is "A" or "B")
+        {
+            OutcomeMemory.Record(OutcomeKind.Note, $"Kept {choice.Side} in split-brain",
+                choice.Side == "A" ? choice.Message.SplitBrain.ProviderA : choice.Message.SplitBrain.ProviderB);
+        }
+    }
+
+    private async Task RunSplitBrainTurnAsync(string prompt, bool attachCaptures)
+    {
+        var providers = AvailableProviderIndices();
+        if (providers.Count < 2)
+        {
+            // Need two brains; fall back to normal turn.
+            await RunTurnAsync(prompt, attachCaptures: attachCaptures);
+            return;
+        }
+
+        var (region, context) = ChatCaptureAttachment.ForFirstRequest(attachCaptures, _regionPath, _contextPath);
+        var user = new ChatMessage("user", prompt);
+        AttachCaptureToMessage(user, region, context);
+        Messages.Add(user);
+        var answer = new ChatMessage("assistant", "Running split-brain…", isPending: true)
+        {
+            Caption = $"✦ {Providers[providers[0]]} + {Providers[providers[1]]}",
+        };
+        Messages.Add(answer);
+        SetBusy(true);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _requestCts = cts;
+        var writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+        try
+        {
+            var taskContext = BuildTurnContext(prompt);
+            var history = Messages.Take(Messages.Count - 2).ToArray();
+            var reqA = new AiRequest(SplitBrainPrompts.Explainer(prompt), region, context, history)
+            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext };
+            var reqB = new AiRequest(SplitBrainPrompts.Implementer(prompt), region, context, history)
+            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext };
+            var clientA = _clientFactory.Create((AiProvider)providers[0]);
+            var clientB = _clientFactory.Create((AiProvider)providers[1]);
+            var taskA = clientA.AskAsync(reqA, null, cts.Token);
+            var taskB = clientB.AskAsync(reqB, null, cts.Token);
+            await Task.WhenAll(taskA, taskB);
+            var textA = ChatStreamTextPolicy.ApplyFinal(ShowWhereParser.Extract(await taskA).Text).Text;
+            var textB = ChatStreamTextPolicy.ApplyFinal(ShowWhereParser.Extract(await taskB).Text).Text;
+            var split = new SplitBrainResult
+            {
+                ProviderA = Providers[providers[0]],
+                ProviderB = Providers[providers[1]],
+                TextA = textA,
+                TextB = textB,
+            };
+            answer.SplitBrain = split;
+            answer.Text = split.MergedText;
+            answer.Caption = $"✦ {split.ProviderA} (explain) · {split.ProviderB} (implement)";
+            AttachWriteAudit(answer, writeSnapshot);
+            ConsumeEphemeralAttachments();
+            RefreshOutcomeChips(prompt);
+            _ = GenerateFollowUpSuggestionsAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            answer.Caption = "✦ split-brain stopped";
+            if (string.IsNullOrWhiteSpace(answer.Text)) answer.Text = "*Stopped.*";
+        }
+        catch (Exception ex)
+        {
+            answer.IsError = true;
+            answer.Caption = "✦ split-brain error";
+            answer.Text = ex.Message;
+        }
+        finally
+        {
+            answer.IsPending = false;
+            answer.IsStreaming = false;
+            _requestCts = null;
+            SetBusy(false);
+        }
+    }
+
+    public sealed record SplitBrainChoice(ChatMessage Message, string Side);
 
     /// <summary>
     /// Bridges provider partial callbacks (any thread) into coalesced UI-thread progressive text
@@ -668,6 +1028,319 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         else ReplaceCapture(ref _contextPath, null);
     }
 
+    /// <summary>Clears the conversation so the user can start fresh without restarting Luma.</summary>
+    private void StartNewChat()
+    {
+        if (!CanStartNewChat) return;
+        ForceNewChat();
+    }
+
+    private string? BuildTurnContext(string prompt) =>
+        ContextAttachments.BuildTaskContext(ClipboardSnippet, _attachedFilePaths, WorkingDirectory, prompt);
+
+    private void ConsumeEphemeralAttachments()
+    {
+        // Clipboard + explicit file pins apply once, then clear so they don't leak into every turn.
+        ClearClipboardSnippet();
+        ClearAttachedFiles();
+    }
+
+    private async Task UseClipboardAsync()
+    {
+        try
+        {
+            if (_owner.Clipboard is null) return;
+            var text = await ClipboardExtensions.TryGetTextAsync(_owner.Clipboard);
+            if (string.IsNullOrWhiteSpace(text)) return;
+            ClipboardSnippet = text.Trim();
+        }
+        catch { /* clipboard unavailable */ }
+    }
+
+    private void ClearClipboardSnippet()
+    {
+        ClipboardSnippet = null;
+    }
+
+    public async Task AttachFilesFromPickerAsync()
+    {
+        if (AttachFilesRequested is null) return;
+        var paths = await AttachFilesRequested();
+        foreach (var path in paths)
+            AddAttachedFile(path);
+    }
+
+    public void AddAttachedFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+        var full = Path.GetFullPath(path);
+        if (_attachedFilePaths.Contains(full, StringComparer.OrdinalIgnoreCase)) return;
+        _attachedFilePaths.Add(full);
+        var label = WorkingDirectory is not null
+            ? Path.GetRelativePath(WorkingDirectory, full).Replace('\\', '/')
+            : Path.GetFileName(full);
+        AttachedFileLabels.Add(label);
+        OnPropertyChanged(nameof(HasAttachedFiles));
+        ClearAttachedFilesCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ClearAttachedFiles()
+    {
+        _attachedFilePaths.Clear();
+        AttachedFileLabels.Clear();
+        OnPropertyChanged(nameof(HasAttachedFiles));
+        ClearAttachedFilesCommand.RaiseCanExecuteChanged();
+    }
+
+    private void UndoFileChange(object? parameter)
+    {
+        if (parameter is not FileChangeRecord change || string.IsNullOrWhiteSpace(WorkingDirectory)) return;
+        if (!change.CanUndo) return;
+        try
+        {
+            WorkspaceWriteAuditor.Undo(WorkingDirectory, change);
+            OutcomeMemory.Record(OutcomeKind.Undo, $"Undid {change.Kind.ToString().ToLowerInvariant()} {change.RelativePath}",
+                WorkingDirectory, [change.RelativePath, change.Kind.ToString()]);
+            RefreshOutcomeChips();
+        }
+        catch (Exception ex)
+        {
+            Messages.Add(new ChatMessage("assistant", $"Could not undo {change.RelativePath}: {ex.Message}") { IsError = true });
+        }
+    }
+
+    private void AttachWriteAudit(ChatMessage answer, WorkspaceSnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(WorkingDirectory)) return;
+        try
+        {
+            var changes = WorkspaceWriteAuditor.Diff(WorkingDirectory, snapshot);
+            if (changes.Count == 0) return;
+            answer.SetFileChanges(changes);
+            var names = string.Join(", ", changes.Take(4).Select(c => c.RelativePath));
+            OutcomeMemory.Record(OutcomeKind.Write,
+                changes.Count == 1 ? $"Edited {changes[0].RelativePath}" : $"Changed {changes.Count} files ({names})",
+                WorkingDirectory,
+                changes.Select(c => c.RelativePath).Take(8));
+            RefreshOutcomeChips();
+        }
+        catch { /* audit is best-effort */ }
+    }
+
+    private void RefreshOutcomeChips(string? promptHint = null)
+    {
+        var chips = OutcomeMemory.SuggestChips(promptHint ?? Question, max: 3);
+        if (chips.Count == 0) return;
+        // Merge into suggestions without wiping AI chips if present — prefer outcome chips first.
+        var existing = Suggestions.ToList();
+        Suggestions.Clear();
+        foreach (var chip in chips) Suggestions.Add(chip);
+        foreach (var chip in existing)
+            if (!Suggestions.Contains(chip, StringComparer.OrdinalIgnoreCase) && Suggestions.Count < 6)
+                Suggestions.Add(chip);
+    }
+
+    private void ToggleChaosMode()
+    {
+        AppSettings.Current.ChaosMode = !AppSettings.Current.ChaosMode;
+        AppSettings.Current.Save();
+        if (!AppSettings.Current.ChaosMode)
+        {
+            _focusUntilUtc = null;
+            _chaosTicker.Stop();
+        }
+        NotifyChaosChanged();
+    }
+
+    private void CycleChaosTone()
+    {
+        if (!ChaosModeEnabled) return;
+        AppSettings.Current.ChaosTone = (int)ChaosMode.NextTone(ChaosTone);
+        AppSettings.Current.Save();
+        NotifyChaosChanged();
+    }
+
+    private async Task RoastUiAsync()
+    {
+        if (!ChaosModeEnabled || _busy) return;
+        if (IsFocusLocked)
+        {
+            Messages.Add(new ChatMessage("assistant", ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow))
+            { Caption = "🍅 Focus lock" });
+            return;
+        }
+        // Prefer a fresh screen if we have nothing; otherwise roast current capture.
+        if (!HasCapture)
+        {
+            if (!await CaptureFullScreenForContextAsync()) return;
+            ScreenExplanationReadyToShow?.Invoke();
+        }
+        await RunTurnAsync(ChaosMode.RoastUiPrompt(), "Roast my UI", attachCaptures: true);
+    }
+
+    private async Task ArgueWithYourselfAsync()
+    {
+        if (!ChaosModeEnabled || _busy) return;
+        var topic = Question.Trim();
+        if (string.IsNullOrWhiteSpace(topic))
+            topic = "What should I do next about what's on my screen / in this project?";
+        Question = string.Empty;
+
+        var providers = AvailableProviderIndices();
+        if (providers.Count == 0) return;
+
+        Messages.Add(new ChatMessage("user", $"Argue with yourself: {topic}"));
+        var answer = new ChatMessage("assistant", "Warming up the debate stage…", isPending: true)
+        {
+            Caption = "✦ Chaos debate",
+        };
+        Messages.Add(answer);
+        SetBusy(true);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _requestCts = cts;
+        try
+        {
+            if (providers.Count >= 2)
+            {
+                var a = providers[0];
+                var b = providers[1];
+                var clientA = _clientFactory.Create((AiProvider)a);
+                var clientB = _clientFactory.Create((AiProvider)b);
+                var reqA = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side A — ship the bold option"), _regionPath, _contextPath, [])
+                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic) };
+                var reqB = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side B — ship the careful option"), _regionPath, _contextPath, [])
+                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic) };
+                var taskA = clientA.AskAsync(reqA, null, cts.Token);
+                var taskB = clientB.AskAsync(reqB, null, cts.Token);
+                await Task.WhenAll(taskA, taskB);
+                answer.Text = ChaosMode.FormatDualDebate(Providers[a], await taskA, Providers[b], await taskB);
+                answer.Caption = $"✦ {Providers[a]} vs {Providers[b]}";
+            }
+            else
+            {
+                var text = await _clientFactory.Create((AiProvider)providers[0])
+                    .AskAsync(new AiRequest(ChaosMode.DebatePrompt(topic), _regionPath, _contextPath, [])
+                    {
+                        WorkingDirectory = WorkingDirectory,
+                        TaskContext = BuildTurnContext(topic),
+                    }, partial => Dispatcher.UIThread.Post(() =>
+                    {
+                        answer.IsPending = false;
+                        answer.IsStreaming = true;
+                        answer.Text = ChatStreamTextPolicy.ApplyPartial(partial).Text;
+                    }), cts.Token);
+                ApplyFinalAnswerText(answer, text);
+                answer.Caption = $"✦ {Providers[providers[0]]} (solo debate)";
+            }
+            ConsumeEphemeralAttachments();
+            _ = GenerateFollowUpSuggestionsAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            answer.Caption = "✦ debate stopped";
+            if (string.IsNullOrWhiteSpace(answer.Text)) answer.Text = "*Stopped.*";
+        }
+        catch (Exception ex)
+        {
+            answer.IsError = true;
+            answer.Caption = "✦ debate error";
+            answer.Text = ex.Message;
+        }
+        finally
+        {
+            answer.IsPending = false;
+            answer.IsStreaming = false;
+            _requestCts = null;
+            SetBusy(false);
+        }
+    }
+
+    private List<int> AvailableProviderIndices()
+    {
+        var list = new List<int>();
+        void Consider(int index, ProviderDiagnostic? d)
+        {
+            if (d?.IsAvailable != false) list.Add(index);
+        }
+        // Prefer selected first, then others.
+        var order = new[] { SelectedProviderIndex, 0, 1, 2 }.Distinct();
+        foreach (var i in order)
+        {
+            ProviderDiagnostic? d = i switch { 0 => _claudeDiagnostic, 1 => _codexDiagnostic, _ => _grokDiagnostic };
+            Consider(i, d);
+        }
+        return list;
+    }
+
+    private void TogglePomodoro()
+    {
+        if (!ChaosModeEnabled) return;
+        if (IsFocusLocked)
+        {
+            _focusUntilUtc = null;
+            _chaosTicker.Stop();
+        }
+        else
+        {
+            var minutes = AppSettings.Current.ChaosPomodoroMinutes;
+            if (minutes < 1) minutes = ChaosMode.DefaultPomodoroMinutes;
+            _focusUntilUtc = DateTimeOffset.UtcNow.AddMinutes(minutes);
+            _chaosTicker.Start();
+        }
+        NotifyChaosChanged();
+    }
+
+    private void TickChaosFocus()
+    {
+        if (!IsFocusLocked)
+        {
+            _focusUntilUtc = null;
+            _chaosTicker.Stop();
+        }
+        NotifyChaosChanged();
+    }
+
+    private void NotifyChaosChanged()
+    {
+        OnPropertyChanged(nameof(ChaosModeEnabled));
+        OnPropertyChanged(nameof(ChaosTone));
+        OnPropertyChanged(nameof(ChaosToneChipLabel));
+        OnPropertyChanged(nameof(ChaosModeMenuLabel));
+        OnPropertyChanged(nameof(IsFocusLocked));
+        OnPropertyChanged(nameof(PomodoroLabel));
+        OnPropertyChanged(nameof(PomodoroMenuLabel));
+        NotifySurfaceStateChanged();
+        ExplainSelectionCommand.RaiseCanExecuteChanged();
+        ExplainScreenCommand.RaiseCanExecuteChanged();
+        CycleChaosToneCommand.RaiseCanExecuteChanged();
+        RoastUiCommand.RaiseCanExecuteChanged();
+        ArgueWithYourselfCommand.RaiseCanExecuteChanged();
+        TogglePomodoroCommand.RaiseCanExecuteChanged();
+    }
+
+    public void NotifySettingsChanged()
+    {
+        OnPropertyChanged(nameof(HasAssistantMemory));
+        OnPropertyChanged(nameof(AssistantMemoryPreview));
+        NotifyChaosChanged();
+    }
+
+    private void DisposeMessages()
+    {
+        foreach (var message in Messages)
+            message.Dispose();
+        Messages.Clear();
+    }
+
+    /// <summary>Shows the region (preferred) or full-screen capture inside a chat bubble.</summary>
+    private static void AttachCaptureToMessage(ChatMessage message, string? regionPath, string? contextPath)
+    {
+        if (regionPath is not null)
+            message.AttachImage(regionPath, "Selected area");
+        else if (contextPath is not null)
+            message.AttachImage(contextPath, "Screen");
+    }
+
     private void ReplaceCapture(ref string? slot, string? newPath)
     {
         if (slot is not null) { try { File.Delete(slot); } catch { } }
@@ -687,8 +1360,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         _busy = value;
         OnPropertyChanged(nameof(IsIdle)); OnPropertyChanged(nameof(IsBusy)); OnPropertyChanged(nameof(CanSend));
+        OnPropertyChanged(nameof(CanStartNewChat));
         NotifySurfaceStateChanged();
-        CaptureCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged(); SendCommand.RaiseCanExecuteChanged(); StopCommand.RaiseCanExecuteChanged();
+        CaptureCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged();
+        SendCommand.RaiseCanExecuteChanged(); StopCommand.RaiseCanExecuteChanged(); NewChatCommand.RaiseCanExecuteChanged();
+        RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged();
     }
 
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
@@ -700,12 +1376,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(SurfaceDetail));
         OnPropertyChanged(nameof(LandingTitle));
         OnPropertyChanged(nameof(LandingSubtitle));
-    }
-
-    public void NotifySettingsChanged()
-    {
-        OnPropertyChanged(nameof(HasAssistantMemory));
-        OnPropertyChanged(nameof(AssistantMemoryPreview));
     }
 
     private static string MemoryPreview(string? text)
@@ -720,6 +1390,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _operations.Changed -= OnOperationsChanged;
         _operationTicker.Stop();
         _lifetime.Cancel();
+        DisposeMessages();
         ReplaceCapture(ref _regionPath, null);
         ReplaceCapture(ref _contextPath, null);
         _lifetime.Dispose();

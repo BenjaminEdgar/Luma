@@ -9,7 +9,7 @@ public static class RepoContextFormatter
     /// Caps both entry count and total character length so a huge repo doesn't blow up the prompt.</summary>
     public static string BuildFileListSummary(IReadOnlyList<string> paths, int maxEntries = 400, int maxChars = 8000)
     {
-        if (paths.Count == 0) return "(no tracked files found)";
+        if (paths.Count == 0) return "(no files found)";
 
         var sorted = paths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
         var builder = new StringBuilder();
@@ -23,6 +23,72 @@ public static class RepoContextFormatter
         }
         if (shown < sorted.Count) builder.Append($"... and {sorted.Count - shown} more files\n");
         return builder.ToString().TrimEnd('\n');
+    }
+}
+
+/// <summary>
+/// Lists files under any folder for AI context — no Git repository required.
+/// Skips common bulky/hidden trees so plain project folders stay usable.
+/// </summary>
+public static class WorkspaceFileListing
+{
+    private static readonly HashSet<string> SkipDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".git", ".hg", ".svn", ".vs", ".idea", ".vscode",
+        "node_modules", "bin", "obj", "dist", "build", "out", "target",
+        "__pycache__", ".venv", "venv", "packages", ".next", ".nuxt",
+        "coverage", ".turbo", ".cache",
+    };
+
+    /// <summary>Returns repository-relative (forward-slash) paths under <paramref name="root"/>.</summary>
+    public static IReadOnlyList<string> ListFiles(string root, int maxFiles = 2000)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return [];
+
+        var results = new List<string>(Math.Min(maxFiles, 256));
+        var rootFull = Path.GetFullPath(root);
+        try
+        {
+            Walk(rootFull, rootFull, results, maxFiles);
+        }
+        catch
+        {
+            // Partial listing is still useful when permissions block a subtree.
+        }
+        return results;
+    }
+
+    private static void Walk(string rootFull, string current, List<string> results, int maxFiles)
+    {
+        if (results.Count >= maxFiles) return;
+
+        IEnumerable<string> files;
+        try { files = Directory.EnumerateFiles(current); }
+        catch { return; }
+
+        foreach (var file in files)
+        {
+            if (results.Count >= maxFiles) return;
+            results.Add(ToRelative(rootFull, file));
+        }
+
+        IEnumerable<string> dirs;
+        try { dirs = Directory.EnumerateDirectories(current); }
+        catch { return; }
+
+        foreach (var dir in dirs)
+        {
+            if (results.Count >= maxFiles) return;
+            var name = Path.GetFileName(dir);
+            if (SkipDirectoryNames.Contains(name)) continue;
+            Walk(rootFull, dir, results, maxFiles);
+        }
+    }
+
+    private static string ToRelative(string rootFull, string fullPath)
+    {
+        var relative = Path.GetRelativePath(rootFull, fullPath);
+        return relative.Replace('\\', '/');
     }
 }
 

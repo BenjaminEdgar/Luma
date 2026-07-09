@@ -256,7 +256,14 @@ public sealed class ChatStreamTextPolicyTests
         Assert.Contains("nameof(ChatMessage.Text)", mainWindow);
         Assert.Contains("ScrollChatToEnd()", mainWindow);
         Assert.Contains("nameof(ChatMessage.IsQuestion)", mainWindow);
-        Assert.Contains("message.IsQuestion && message.Question is not null", mainWindow);
+        Assert.Contains("PresentClarifyingQuestion", mainWindow);
+
+        var chatXaml = ReadShipped("src/Luma.App/MainWindow.axaml");
+        Assert.Contains("Classes=\"questioncard\"", chatXaml);
+        Assert.Contains("ShowQuestionCard", chatXaml);
+        Assert.Contains("AnswerQuestionCommand", chatXaml);
+        Assert.Contains("SkipQuestionCommand", chatXaml);
+        Assert.Contains("OnQuestionChoiceClick", chatXaml);
     }
 
     private sealed class TestStreamClient : CliAiClient

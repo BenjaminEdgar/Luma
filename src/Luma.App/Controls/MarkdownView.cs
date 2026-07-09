@@ -18,15 +18,15 @@ public sealed class MarkdownView : ContentControl
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
     private static readonly FontFamily Mono = new("Cascadia Mono,Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,monospace");
-    private static readonly IBrush InlineCodeBg = new SolidColorBrush(Color.Parse("#2BFFFFFF"));
-    private static readonly IBrush InlineCodeFg = new SolidColorBrush(Color.Parse("#FFDCD4FF"));
-    private static readonly IBrush CodeBlockBg = new SolidColorBrush(Color.Parse("#66090A10"));
-    private static readonly IBrush CodeBlockBorder = new SolidColorBrush(Color.Parse("#22FFFFFF"));
-    private static readonly IBrush CodeBlockFg = new SolidColorBrush(Color.Parse("#FFD9E2F2"));
-    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#99FFFFFF"));
-    private static readonly IBrush LinkFg = new SolidColorBrush(Color.Parse("#FF9DB8FF"));
-    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.Parse("#26FFFFFF"));
-    private static readonly IBrush QuoteBar = new SolidColorBrush(Color.Parse("#668A7CFF"));
+    private static readonly IBrush InlineCodeBg = new SolidColorBrush(Color.Parse("#338A63F5"));
+    private static readonly IBrush InlineCodeFg = new SolidColorBrush(Color.Parse("#FFE8E2FF"));
+    private static readonly IBrush CodeBlockBg = new SolidColorBrush(Color.Parse("#88090A12"));
+    private static readonly IBrush CodeBlockBorder = new SolidColorBrush(Color.Parse("#448A63F5"));
+    private static readonly IBrush CodeBlockFg = new SolidColorBrush(Color.Parse("#FFE8E6F5"));
+    private static readonly IBrush MutedFg = new SolidColorBrush(Color.Parse("#B0A8C8"));
+    private static readonly IBrush LinkFg = new SolidColorBrush(Color.Parse("#FFB3A6FF"));
+    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.Parse("#368A63F5"));
+    private static readonly IBrush QuoteBar = new SolidColorBrush(Color.Parse("#888A63F5"));
 
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(75);
     private DateTime _lastRebuild = DateTime.MinValue;
@@ -60,7 +60,8 @@ public sealed class MarkdownView : ContentControl
     private void Rebuild()
     {
         _lastRebuild = DateTime.UtcNow;
-        var panel = new StackPanel { Spacing = 7 };
+        // Stretch so SelectableTextBlock receives a finite width and wraps inside chat bubbles.
+        var panel = new StackPanel { Spacing = 7, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch };
         var text = TextSanitizer.Clean(Markdown);
         if (!string.IsNullOrWhiteSpace(text))
             foreach (var block in BuildBlocks(text.Replace("\r\n", "\n").Trim('\n')))
@@ -179,6 +180,7 @@ public sealed class MarkdownView : ContentControl
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*"),
             Margin = new Thickness(4 + Math.Min(indent, 8) * 7, 0, 0, 0),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
         };
         Grid.SetColumn(body, 1);
         row.Children.Add(markerBlock);
@@ -218,13 +220,15 @@ public sealed class MarkdownView : ContentControl
             FontSize = 12,
             LineHeight = 18,
             Foreground = CodeBlockFg,
-            TextWrapping = TextWrapping.NoWrap,
+            // Wrap long lines so code never forces the chat bubble wider than the panel.
+            TextWrapping = TextWrapping.WrapWithOverflow,
         };
         var scroll = new ScrollViewer
         {
             Content = body,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = 280,
         };
         var copy = new Button { Content = "copy", Classes = { "codecopy" } };
         copy.Click += async (_, _) =>
@@ -243,6 +247,7 @@ public sealed class MarkdownView : ContentControl
             Foreground = MutedFg,
             FontFamily = Mono,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         });
         Grid.SetColumn(copy, 1);
         header.Children.Add(copy);
@@ -253,6 +258,8 @@ public sealed class MarkdownView : ContentControl
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(9),
             Padding = new Thickness(10, 6, 10, 9),
+            ClipToBounds = true,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
             Child = new StackPanel { Spacing = 4, Children = { header, scroll } },
         };
     }
@@ -260,7 +267,8 @@ public sealed class MarkdownView : ContentControl
     private static SelectableTextBlock TextBlock(double fontSize) => new()
     {
         FontSize = fontSize,
-        TextWrapping = TextWrapping.Wrap,
+        // Break long URLs / tokens so bubbles stay within the panel.
+        TextWrapping = TextWrapping.WrapWithOverflow,
         LineHeight = fontSize * 1.45,
         Inlines = [],
     };

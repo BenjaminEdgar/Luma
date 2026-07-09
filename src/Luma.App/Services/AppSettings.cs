@@ -50,6 +50,14 @@ public sealed class AppSettings
     public string GrokChatModel { get; set; } = "";
     public string GrokSuggestionModel { get; set; } = "grok-composer-2.5-fast";
 
+    // Chaos Mode — optional silliness with real utility.
+    /// <summary>Enables roast / tone / debate chips and optional focus-lock on explain.</summary>
+    public bool ChaosMode { get; set; }
+    /// <summary>0 = normal, 1 = ELI5, 2 = staff eng.</summary>
+    public int ChaosTone { get; set; }
+    /// <summary>When Chaos Mode is on, Start focus lock blocks explain for this many minutes.</summary>
+    public int ChaosPomodoroMinutes { get; set; } = 25;
+
     public static void Load()
     {
         try
@@ -87,6 +95,8 @@ public sealed class AppSettings
         HistoryMessageLimit = Math.Clamp(HistoryMessageLimit, 0, 500);
         HistoryCharacterLimit = Math.Clamp(HistoryCharacterLimit, 0, 200_000);
         AssistantMemoryCharacterLimit = Math.Clamp(AssistantMemoryCharacterLimit, 0, 20_000);
+        ChaosTone = Math.Clamp(ChaosTone, 0, 2);
+        ChaosPomodoroMinutes = Math.Clamp(ChaosPomodoroMinutes, 1, 120);
         AssistantMemory = AssistantMemory.Length > AssistantMemoryCharacterLimit && AssistantMemoryCharacterLimit > 0
             ? AssistantMemory[..AssistantMemoryCharacterLimit]
             : AssistantMemory;

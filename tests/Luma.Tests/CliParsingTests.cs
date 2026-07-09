@@ -85,6 +85,39 @@ public sealed class CliParsingTests
 
         Assert.DoesNotContain("primary evidence", prompt);
         Assert.Contains("NEED_SCREEN:", prompt);
+        Assert.Contains("create, and edit files", prompt);
+    }
+
+    [Fact]
+    public void PromptWithWorkingDirectoryAllowsFileReadsAndWrites()
+    {
+        var request = new AiRequest("Where is the router configured?", null, null, [])
+        {
+            TaskKind = TaskKind.Chat,
+            WorkingDirectory = @"C:\LMLB",
+        };
+
+        var prompt = TestClient.Prompt(request);
+
+        Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
+        Assert.Contains("create, and edit files under this root", prompt);
+        Assert.DoesNotContain("primary evidence", prompt);
+    }
+
+    [Fact]
+    public void CodePromptAllowsDirectEditsAndOptionalDiff()
+    {
+        var request = new AiRequest("Fix the null ref", null, null, [])
+        {
+            TaskKind = TaskKind.Code,
+            WorkingDirectory = @"C:\LMLB",
+        };
+
+        var prompt = TestClient.Prompt(request);
+
+        Assert.Contains("create and edit files", prompt);
+        Assert.Contains("```diff", prompt);
+        Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
     }
 
     [Fact]

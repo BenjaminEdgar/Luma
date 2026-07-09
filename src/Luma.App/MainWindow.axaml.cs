@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private PointerPressedEventArgs? _dockPress;
     private Point _dockPressPoint;
     private int _snapAnimationId;
+    private int _shellAnimationId;
     private string? _lastCodeRepository;
 
     public MainWindow()
@@ -42,9 +43,11 @@ public partial class MainWindow : Window
         _viewModel.ScreenExplanationReadyToShow = () => SetExpanded(true);
         LoadSettings();
         _viewModel.WorkingDirectoryRequested = ResolveWorkingDirectoryAsync;
+        _viewModel.AttachFilesRequested = PickFilesToAttachAsync;
         _questionWindow.Answered += answer =>
         {
-            var message = _pendingQuestion; _pendingQuestion = null;
+            var message = _pendingQuestion;
+            ClearPendingQuestion();
             if (message is null) return;
             if (answer is null) _viewModel.SkipQuestionCommand.Execute(message);
             else { message.QuestionAnswer = answer; _viewModel.AnswerQuestionCommand.Execute(message); }
@@ -101,11 +104,58 @@ public partial class MainWindow : Window
                     message.PropertyChanged += (_, args) =>
                     {
                         if (args.PropertyName == nameof(ChatMessage.Text)) ScrollChatToEnd();
-                        if (args.PropertyName == nameof(ChatMessage.IsQuestion) && message.IsQuestion && message.Question is not null)
-                        { _pendingQuestion = message; _questionWindow.Show(this, TextSanitizer.Clean(message.Question), message.QuestionChoices); }
+                        if (args.PropertyName != nameof(ChatMessage.IsQuestion)) return;
+                        if (message.IsQuestion && message.Question is not null)
+                            PresentClarifyingQuestion(message);
+                        else if (ReferenceEquals(_pendingQuestion, message))
+                            ClearPendingQuestion();
                     };
             ScrollChatToEnd();
         };
+    }
+
+    /// <summary>
+    /// Surfaces a clarifying question via the in-chat card. If the dock was collapsed, also opens
+    /// the floating prompt so the question is impossible to miss while the panel expands.
+    /// </summary>
+    private void PresentClarifyingQuestion(ChatMessage message)
+    {
+        _pendingQuestion = message;
+        var wasCollapsed = !_expanded;
+        SetExpanded(true);
+        ScrollChatToEnd();
+        if (wasCollapsed)
+            _questionWindow.Show(this, TextSanitizer.Clean(message.Question!), message.QuestionChoices);
+        else
+            _questionWindow.Hide();
+    }
+
+    private void ClearPendingQuestion()
+    {
+        _pendingQuestion = null;
+        _questionWindow.Hide();
+    }
+
+    private void OnQuestionChoiceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: string choice, Tag: ChatMessage message }) return;
+        if (string.IsNullOrWhiteSpace(choice) || !message.IsQuestion) return;
+        message.QuestionAnswer = choice.Trim();
+        if (_viewModel.AnswerQuestionCommand.CanExecute(message))
+            _viewModel.AnswerQuestionCommand.Execute(message);
+        ClearPendingQuestion();
+        e.Handled = true;
+    }
+
+    private void OnQuestionAnswerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None) return;
+        if (sender is not TextBox { DataContext: ChatMessage message }) return;
+        if (!message.IsQuestion) return;
+        if (_viewModel.AnswerQuestionCommand.CanExecute(message))
+            _viewModel.AnswerQuestionCommand.Execute(message);
+        ClearPendingQuestion();
+        e.Handled = true;
     }
 
     private async Task<bool> LaunchTaskAsync(TaskLaunchRequest request)
@@ -145,8 +195,8 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>Reuses the repository from the last coding task this session (via a small confirm/change
-    /// popup) instead of showing the OS folder picker every time; still lets you switch repos on demand.</summary>
+    /// <summary>Reuses the last project folder this session (via a small confirm/change popup)
+    /// instead of a folder picker every time; still lets you switch folders on demand. Not Git-only.</summary>
     private async Task<string?> ResolveCodeRepositoryAsync()
     {
         if (_lastCodeRepository is not null)
@@ -155,7 +205,7 @@ public partial class MainWindow : Window
             if (keepSame) return _lastCodeRepository;
         }
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        { Title = "Choose the Git repository", AllowMultiple = false });
+        { Title = "Choose a project folder", AllowMultiple = false });
         if (folders.Count == 0) return null;
         _lastCodeRepository = folders[0].Path.LocalPath;
         return _lastCodeRepository;
@@ -164,13 +214,60 @@ public partial class MainWindow : Window
     private async Task<string?> ChooseWorkingDirectoryAsync()
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        { Title = "Choose a project or working folder", AllowMultiple = false });
+        { Title = "Choose a project folder (any folder — Git not required)", AllowMultiple = false });
         if (folders.Count == 0) return _viewModel.WorkingDirectory;
         var path = folders[0].Path.LocalPath;
         _lastCodeRepository = path;
         _viewModel.WorkingDirectory = path;
         SaveSettings();
         return path;
+    }
+
+    private async void OnSetWorkingDirectoryClick(object? sender, RoutedEventArgs e)
+    {
+        ComposePlusButton.Flyout?.Hide();
+        await ChooseWorkingDirectoryAsync();
+        e.Handled = true;
+    }
+
+    private void OnClearWorkingDirectoryClick(object? sender, RoutedEventArgs e)
+    {
+        ComposePlusButton.Flyout?.Hide();
+        _viewModel.WorkingDirectory = null;
+        SaveSettings();
+        e.Handled = true;
+    }
+
+    private async void OnAttachFileClick(object? sender, RoutedEventArgs e)
+    {
+        ComposePlusButton.Flyout?.Hide();
+        await _viewModel.AttachFilesFromPickerAsync();
+        e.Handled = true;
+    }
+
+    private void OnMcpMarketplaceClick(object? sender, RoutedEventArgs e)
+    {
+        ComposePlusButton.Flyout?.Hide();
+        var market = new McpMarketplaceWindow(_viewModel.WorkingDirectory);
+        market.Show(this);
+        e.Handled = true;
+    }
+
+    private void OnSplitBrainKeepClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string side, DataContext: ChatMessage message }) return;
+        _viewModel.ChooseSplitBrainCommand.Execute(new MainWindowViewModel.SplitBrainChoice(message, side));
+        e.Handled = true;
+    }
+
+    private async Task<IReadOnlyList<string>> PickFilesToAttachAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Attach files to the next message",
+            AllowMultiple = true,
+        });
+        return files.Select(f => f.Path.LocalPath).Where(File.Exists).ToArray();
     }
 
     private async Task<string?> ResolveWorkingDirectoryAsync()
@@ -247,32 +344,76 @@ public partial class MainWindow : Window
 
     private void SetExpanded(bool expanded)
     {
-        _expanded = expanded;
-        DockButton.IsVisible = !expanded;
-        DockGlow.IsVisible = !expanded;
-        PanelBackground.IsVisible = expanded;
-        Panel.IsVisible = expanded;
-        ResizeGrip.IsVisible = expanded;
-        MinWidth = expanded ? 480 : 52;
-        MinHeight = expanded ? 520 : 52;
-        Width = expanded ? AppSettings.Current.PanelWidth : 52;
-        Height = expanded ? AppSettings.Current.PanelHeight : 52;
+        var settings = AppSettings.Current;
+        var animationId = ++_shellAnimationId;
+
         if (expanded)
         {
+            // Cancel any in-flight collapse finalization.
+            _expanded = true;
+            var seed = ShellExperience.ExpandSeed(settings.PanelWidth, settings.PanelHeight);
+            var open = ShellExperience.Expanded(settings.PanelWidth, settings.PanelHeight);
+            ApplyShellLayout(seed);
+            // Seed pose first (transparent/scaled) while the expanded window is already sized.
+            Panel.Opacity = seed.PanelOpacity;
+            Panel.RenderTransform = TransformOperations.Parse(seed.PanelTransform);
+            PanelBackground.Opacity = 0;
             PositionPanelOnScreen();
             Dispatcher.UIThread.Post(() =>
             {
-                Panel.Opacity = 1;
-                Panel.RenderTransform = TransformOperations.Parse("translateY(0px)");
-                QuestionBox.Focus();
+                if (animationId != _shellAnimationId) return;
+                Panel.Opacity = open.PanelOpacity;
+                Panel.RenderTransform = TransformOperations.Parse(open.PanelTransform);
+                PanelBackground.Opacity = 1;
+                if (open.FocusCompose) QuestionBox.Focus();
             }, DispatcherPriority.Loaded);
+            return;
         }
-        else
+
+        // Collapse: animate panel out while still visible at expanded size, then swap to dock.
+        _expanded = false;
+        var closing = ShellExperience.CollapseAnimating(settings.PanelWidth, settings.PanelHeight);
+        ApplyShellLayout(closing);
+        Panel.Opacity = closing.PanelOpacity;
+        Panel.RenderTransform = TransformOperations.Parse(closing.PanelTransform);
+        PanelBackground.Opacity = 0;
+        _ = FinalizeCollapseAfterTransitionAsync(animationId);
+    }
+
+    /// <summary>Applies dock/panel visibility and window size from a shell state without starting transitions.</summary>
+    private void ApplyShellLayout(ShellVisualState state)
+    {
+        DockButton.IsVisible = state.DockVisible;
+        DockGlow.IsVisible = state.DockVisible;
+        DockRing.IsVisible = state.DockVisible;
+        PanelBackground.IsVisible = state.PanelVisible;
+        Panel.IsVisible = state.PanelVisible;
+        ResizeGrip.IsVisible = state.PanelVisible;
+        MinWidth = state.MinWidth;
+        MinHeight = state.MinHeight;
+        Width = state.Width;
+        Height = state.Height;
+    }
+
+    private async Task FinalizeCollapseAfterTransitionAsync(int animationId)
+    {
+        try
         {
-            Panel.Opacity = 0;
-            Panel.RenderTransform = TransformOperations.Parse("translateY(10px)");
-            SnapToNearestEdge();
+            await Task.Delay(ShellExperience.PanelTransitionDuration);
         }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (animationId != _shellAnimationId || _expanded) return;
+
+        var dock = ShellExperience.CollapsedDock();
+        ApplyShellLayout(dock);
+        Panel.Opacity = dock.PanelOpacity;
+        Panel.RenderTransform = TransformOperations.Parse(dock.PanelTransform);
+        PanelBackground.Opacity = 1;
+        SnapToNearestEdge(animate: true);
     }
 
     private void PositionPanelOnScreen()

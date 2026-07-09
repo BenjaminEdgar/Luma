@@ -15,6 +15,8 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _suggest;
     private readonly CheckBox _prewarm;
     private readonly CheckBox _globalShortcut;
+    private readonly CheckBox _chaosMode;
+    private readonly NumericUpDown _chaosPomodoro;
     private readonly NumericUpDown _count;
     private readonly NumericUpDown _fresh;
     private readonly NumericUpDown _imageWidth;
@@ -39,6 +41,8 @@ public sealed class SettingsWindow : Window
         _suggest = Toggle("Suggest prompts from what's on screen", settings.SuggestFromScreen);
         _prewarm = Toggle("Prepare suggestions when Luma starts", settings.PrewarmOnLaunch);
         _globalShortcut = Toggle("Global Ctrl+Shift+E explain shortcut", settings.EnableGlobalExplainShortcut);
+        _chaosMode = Toggle("Chaos Mode (roast, debate, tone flip, focus lock)", settings.ChaosMode);
+        _chaosPomodoro = Number(1, 120, settings.ChaosPomodoroMinutes);
         _count = Number(1, 5, settings.SuggestionCount);
         _fresh = Number(0, 3600, settings.SuggestionFreshSeconds);
         _imageWidth = Number(480, 7680, settings.SuggestionImageMaxWidth);
@@ -67,8 +71,8 @@ public sealed class SettingsWindow : Window
             Padding = new Thickness(0, 0, 0, 2),
             Child = new TextBlock
             {
-                Text = "LUMA SETTINGS", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")),
-                FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 1,
+                Text = "LUMA SETTINGS", Foreground = LumaTheme.AccentSoftBrush,
+                FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 1.3,
             },
         };
         dragHandle.PointerPressed += (_, e) =>
@@ -79,9 +83,11 @@ public sealed class SettingsWindow : Window
 
         Content = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#F514161E")), BorderBrush = new SolidColorBrush(Color.Parse("#408A63F5")),
-            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(22, 18),
-            BoxShadow = BoxShadows.Parse("0 16 48 0 #99000000"),
+            Background = LumaTheme.GlassFillBrush,
+            BorderBrush = LumaTheme.CreatePanelBorderBrush(),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(LumaTheme.FloatingCornerRadius),
+            Padding = new Thickness(22, 18),
+            BoxShadow = LumaTheme.FloatingShadow,
             Child = new StackPanel
             {
                 Spacing = 10,
@@ -101,6 +107,10 @@ public sealed class SettingsWindow : Window
                                 Section("Screen context"),
                                 _globalShortcut,
                                 Hint("From any application, press Ctrl+Shift+E to select a region and explain it. Restart Luma after changing this."),
+                                Section("Chaos Mode"),
+                                _chaosMode,
+                                Hint("Unlocks roast / debate / tone chips in the compose bar. Optional focus lock can block Explain."),
+                                Labeled("Focus lock minutes", _chaosPomodoro),
                                 _capture,
                                 Hint("Luma grabs a screenshot as ambient context so answers can see what you see."),
                                 _suggest,
@@ -136,18 +146,32 @@ public sealed class SettingsWindow : Window
                                 Labeled("Questions and coding", _grokChat),
                                 Labeled("Routing and suggestions", _grokSuggest),
                                 Hint("IDs from `grok models`. Leave chat blank for the CLI default. The fast composer model is used for routing and suggestions."),
+                                Section("MCP"),
+                                Hint("Install Model Context Protocol servers for Grok. Writes to ~/.grok/config.toml."),
                             },
                         },
                     },
                     new StackPanel
                     {
                         Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8,
-                        Children = { MakeButton("Cancel", "ghost", Close), MakeButton("Save", "accent", SaveAndClose) },
+                        Children =
+                        {
+                            MakeButton("MCP Marketplace", "outline", OpenMarketplace),
+                            MakeButton("Cancel", "ghost", Close),
+                            MakeButton("Save", "accent", SaveAndClose),
+                        },
                     },
                 },
             },
         };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
+    }
+
+    private void OpenMarketplace()
+    {
+        var workspace = AppSettings.Current.WorkingDirectory;
+        var market = new McpMarketplaceWindow(workspace);
+        market.Show(this);
     }
 
     private void SaveAndClose()
@@ -157,6 +181,8 @@ public sealed class SettingsWindow : Window
         settings.SuggestFromScreen = _suggest.IsChecked ?? true;
         settings.PrewarmOnLaunch = _prewarm.IsChecked ?? true;
         settings.EnableGlobalExplainShortcut = _globalShortcut.IsChecked ?? true;
+        settings.ChaosMode = _chaosMode.IsChecked ?? false;
+        settings.ChaosPomodoroMinutes = (int)(_chaosPomodoro.Value ?? 25);
         settings.SuggestionCount = (int)(_count.Value ?? 3);
         settings.SuggestionFreshSeconds = (int)(_fresh.Value ?? 90);
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);
@@ -179,8 +205,8 @@ public sealed class SettingsWindow : Window
 
     private static TextBlock Section(string title) => new()
     {
-        Text = title, FontSize = 12.5, FontWeight = FontWeight.SemiBold,
-        Foreground = new SolidColorBrush(Color.Parse("#C9BFFF")), Margin = new Thickness(0, 8, 0, 0),
+        Text = title, FontSize = 12.5, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6,
+        Foreground = LumaTheme.AccentSoftBrush, Margin = new Thickness(0, 8, 0, 0),
     };
 
     private static TextBlock Hint(string text) => new()

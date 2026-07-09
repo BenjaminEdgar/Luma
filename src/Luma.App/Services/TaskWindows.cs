@@ -31,19 +31,20 @@ public sealed class TaskConfirmationWindow : Window
         };
         Content = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#F514161E")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#408A63F5")),
+            Background = LumaTheme.GlassFillBrush,
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(18),
+            CornerRadius = new CornerRadius(LumaTheme.FloatingCornerRadius),
             Padding = new Thickness(22),
+            BoxShadow = LumaTheme.SoftShadow,
             Child = new StackPanel
             {
                 Spacing = 14,
                 Children =
                 {
-                    new TextBlock { Text = "✦ Dedicated workspace", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
-                    new TextBlock { Text = $"This looks like an {label}.", FontSize = 18, FontWeight = FontWeight.SemiBold },
-                    new TextBlock { Text = "Open a focused window with questions, progress, and an approval-ready result?", TextWrapping = TextWrapping.Wrap, Opacity = .72 },
+                    new TextBlock { Text = "✦ Dedicated workspace", Foreground = LumaTheme.AccentSoftBrush, FontSize = 12, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.5 },
+                    new TextBlock { Text = $"This looks like an {label}.", FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = LumaTheme.TextBrightBrush },
+                    new TextBlock { Text = "Open a focused window with questions, progress, and an approval-ready result?", TextWrapping = TextWrapping.Wrap, Opacity = .82, Foreground = LumaTheme.TextMutedBrush },
                     new StackPanel
                     {
                         Orientation = Orientation.Horizontal,
@@ -82,19 +83,20 @@ public sealed class RepositoryConfirmationWindow : Window
 
         Content = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#F514161E")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#408A63F5")),
+            Background = LumaTheme.GlassFillBrush,
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(18),
+            CornerRadius = new CornerRadius(LumaTheme.FloatingCornerRadius),
             Padding = new Thickness(22),
+            BoxShadow = LumaTheme.SoftShadow,
             Child = new StackPanel
             {
                 Spacing = 14,
                 Children =
                 {
-                    new TextBlock { Text = "✦ Coding task", Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), FontSize = 12 },
-                    new TextBlock { Text = "Use the same repository as last time?", FontSize = 18, FontWeight = FontWeight.SemiBold },
-                    new TextBlock { Text = repository, TextWrapping = TextWrapping.Wrap, Opacity = .72, FontFamily = FontFamily.Parse("Consolas"), FontSize = 12.5 },
+                    new TextBlock { Text = "✦ Coding task", Foreground = LumaTheme.AccentSoftBrush, FontSize = 12, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.5 },
+                    new TextBlock { Text = "Use the same project folder as last time?", FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = LumaTheme.TextBrightBrush },
+                    new TextBlock { Text = repository, TextWrapping = TextWrapping.Wrap, Opacity = .85, FontFamily = FontFamily.Parse("Consolas"), FontSize = 12.5, Foreground = LumaTheme.TextBodyBrush },
                     new StackPanel
                     {
                         Orientation = Orientation.Horizontal,
@@ -122,7 +124,7 @@ public abstract class TaskWorkspaceWindow : Window
     private readonly IAiClientFactory _clients;
     private readonly TaskLaunchRequest _request;
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly TextBlock _status = new() { FontSize = 12, Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")) };
+    private readonly TextBlock _status = new() { FontSize = 12, Foreground = LumaTheme.AccentSoftBrush };
     private readonly TextBlock _question = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
     private readonly StackPanel _questionChoices = new() { Spacing = 8 };
     private readonly Border _questionCard;
@@ -161,10 +163,10 @@ public abstract class TaskWorkspaceWindow : Window
         _questionCard = new Border
         {
             IsVisible = false,
-            Background = new SolidColorBrush(Color.Parse("#208A63F5")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#558A63F5")),
+            Background = new SolidColorBrush(Color.Parse("#288A63F5")),
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12),
+            CornerRadius = new CornerRadius(14),
             Padding = new Thickness(14),
             Child = new StackPanel { Spacing = 9, Children = { _question, _questionChoices } },
         };
@@ -181,10 +183,11 @@ public abstract class TaskWorkspaceWindow : Window
         {
             Margin = new Thickness(1),
             Padding = new Thickness(24),
-            Background = new SolidColorBrush(Color.Parse("#EE14161E")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#30FFFFFF")),
+            Background = new SolidColorBrush(LumaTheme.GlassFillStrong),
+            BorderBrush = LumaTheme.BorderAccentBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(18),
+            CornerRadius = new CornerRadius(LumaTheme.FloatingCornerRadius),
+            BoxShadow = LumaTheme.FloatingShadow,
             Child = new Grid
             {
                 RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*,Auto"),
@@ -202,11 +205,11 @@ public abstract class TaskWorkspaceWindow : Window
                                     Spacing = 3,
                                     Children =
                                     {
-                                        new TextBlock { Text = title, FontSize = 23, FontWeight = FontWeight.Bold },
-                                        new TextBlock { Text = subtitle, Opacity = .55 }
+                                        new TextBlock { Text = title, FontSize = 23, FontWeight = FontWeight.Bold, Foreground = LumaTheme.TextBrightBrush },
+                                        new TextBlock { Text = subtitle, Opacity = .75, Foreground = LumaTheme.TextMutedBrush }
                                     }
                                 },
-                                At(new TextBlock { Text = request.Provider.ToString(), Foreground = new SolidColorBrush(Color.Parse("#B3A6FF")), VerticalAlignment = VerticalAlignment.Center }, 0, 1)
+                                At(new TextBlock { Text = request.Provider.ToString(), Foreground = LumaTheme.AccentSoftBrush, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center }, 0, 1)
                             }
                         },
                         0),

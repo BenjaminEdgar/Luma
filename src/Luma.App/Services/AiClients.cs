@@ -174,7 +174,22 @@ public abstract class CliAiClient : IAiClient
 
     protected static string BuildPrompt(AiRequest request)
     {
-        var builder = new StringBuilder("You are helping inside Luma. Be concise. Do not modify files or run commands. Ask one concise question at a time only when needed.\n");
+        var builder = new StringBuilder(
+            "You are helping inside Luma. Be concise.\n" +
+            "You may use tools to list, search, read, create, and edit files when that helps complete the user's request. " +
+            "Prefer real project files over guessing. Keep edits small and focused; summarize what you changed.\n" +
+            "Do not run destructive shell commands (for example mass deletes, disk format, or rewriting system paths).\n" +
+            "When one specific detail would materially improve your answer, ask exactly one clarifying question by ending your reply with a final line:\n" +
+            "ASK_USER: <short question> || <choice1> || <choice2>\n" +
+            "Prefer 2–4 short multiple-choice options when sensible; omit choices only when free text is required. " +
+            "Do not ask more than one question per turn. If you can help well without asking, answer directly.\n");
+        if (AppSettings.Current.ChaosMode &&
+            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        {
+            var tone = (ChaosTone)AppSettings.Current.ChaosTone;
+            var directive = ChaosMode.ToneDirective(tone);
+            if (directive is not null) builder.AppendLine(directive);
+        }
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
         if (hasVisualContext && request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
         {
@@ -184,20 +199,35 @@ public abstract class CliAiClient : IAiClient
                 "Quote or transcribe visible text exactly when it matters. Clearly distinguish what is visibly present from what you infer. " +
                 "Never invent text, values, controls, or states that are cropped, blurred, or unreadable. " +
                 "Answer the user's actual intent first, then explain the visible evidence and the most useful next action. " +
-                "If an unreadable visual detail is essential, ask one multiple-choice question offering a tighter selection or a best-effort answer.");
+                "If an unreadable visual detail is essential, use ASK_USER with a tighter-selection choice or a best-effort option. " +
+                "When it helps the user find something on screen, end with a final line: " +
+                "SHOW_WHERE: optional label | x,y,w,h using normalized 0–1 fractions of the full screen " +
+                "(example: SHOW_WHERE: Apply button | 0.72,0.81,0.14,0.06).");
         }
         if (!hasVisualContext && request.TaskKind is TaskKind.Chat or TaskKind.Generic)
             builder.AppendLine("If you need the current screen to answer accurately and no screenshot is included yet, end with NEED_SCREEN: <short reason>. Otherwise answer directly.");
+        if (!string.IsNullOrWhiteSpace(request.WorkingDirectory) &&
+            request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        {
+            builder.AppendLine(
+                $"Project directory (working root): {request.WorkingDirectory}. " +
+                "Use tools to list, search, read, create, and edit files under this root when the task needs local code, configs, logs, or docs. " +
+                "Stay inside this root unless the user explicitly points elsewhere. Quote paths relative to the project root when you can.");
+        }
         switch (request.TaskKind)
         {
             case TaskKind.Email:
                 builder.AppendLine("Draft the email reply. When ready, put the complete reply after a line containing exactly DRAFT:. Never claim to send the email.");
                 break;
             case TaskKind.Code:
-                builder.AppendLine("Inspect the repository using read-only tools. Do not edit or execute anything. When ready, explain the change and include one complete unified patch in a ```diff fenced block. Paths must be repository-relative.");
+                builder.AppendLine(
+                    "Inspect the project folder with tools before changing it — Git is not required. " +
+                    "You may create and edit files under the project root with your tools when the user wants changes applied. " +
+                    "Prefer small, focused edits and briefly explain what you changed. " +
+                    "When a structured patch for Luma's review card is still useful, also include one complete unified diff in a ```diff fenced block with project-relative paths.");
                 break;
             case TaskKind.Generic:
-                builder.AppendLine("Work methodically and finish with a useful deliverable.");
+                builder.AppendLine("Work methodically and finish with a useful deliverable. You may edit project files when that is the deliverable.");
                 break;
             case TaskKind.Shell:
                 builder.AppendLine("Propose exactly one shell command in a fenced code block (```bash). Do not execute anything yourself.");
@@ -344,7 +374,11 @@ public sealed class CodexClient(IRunningOperationCoordinator? operations = null)
     protected override string Command => "codex";
     protected override void AddArguments(ProcessStartInfo psi, AiRequest request, string prompt, string sessionDirectory)
     {
-        psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral"); psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("read-only");
+        psi.ArgumentList.Add("exec"); psi.ArgumentList.Add("--ephemeral");
+        // workspace-write: read anywhere, write/edit inside the working directory (project folder).
+        // approval_policy via -c: codex exec has no --ask-for-approval flag (that is TUI-only).
+        psi.ArgumentList.Add("--sandbox"); psi.ArgumentList.Add("workspace-write");
+        psi.ArgumentList.Add("-c"); psi.ArgumentList.Add("approval_policy=\"never\"");
         psi.ArgumentList.Add("--skip-git-repo-check"); psi.ArgumentList.Add("--json");
         var hasImage = request.ContextImagePath is not null || request.ImagePath is not null;
         var model = request.TaskKind is TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route
@@ -373,7 +407,14 @@ public sealed class ClaudeClient(IRunningOperationCoordinator? operations = null
     {
         psi.ArgumentList.Add("--print"); psi.ArgumentList.Add("--output-format"); psi.ArgumentList.Add("stream-json");
         psi.ArgumentList.Add("--include-partial-messages"); psi.ArgumentList.Add("--verbose");
-        psi.ArgumentList.Add("--tools"); psi.ArgumentList.Add("Read"); psi.ArgumentList.Add("--permission-mode"); psi.ArgumentList.Add("dontAsk");
+        // Read + write tools for chat/code. Skip tools on suggestion garnish for latency.
+        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        {
+            psi.ArgumentList.Add("--tools");
+            psi.ArgumentList.Add("Read,Glob,Grep,Write,Edit");
+            psi.ArgumentList.Add("--permission-mode");
+            psi.ArgumentList.Add("dontAsk");
+        }
         psi.ArgumentList.Add("--no-session-persistence");
         // Suggestion chips are a latency-sensitive garnish, so they default to Haiku (the fast,
         // cheap tier); chat uses the CLI's own default. Both are user-overridable in Settings.
@@ -398,9 +439,17 @@ public sealed class GrokClient(IRunningOperationCoordinator? operations = null) 
         psi.ArgumentList.Add(promptPath);
         psi.ArgumentList.Add("--output-format");
         psi.ArgumentList.Add("streaming-json");
-        // Grok Build tool IDs (not Claude Code names). Read-only for Luma's safety model.
-        psi.ArgumentList.Add("--tools");
-        psi.ArgumentList.Add("read_file,grep,list_dir");
+        // Grok Build tool IDs (not Claude Code names).
+        // search_replace covers create/edit; bare "write" is not a valid tool id and breaks agent
+        // build with a run_terminal_cmd params_constraint error on current Grok CLIs.
+        // Suggestion/follow-up chips stay tool-free for speed.
+        if (request.TaskKind is not (TaskKind.Suggest or TaskKind.FollowUp or TaskKind.Route))
+        {
+            psi.ArgumentList.Add("--tools");
+            psi.ArgumentList.Add("read_file,grep,list_dir,search_replace");
+            // Headless Luma cannot answer interactive tool prompts.
+            psi.ArgumentList.Add("--always-approve");
+        }
         psi.ArgumentList.Add("--disable-web-search");
         psi.ArgumentList.Add("--no-memory");
         psi.ArgumentList.Add("--no-subagents");

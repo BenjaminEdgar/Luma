@@ -66,6 +66,34 @@ public sealed class CodeChatSessionTests
     }
 
     [Fact]
+    public async Task NonGitFolderStillRunsAndLetsAgentReadContext()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "LumaTests", "nongit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        await File.WriteAllTextAsync(Path.Combine(dir, "notes.txt"), "hello from plain folder\n");
+        try
+        {
+            string? seenContext = null;
+            var client = new FakeAiClient(request =>
+            {
+                seenContext = request.TaskContext;
+                return "Looks fine — no code change needed.";
+            });
+            var session = CreateSession(dir, client);
+
+            await session.RunAsync("What is in this folder?", CancellationToken.None);
+
+            Assert.Equal(1, client.CallCount);
+            Assert.NotNull(seenContext);
+            Assert.Contains("Project root:", seenContext);
+            Assert.Contains("notes.txt", seenContext);
+            Assert.Contains("non-git folder", seenContext, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Choose a valid Git repository", session.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    [Fact]
     public async Task InvalidDiffRetriesUpToBoundThenBlocksWithoutApplying()
     {
         var repo = await CreateTempRepoAsync();

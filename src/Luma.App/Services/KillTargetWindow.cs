@@ -26,8 +26,8 @@ public sealed class KillTargetWindow : Window
             Width = 70,
             Height = 70,
             CornerRadius = new CornerRadius(35),
-            Background = new SolidColorBrush(Color.Parse("#CC361D29")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#FFFF6B79")),
+            Background = new SolidColorBrush(LumaTheme.DangerFill),
+            BorderBrush = new SolidColorBrush(LumaTheme.Danger),
             BorderThickness = new Thickness(2),
             Child = new TextBlock
             {
@@ -58,7 +58,7 @@ public sealed class KillTargetWindow : Window
 
     public void SetHot(bool hot)
     {
-        _circle.Background = new SolidColorBrush(Color.Parse(hot ? "#F2E33B4E" : "#CC361D29"));
+        _circle.Background = new SolidColorBrush(hot ? LumaTheme.DangerHot : LumaTheme.DangerFill);
         _circle.RenderTransform = hot ? new ScaleTransform(1.08, 1.08) : new ScaleTransform(1, 1);
     }
 }

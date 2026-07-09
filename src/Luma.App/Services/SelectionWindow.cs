@@ -10,7 +10,7 @@ namespace Luma.App.Services;
 
 public sealed class SelectionWindow : Window
 {
-    private static readonly Color Accent = Color.Parse("#8A63F5");
+    private static readonly Color Accent = LumaTheme.AccentStart;
 
     private readonly TaskCompletionSource<PixelRect?> _completion = new();
     private readonly Canvas _canvas = new();
