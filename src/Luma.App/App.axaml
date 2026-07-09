@@ -939,6 +939,29 @@
             <Setter Property="BorderBrush" Value="#4F46E5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
+        <!-- Lean chat chip: glass pill in same family as chaos/split chips (prevents gray fallback).
+             "Lean ON" label signals active; click turns off. -->
+        <Style Selector="Button.leanchip">
+            <Setter Property="Background" Value="#EEFFFFFF" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.leanchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Foreground" Value="#0F172A" />
+        </Style>
+        <Style Selector="Button.leanchip:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4F46E5" />
+            <Setter Property="BorderBrush" Value="#4F46E5" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
         <!-- Plan mode chip: aurora pill (distinct from chaos/cwd). BoxShadow not on Button. -->
         <Style Selector="Button.planchip">
             <Setter Property="Background" Value="#EEF6FF" />

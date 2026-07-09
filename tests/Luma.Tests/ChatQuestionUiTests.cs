@@ -47,10 +47,19 @@ public sealed class ChatQuestionUiTests
     [Fact]
     public void SystemPromptTeachesAskUserDirective()
     {
-        var prompt = BuildPrompt(new AiRequest("Help me write an email", null, null, []) { TaskKind = TaskKind.Chat });
-        Assert.Contains("ASK_USER:", prompt);
-        Assert.Contains("|| <choice1>", prompt);
-        Assert.Contains("one clarifying question", prompt, StringComparison.OrdinalIgnoreCase);
+        var previous = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var prompt = BuildPrompt(new AiRequest("Help me write an email", null, null, []) { TaskKind = TaskKind.Chat });
+            Assert.Contains("ASK_USER:", prompt);
+            Assert.Contains("|| <choice1>", prompt);
+            Assert.Contains("one clarifying question", prompt, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            AppSettings.Current = previous;
+        }
     }
 
     [Fact]

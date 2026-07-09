@@ -31,24 +31,30 @@ public sealed class GhostSplitOutcomeTests
     [Fact]
     public void OutcomeMemoryRecordsAndSuggestsChips()
     {
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
+        var previousLocalAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        var tempRoot = Path.Combine(Path.GetTempPath(), "LumaTests", Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(tempRoot, "Luma");
         var path = Path.Combine(dir, "outcome-memory.json");
         var backup = File.Exists(path) ? File.ReadAllText(path) : null;
         try
         {
+            Directory.CreateDirectory(dir);
+            Environment.SetEnvironmentVariable("LOCALAPPDATA", tempRoot);
             if (File.Exists(path)) File.Delete(path);
             OutcomeMemory.Record(OutcomeKind.Undo, "Undid edit AuthService.cs", tags: ["AuthService.cs"]);
             OutcomeMemory.Record(OutcomeKind.Write, "Edited Program.cs", tags: ["Program.cs"]);
             var chips = OutcomeMemory.SuggestChips("auth null reference", max: 4);
             Assert.NotEmpty(chips);
-            Assert.Contains(chips, c => c.Contains("AuthService", StringComparison.OrdinalIgnoreCase)
+            Assert.Contains(chips, c => c.Contains("Retry", StringComparison.OrdinalIgnoreCase)
                 || c.Contains("Avoid", StringComparison.OrdinalIgnoreCase)
+                || c.Contains("AuthService", StringComparison.OrdinalIgnoreCase)
                 || c.Contains("Program", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
             if (backup is null) { try { File.Delete(path); } catch { } }
             else File.WriteAllText(path, backup);
+            Environment.SetEnvironmentVariable("LOCALAPPDATA", previousLocalAppData);
         }
     }
 

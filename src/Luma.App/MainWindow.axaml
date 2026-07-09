@@ -600,7 +600,7 @@
                       Command="{Binding ClearAttachedFilesCommand}"
                       VerticalAlignment="Center" Margin="0,0,0,4" />
               <!-- Compact mode chips (roast/argue live in + menu) -->
-              <Button Classes="cwdchip" Content="{Binding LeanChatChipLabel}" Margin="0,0,6,4"
+              <Button Classes="leanchip" Content="{Binding LeanChatChipLabel}" Margin="0,0,6,4"
                       IsVisible="{Binding LeanChatEnabled}"
                       Command="{Binding ToggleLeanChatCommand}"
                       ToolTip.Tip="Lean chat is on — shorter prompts &amp; history. Click to turn off." />
@@ -627,6 +627,13 @@
                         Data="M2,3 H9 M2,6 H9 M2,9 H6 M1.5,3 V9.5" />
                   <TextBlock Text="{Binding PlanModeChipLabel}" FontSize="11" FontWeight="SemiBold"
                              VerticalAlignment="Center" />
+                  <!-- Small chevron affordance: ▾ when expanded (click collapses), ▴ when collapsed (click expands). -->
+                  <Path Width="7" Height="7" Stretch="Uniform" VerticalAlignment="Center" Margin="0,1,0,0"
+                        Stroke="#64748B" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round"
+                        Data="M1,2 L3.5,4.5 L6,2" IsVisible="{Binding !IsPlanWindowCollapsed}" />
+                  <Path Width="7" Height="7" Stretch="Uniform" VerticalAlignment="Center" Margin="0,1,0,0"
+                        Stroke="#64748B" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round"
+                        Data="M1,4.5 L3.5,2 L6,4.5" IsVisible="{Binding IsPlanWindowCollapsed}" />
                   <Ellipse Classes="planpulse" />
                 </StackPanel>
               </Button>

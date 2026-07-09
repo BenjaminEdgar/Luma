@@ -124,12 +124,15 @@ public sealed class PlanModeTests
         Assert.Contains("PlanChipVisible", xaml, StringComparison.Ordinal);
         Assert.Contains("ImplementPlanCommand", xaml, StringComparison.Ordinal);
         Assert.Contains("PlanModeChipLabel", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsPlanWindowCollapsed", xaml, StringComparison.Ordinal);
         Assert.Contains("planchip", xaml, StringComparison.Ordinal);
         Assert.Contains("planpulse", xaml, StringComparison.Ordinal);
         Assert.Contains("Name=\"StatusPill\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("leanchip", xaml, StringComparison.Ordinal); // Lean uses dedicated style (not cwdchip)
 
         var appXaml = ReadShipped("src/Luma.App/App.axaml");
         Assert.Contains("Button.planchip", appXaml, StringComparison.Ordinal);
+        Assert.Contains("Button.leanchip", appXaml, StringComparison.Ordinal);
         Assert.Contains("panelshell.plan", appXaml, StringComparison.Ordinal);
         Assert.Contains("statuspill.plan", appXaml, StringComparison.Ordinal);
     }

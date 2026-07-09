@@ -52,6 +52,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private bool _splitBrainEnabled;
     private bool _planModeEnabled;
     private bool _planProgressTracking;
+    private bool _planWindowCollapsed;
     private WorkspaceSnapshot? _livePairSnapshot;
     private string? _livePairRoot;
     private ChatMessage? _livePairAnswer;
@@ -291,11 +292,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             ImplementPlanCommand.RaiseCanExecuteChanged();
             TogglePlanWindowCommand.RaiseCanExecuteChanged();
             NotifySurfaceStateChanged();
+            if (value) IsPlanWindowCollapsed = false; // entering plan shows expanded checklist
             PlanModeChanged?.Invoke(value);
         }
     }
     public string PlanModeMenuLabel => PlanModeEnabled ? "Plan mode: ON" : "Plan mode: OFF";
     public string PlanModeChipLabel => "Plan";
+    /// <summary>Tracks last known collapsed state of the side plan window for chevron affordance on chip.</summary>
+    public bool IsPlanWindowCollapsed
+    {
+        get => _planWindowCollapsed;
+        internal set
+        {
+            if (_planWindowCollapsed == value) return;
+            Set(ref _planWindowCollapsed, value);
+        }
+    }
     /// <summary>Plan chip stays while mode is on or implement is tracking progress (collapse/expand only).</summary>
     public bool PlanChipVisible => PlanDockExperience.ChipVisible(PlanModeEnabled, PlanProgressTracking);
     /// <summary>True while Implement is running — plan window stays open and accepts step check-offs.</summary>

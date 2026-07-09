@@ -120,5 +120,13 @@ public static class OutcomeMemory
     }
 
     private static string StorePath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma", "outcome-memory.json");
+        Path.Combine(GetLocalAppDataRoot(), "Luma", "outcome-memory.json");
+
+    private static string GetLocalAppDataRoot()
+    {
+        var env = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        return string.IsNullOrWhiteSpace(env)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+            : env;
+    }
 }

@@ -241,6 +241,7 @@ public partial class MainWindow : Window
     private PlanDocumentWindow CreatePlanWindow()
     {
         var window = new PlanDocumentWindow(_viewModel.Plan);
+        window.CollapsedChanged += collapsed => { _viewModel.IsPlanWindowCollapsed = collapsed; };
         window.SetProgressTracking(_viewModel.PlanProgressTracking);
         window.ImplementRequested += markdown =>
         {

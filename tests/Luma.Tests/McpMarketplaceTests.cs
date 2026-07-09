@@ -21,6 +21,13 @@ public sealed class McpMarketplaceTests
     [Fact]
     public void InstallManagerPersistsAndSanitizesKeys()
     {
+        var previousLocalAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        var previousUserProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+        var tempRoot = Path.Combine(Path.GetTempPath(), "LumaTests", Guid.NewGuid().ToString("N"));
+        var grokHome = Path.Combine(tempRoot, ".grok");
+        Directory.CreateDirectory(grokHome);
+        Environment.SetEnvironmentVariable("LOCALAPPDATA", tempRoot);
+        Environment.SetEnvironmentVariable("USERPROFILE", tempRoot);
         var path = McpInstallManager.StorePath();
         var backup = File.Exists(path) ? File.ReadAllText(path) : null;
         var grok = McpInstallManager.GrokConfigPath();
@@ -72,12 +79,21 @@ public sealed class McpMarketplaceTests
                 catch { }
             }
             else File.WriteAllText(grok, grokBackup);
+            Environment.SetEnvironmentVariable("LOCALAPPDATA", previousLocalAppData);
+            Environment.SetEnvironmentVariable("USERPROFILE", previousUserProfile);
         }
     }
 
     [Fact]
     public void WorkspacePlaceholderExpandsOnInstall()
     {
+        var previousLocalAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        var previousUserProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+        var tempRoot = Path.Combine(Path.GetTempPath(), "LumaTests", Guid.NewGuid().ToString("N"));
+        var grokHome = Path.Combine(tempRoot, ".grok");
+        Directory.CreateDirectory(grokHome);
+        Environment.SetEnvironmentVariable("LOCALAPPDATA", tempRoot);
+        Environment.SetEnvironmentVariable("USERPROFILE", tempRoot);
         var path = McpInstallManager.StorePath();
         var backup = File.Exists(path) ? File.ReadAllText(path) : null;
         var grok = McpInstallManager.GrokConfigPath();
@@ -98,6 +114,8 @@ public sealed class McpMarketplaceTests
             if (backup is null) { try { File.Delete(path); } catch { } }
             else File.WriteAllText(path, backup);
             if (grokBackup is not null) File.WriteAllText(grok, grokBackup);
+            Environment.SetEnvironmentVariable("LOCALAPPDATA", previousLocalAppData);
+            Environment.SetEnvironmentVariable("USERPROFILE", previousUserProfile);
         }
     }
 
@@ -205,6 +223,13 @@ public sealed class McpMarketplaceTests
     [Fact]
     public void SyncToGrokConfigDoesNotDuplicateExistingMcpTables()
     {
+        var previousLocalAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        var previousUserProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+        var tempRoot = Path.Combine(Path.GetTempPath(), "LumaTests", Guid.NewGuid().ToString("N"));
+        var grokHome = Path.Combine(tempRoot, ".grok");
+        Directory.CreateDirectory(grokHome);
+        Environment.SetEnvironmentVariable("LOCALAPPDATA", tempRoot);
+        Environment.SetEnvironmentVariable("USERPROFILE", tempRoot);
         var path = McpInstallManager.StorePath();
         var backup = File.Exists(path) ? File.ReadAllText(path) : null;
         var grok = McpInstallManager.GrokConfigPath();
@@ -243,6 +268,8 @@ public sealed class McpMarketplaceTests
             else File.WriteAllText(path, backup);
             if (grokBackup is null) { try { File.Delete(grok); } catch { } }
             else File.WriteAllText(grok, grokBackup);
+            Environment.SetEnvironmentVariable("LOCALAPPDATA", previousLocalAppData);
+            Environment.SetEnvironmentVariable("USERPROFILE", previousUserProfile);
         }
     }
 

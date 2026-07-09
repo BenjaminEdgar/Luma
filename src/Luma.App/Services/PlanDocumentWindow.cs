@@ -106,6 +106,9 @@ public sealed class PlanDocumentWindow : Window
     /// <summary>Raised when the user clicks Implement with the current editor markdown.</summary>
     public event Action<string>? ImplementRequested;
 
+    /// <summary>Raised on collapse/expand so main window can reflect chevron affordance on the plan chip.</summary>
+    public event Action<bool>? CollapsedChanged;
+
     public bool IsCollapsed => _collapsed;
 
     public PlanDocumentWindow(PlanDocument document)
@@ -289,6 +292,7 @@ public sealed class PlanDocumentWindow : Window
         }
         _collapsed = collapsed;
         ApplyCollapsedVisuals();
+        CollapsedChanged?.Invoke(_collapsed);
         if (!_collapsed) Activate();
     }
 
@@ -464,6 +468,14 @@ public sealed class PlanDocumentWindow : Window
             Background = LumaTheme.CreateAccentGradient(),
             Child = planGlyph,
             BoxShadow = BoxShadows.Parse("0 4 12 0 #337C4DFF"),
+            Cursor = new Cursor(StandardCursorType.Hand),
+        };
+        // Icon click collapses (banner behind it moves via dragHandle).
+        glyphBadge.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            ToggleCollapsed();
+            e.Handled = true;
         };
         var dragHandle = new Border
         {

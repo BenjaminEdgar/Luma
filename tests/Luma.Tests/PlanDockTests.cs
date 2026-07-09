@@ -86,15 +86,16 @@ public sealed class PlanDockTests
         Assert.Contains("TogglePlanWindowCollapsed", mainCs, StringComparison.Ordinal);
         Assert.Contains("SetProgressTracking", mainCs, StringComparison.Ordinal);
         Assert.Contains("SetCollapsed", mainCs, StringComparison.Ordinal);
-
         var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var planWin = ReadShipped("src/Luma.App/Services/PlanDocumentWindow.cs");
+        Assert.Contains("IsPlanWindowCollapsed", vm, StringComparison.Ordinal);
+        Assert.Contains("CollapsedChanged", planWin, StringComparison.Ordinal);
         Assert.Contains("TogglePlanWindowCommand", vm, StringComparison.Ordinal);
         Assert.Contains("PlanChipVisible", vm, StringComparison.Ordinal);
         Assert.Contains("PlanWindowToggleRequested", vm, StringComparison.Ordinal);
         // Chip must not call mode toggle.
         Assert.Contains("never turns plan mode off", vm, StringComparison.OrdinalIgnoreCase);
 
-        var planWin = ReadShipped("src/Luma.App/Services/PlanDocumentWindow.cs");
         Assert.Contains("SetCollapsed", planWin, StringComparison.Ordinal);
         Assert.Contains("ToggleCollapsed", planWin, StringComparison.Ordinal);
         Assert.Contains("SetProgressTracking", planWin, StringComparison.Ordinal);

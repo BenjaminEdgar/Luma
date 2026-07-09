@@ -813,10 +813,26 @@ public sealed class McpInstallManager
         value.Replace("\\\"", "\"").Replace("\\\\", "\\");
 
     public static string GrokConfigPath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".grok", "config.toml");
+        Path.Combine(GetUserProfileRoot(), ".grok", "config.toml");
 
     public static string StorePath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma", "mcp-installs.json");
+        Path.Combine(GetLocalAppDataRoot(), "Luma", "mcp-installs.json");
+
+    private static string GetLocalAppDataRoot()
+    {
+        var env = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        return string.IsNullOrWhiteSpace(env)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+            : env;
+    }
+
+    private static string GetUserProfileRoot()
+    {
+        var env = Environment.GetEnvironmentVariable("USERPROFILE");
+        return string.IsNullOrWhiteSpace(env)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            : env;
+    }
 
     /// <summary>Writes [mcp_servers.*] blocks for Luma-managed servers into ~/.grok/config.toml.</summary>
     public void SyncToGrokConfig(IReadOnlyList<McpInstalledServer>? servers = null)

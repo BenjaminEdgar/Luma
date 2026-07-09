@@ -49,14 +49,23 @@ public sealed class AgentReadToolsTests
     [Fact]
     public void SystemPromptAllowsFileWritesUnderProjectRoot()
     {
-        var prompt = TestClient.Prompt(new AiRequest("Add a comment to Program.cs", null, null, [])
+        var previous = AppSettings.Current;
+        try
         {
-            TaskKind = TaskKind.Chat,
-            WorkingDirectory = @"C:\LMLB",
-        });
-        Assert.Contains("create, and edit files", prompt);
-        Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
-        Assert.DoesNotContain("Do not write, edit, or execute", prompt);
+            AppSettings.Current = new AppSettings { LeanChatMode = false };
+            var prompt = TestClient.Prompt(new AiRequest("Add a comment to Program.cs", null, null, [])
+            {
+                TaskKind = TaskKind.Chat,
+                WorkingDirectory = @"C:\LMLB",
+            });
+            Assert.Contains("create, and edit files", prompt);
+            Assert.Contains("Project directory (working root): C:\\LMLB", prompt);
+            Assert.DoesNotContain("Do not write, edit, or execute", prompt);
+        }
+        finally
+        {
+            AppSettings.Current = previous;
+        }
     }
 
     private sealed class TestClient : CliAiClient
