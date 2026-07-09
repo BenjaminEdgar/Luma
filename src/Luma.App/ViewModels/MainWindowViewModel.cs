@@ -409,12 +409,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         var provider = (AiProvider)SelectedProviderIndex;
         var providerName = Providers[SelectedProviderIndex];
-        var probeWithoutScreen = HasCapture;
+        var hadCapture = HasCapture;
         Messages.Add(new ChatMessage("user", displayPrompt ?? prompt));
         var answer = new ChatMessage("assistant", string.Empty, isPending: true)
         {
-            Caption = $"* {providerName} is thinking",
-            Text = "Thinking...",
+            Caption = hadCapture ? $"* {providerName} is reading your screen" : $"* {providerName} is thinking",
+            Text = hadCapture ? "Reading screen…" : "Thinking…",
         };
         Messages.Add(answer);
         SetBusy(true);
@@ -424,39 +424,47 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         var ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background,
             (_, _) => answer.Elapsed = $"{stopwatch.Elapsed.TotalSeconds:0.0} s");
         ticker.Start();
+        // Coalesce stream partials onto a short interval so multi-chunk output does not schedule
+        // one UI apply per line; progressive text still appears and finalize applies full extract.
+        using var streamBridge = new ChatStreamUiBridge(answer, providerName);
         try
         {
             var history = Messages.Take(Messages.Count - 2).ToArray();
             var client = _clientFactory.Create(provider);
-            var request = new AiRequest(prompt, probeWithoutScreen ? null : _regionPath, probeWithoutScreen ? null : _contextPath, history);
-            var text = await client.AskAsync(request,
-                partial => Dispatcher.UIThread.Post(() =>
-                {
-                    answer.IsPending = false;
-                    answer.IsStreaming = true;
-                    answer.Caption = $"✦ {providerName}";
-                    ApplyAnswerText(answer, partial);
-                }), cts.Token);
-            if (probeWithoutScreen && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
+            // Always attach available captures on the first request. An earlier regression set
+            // probeWithoutScreen = HasCapture, which stripped images whenever a screenshot existed.
+            var request = new AiRequest(prompt, _regionPath, _contextPath, history);
+            var text = await client.AskAsync(request, streamBridge.OnPartial, cts.Token);
+            streamBridge.SealPartials();
+            // Text-only first turn: if the model asks for the screen, capture once and retry with it.
+            if (!hadCapture && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
             {
-                answer.Caption = $"* {providerName} is rereading the screen";
-                answer.Text = string.IsNullOrWhiteSpace(reason) ? "Reading screen..." : $"Rereading screen: {reason}";
+                answer.Caption = $"* {providerName} is reading the screen";
+                answer.Text = string.IsNullOrWhiteSpace(reason) ? "Reading screen…" : $"Reading screen: {reason}";
                 answer.IsStreaming = false;
+                answer.IsPending = true;
+                try
+                {
+                    _owner.Hide();
+                    await Task.Delay(150, cts.Token);
+                    var path = await _captureService.CaptureScreenAsync(_owner, cts.Token);
+                    ReplaceCapture(ref _contextPath, path);
+                }
+                finally { _owner.Show(); _owner.Activate(); }
+
+                streamBridge.Reopen();
                 var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history);
-                text = await client.AskAsync(screenRequest,
-                    partial => Dispatcher.UIThread.Post(() =>
-                    {
-                        answer.IsPending = false;
-                        answer.IsStreaming = true;
-                        answer.Caption = $"* {providerName}";
-                        ApplyAnswerText(answer, partial);
-                    }), cts.Token);
+                text = await client.AskAsync(screenRequest, streamBridge.OnPartial, cts.Token);
+                streamBridge.SealPartials();
             }
             text = ClarifyingQuestionParser.RemoveScreenRereadDirective(text);
             if (string.IsNullOrWhiteSpace(text))
-                text = probeWithoutScreen ? "I still need a clearer screen capture." : "I need a screenshot to answer that.";
-            ApplyAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
+                text = hadCapture || HasCapture
+                    ? "I still need a clearer screen capture."
+                    : "I need a screenshot to answer that.";
+            ApplyFinalAnswerText(answer, string.IsNullOrWhiteSpace(text) ? "The client returned no answer." : text.Trim());
             answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
+            // Follow-up chips must not delay marking the main answer turn complete.
             _ = GenerateFollowUpSuggestionsAsync();
         }
         catch (OperationCanceledException)
@@ -561,15 +569,87 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private static void ApplyAnswerText(ChatMessage answer, string rawText)
+    /// <summary>Final answer apply: full clean/extract and promote IsQuestion only when complete.</summary>
+    private static void ApplyFinalAnswerText(ChatMessage answer, string rawText)
     {
-        var clarification = ClarifyingQuestionParser.ExtractDetailed(TextSanitizer.Clean(rawText));
-        answer.Text = TextSanitizer.Clean(clarification.Text);
-        if (clarification.Question is not null)
+        var applied = ChatStreamTextPolicy.ApplyFinal(rawText);
+        answer.Text = applied.Text;
+        if (!applied.IsQuestion) return;
+        answer.Question = applied.Question;
+        answer.QuestionChoices = applied.QuestionChoices;
+        answer.IsQuestion = true;
+    }
+
+    /// <summary>
+    /// Bridges provider partial callbacks (any thread) into coalesced UI-thread progressive text
+    /// updates. Does not promote ASK_USER / IsQuestion — that waits for <see cref="ApplyFinalAnswerText"/>.
+    /// </summary>
+    private sealed class ChatStreamUiBridge : IDisposable
+    {
+        private readonly ChatMessage _answer;
+        private readonly string _providerName;
+        private readonly StreamPartialCoalescer _coalescer = new();
+        private readonly DispatcherTimer _flushTimer;
+        private int _epoch = 1; // 0 = sealed; reopen bumps so late posts from prior streams never match
+        private int _reopenSeq = 1;
+
+        public ChatStreamUiBridge(ChatMessage answer, string providerName)
         {
-            answer.Question = TextSanitizer.Clean(clarification.Question);
-            answer.QuestionChoices = clarification.Choices;
-            answer.IsQuestion = true;
+            _answer = answer;
+            _providerName = providerName;
+            _flushTimer = new DispatcherTimer(StreamPartialCoalescer.DefaultInterval, DispatcherPriority.Background,
+                (_, _) => TryFlushHeld());
+            _flushTimer.Start();
+        }
+
+        /// <summary>Provider stream callback — may run off the UI thread.</summary>
+        public void OnPartial(string partial)
+        {
+            var epoch = Volatile.Read(ref _epoch);
+            if (epoch == 0) return;
+            if (_coalescer.TryPublishNow(partial, DateTime.UtcNow, out var publish))
+                Dispatcher.UIThread.Post(() => ApplyPartial(publish, epoch));
+        }
+
+        /// <summary>Stops progressive applies so late posts cannot overwrite the final answer.</summary>
+        public void SealPartials()
+        {
+            _flushTimer.Stop();
+            Volatile.Write(ref _epoch, 0);
+            // Discard held text — finalize uses the complete AskAsync return value.
+            _ = _coalescer.TryFlush(DateTime.UtcNow, out _);
+        }
+
+        /// <summary>Allows progressive applies again (e.g. NEED_SCREEN retry stream).</summary>
+        public void Reopen()
+        {
+            var next = Interlocked.Increment(ref _reopenSeq);
+            Volatile.Write(ref _epoch, next);
+            _flushTimer.Start();
+        }
+
+        private void TryFlushHeld()
+        {
+            var epoch = Volatile.Read(ref _epoch);
+            if (epoch == 0) return;
+            if (_coalescer.TryFlush(DateTime.UtcNow, out var publish))
+                ApplyPartial(publish, epoch);
+        }
+
+        private void ApplyPartial(string raw, int epoch)
+        {
+            if (Volatile.Read(ref _epoch) != epoch) return;
+            _answer.IsPending = false;
+            _answer.IsStreaming = true;
+            _answer.Caption = $"✦ {_providerName}";
+            // Progressive text only — never flip IsQuestion from mid-stream fragments.
+            _answer.Text = ChatStreamTextPolicy.ApplyPartial(raw).Text;
+        }
+
+        public void Dispose()
+        {
+            _flushTimer.Stop();
+            Volatile.Write(ref _epoch, 0);
         }
     }
 
