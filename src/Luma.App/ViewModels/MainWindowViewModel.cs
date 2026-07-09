@@ -98,6 +98,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         TogglePomodoroCommand = new RelayCommand(TogglePomodoro, () => ChaosModeEnabled);
         ToggleSplitBrainCommand = new RelayCommand(ToggleSplitBrain);
         TogglePlanModeCommand = new RelayCommand(TogglePlanMode);
+        TogglePlanWindowCommand = new RelayCommand(TogglePlanWindow, () => PlanChipVisible);
         ImplementPlanCommand = new AsyncCommand(ImplementApprovedPlanAsync,
             () => IsIdle && PlanModeEnabled && Plan.CanImplement && SelectedDiagnostic?.IsAvailable != false);
         ShowWhereCommand = new ParameterCommand(ShowWhereOnScreen);
@@ -147,6 +148,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand TogglePomodoroCommand { get; }
     public RelayCommand ToggleSplitBrainCommand { get; }
     public RelayCommand TogglePlanModeCommand { get; }
+    /// <summary>Collapses/expands the plan window (does not toggle plan mode).</summary>
+    public RelayCommand TogglePlanWindowCommand { get; }
     public AsyncCommand ImplementPlanCommand { get; }
     public ParameterCommand ShowWhereCommand { get; }
     public ParameterCommand ChooseSplitBrainCommand { get; }
@@ -283,14 +286,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             PlanMode.Active = value;
             OnPropertyChanged(nameof(PlanModeMenuLabel));
             OnPropertyChanged(nameof(PlanModeChipLabel));
+            OnPropertyChanged(nameof(PlanChipVisible));
             OnPropertyChanged(nameof(ComposePlaceholder));
             ImplementPlanCommand.RaiseCanExecuteChanged();
+            TogglePlanWindowCommand.RaiseCanExecuteChanged();
             NotifySurfaceStateChanged();
             PlanModeChanged?.Invoke(value);
         }
     }
     public string PlanModeMenuLabel => PlanModeEnabled ? "Plan mode: ON" : "Plan mode: OFF";
     public string PlanModeChipLabel => "Plan";
+    /// <summary>Plan chip stays while mode is on or implement is tracking progress (collapse/expand only).</summary>
+    public bool PlanChipVisible => PlanDockExperience.ChipVisible(PlanModeEnabled, PlanProgressTracking);
     /// <summary>True while Implement is running — plan window stays open and accepts step check-offs.</summary>
     public bool PlanProgressTracking
     {
@@ -301,6 +308,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _planProgressTracking = value;
             PlanMode.TrackingProgress = value;
             OnPropertyChanged(nameof(PlanProgressTracking));
+            OnPropertyChanged(nameof(PlanChipVisible));
+            TogglePlanWindowCommand.RaiseCanExecuteChanged();
             PlanProgressTrackingChanged?.Invoke(value);
         }
     }
@@ -308,6 +317,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public Action<bool>? PlanModeChanged { get; set; }
     /// <summary>Raised when implement progress tracking starts/stops (keep plan window + dock tint).</summary>
     public Action<bool>? PlanProgressTrackingChanged { get; set; }
+    /// <summary>Raised when the plan chip asks to collapse/expand the plan window (not mode).</summary>
+    public Action? PlanWindowToggleRequested { get; set; }
     /// <summary>Raised when the plan document is updated from a PLAN: directive.</summary>
     public Action? PlanUpdated { get; set; }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
@@ -998,7 +1009,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ticker.Start();
         // Coalesce stream partials onto a short interval so multi-chunk output does not schedule
         // one UI apply per line; progressive text still appears and finalize applies full extract.
-        using var streamBridge = new ChatStreamUiBridge(answer, providerName, TryApplyPlanMarkdown);
+        using var streamBridge = new ChatStreamUiBridge(answer, providerName, md => TryApplyPlanMarkdown(md, answer));
         try
         {
             var history = Messages.Take(Messages.Count - 2).ToArray();
@@ -1220,6 +1231,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             PlanUpdated?.Invoke();
         else
             PlanMode.Active = false;
+    }
+
+    /// <summary>Chip action: collapse/expand plan window only — never turns plan mode off.</summary>
+    private void TogglePlanWindow()
+    {
+        if (!PlanChipVisible) return;
+        PlanWindowToggleRequested?.Invoke();
     }
 
     /// <summary>Hands the approved plan into a normal coding turn in this chat, then exits plan mode.

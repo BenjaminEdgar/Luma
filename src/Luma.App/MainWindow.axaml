@@ -19,11 +19,11 @@
         </Border.Transitions>
         <Grid IsHitTestVisible="False">
           <c:GeometricPattern Classes="geopattern slow"
-                              PatternColor="#7C4DFF" PatternOpacity="0.07"
+                              PatternColor="#2563EB" PatternOpacity="0.07"
                               CellSize="32" Shear="0.5"
                               ShowDots="False" ShowDiagonals="True" />
           <c:GeometricPattern Classes="geopattern fast"
-                              PatternColor="#2563FF" PatternOpacity="0.08"
+                              PatternColor="#3B82F6" PatternOpacity="0.08"
                               CellSize="18" Shear="-0.4"
                               ShowDots="True" ShowDiagonals="False" />
           <Border Classes="ambientorb" Background="{StaticResource OrbTopBrush}"
@@ -47,8 +47,8 @@
               IsHitTestVisible="False">
         <Border.BorderBrush>
           <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Color="#CC7C4DFF" Offset="0" />
-            <GradientStop Color="#AA00E5FF" Offset="1" />
+            <GradientStop Color="#CC2563EB" Offset="0" />
+            <GradientStop Color="#AA38BDF8" Offset="1" />
           </LinearGradientBrush>
         </Border.BorderBrush>
       </Border>
@@ -77,7 +77,7 @@
                     Padding="0" VerticalAlignment="Center" BorderThickness="0"
                     ToolTip.Tip="Minimize to dock">
               <c:LumaLogo Width="27" Height="27" StarBrush="{StaticResource StarMarkBrush}"
-                          OrbitBrush="#D92563FF" SatelliteBrush="#7C4DFF" />
+                          OrbitBrush="#D93B82F6" SatelliteBrush="#2563EB" />
             </Button>
             <Border Name="DragHandle" VerticalAlignment="Center" Cursor="SizeAll"
                     Background="Transparent" Padding="0,4">
@@ -87,7 +87,7 @@
           <Border Grid.Column="2" Name="StatusPill" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Ellipse Width="7" Height="7" VerticalAlignment="Center" IsVisible="{Binding !IsBusy}"
-                       Fill="#7C4DFF" />
+                       Fill="{DynamicResource AccentBrush}" />
               <Ellipse Classes="thinkingring" Width="9" Height="9" VerticalAlignment="Center"
                        IsVisible="{Binding IsBusy}" />
               <TextBlock Text="{Binding SurfaceStatus}" FontSize="11" Foreground="#1E293B"
@@ -132,7 +132,7 @@
           <Border IsVisible="{Binding HasAssistantMemory}" Classes="memorychip"
                   ToolTip.Tip="{Binding AssistantMemoryPreview}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="#7C4DFF" />
+              <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource AccentBrush}" />
               <TextBlock Text="Memory" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B"
                          VerticalAlignment="Center" />
             </StackPanel>
@@ -159,7 +159,7 @@
                   ToolTip.Tip="Drag a box around the part you care about — Luma explains only that">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
               <Path Data="M9,4 L6,4 C4.9,4 4,4.9 4,6 L4,9 M15,4 L18,4 C19.1,4 20,4.9 20,6 L20,9 M9,20 L6,20 C4.9,20 4,19.1 4,18 L4,15 M15,20 L18,20 C19.1,20 20,19.1 20,18 L20,15"
-                    Stroke="#7C4DFF" StrokeThickness="1.8" StrokeLineCap="Round"
+                    Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8" StrokeLineCap="Round"
                     Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" />
               <TextBlock Text="Explain this part" FontSize="13" FontWeight="SemiBold"
                          VerticalAlignment="Center" Foreground="#1E293B" />
@@ -181,7 +181,7 @@
                        HorizontalAlignment="Center" TextAlignment="Center" Margin="3.4,4,0,0" />
             <TextBlock Text="{Binding LandingTitle}"
                        FontSize="18" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"
-                       MaxWidth="320" Foreground="#080F23" Margin="0,2,0,0" />
+                       MaxWidth="320" Foreground="{DynamicResource TextBrightBrush}" Margin="0,2,0,0" />
             <TextBlock Text="{Binding LandingSubtitle}"
                        FontSize="13" TextAlignment="Center" TextWrapping="Wrap"
                        MaxWidth="300" Classes="muted" LineHeight="18" />
@@ -251,7 +251,7 @@
                     <StackPanel Spacing="6">
                         <Grid ColumnDefinitions="*,Auto"
                               IsVisible="{Binding Caption, Converter={x:Static ObjectConverters.IsNotNull}}">
-                          <TextBlock Text="{Binding Caption}" FontSize="11" Foreground="#4338CA"
+                          <TextBlock Text="{Binding Caption}" FontSize="11" Foreground="{DynamicResource AccentSoftBrush}"
                                      VerticalAlignment="Center" FontWeight="SemiBold"
                                      TextTrimming="CharacterEllipsis" />
                           <TextBlock Grid.Column="1" Text="{Binding Elapsed}" FontSize="10.5"
@@ -368,7 +368,7 @@
                                       Content="Keep both" Click="OnSplitBrainKeepClick" Tag="Both" />
                             </StackPanel>
                             <TextBlock IsVisible="{Binding SplitBrain.HasChosen}" FontSize="12"
-                                       Foreground="#4338CA"
+                                       Foreground="{DynamicResource AccentSoftBrush}"
                                        Text="{Binding SplitBrain.Chosen, StringFormat=Kept: {0}}" />
                           </StackPanel>
                         </Border>
@@ -561,7 +561,7 @@
                       ToolTip.Tip="{Binding WorkingDirectoryTip}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <Path Data="M3,6 L10,6 L12,8.5 L21,8.5 L21,18 L3,18 Z"
-                        Stroke="#4338CA" StrokeThickness="1.5" StrokeJoin="Round"
+                        Stroke="{DynamicResource AccentSoftBrush}" StrokeThickness="1.5" StrokeJoin="Round"
                         Width="12" Height="11" Stretch="Uniform" VerticalAlignment="Center" />
                   <TextBlock Text="{Binding WorkingDirectoryLabel}" FontSize="11.5"
                              Foreground="#334155" VerticalAlignment="Center"
@@ -571,7 +571,7 @@
               <Border Classes="cwdchip" IsVisible="{Binding HasClipboardSnippet}" Margin="0,0,6,4"
                       ToolTip.Tip="Clipboard will be sent with your next message">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <TextBlock Text="Clipboard" FontSize="11" FontWeight="SemiBold" Foreground="#4338CA"
+                  <TextBlock Text="Clipboard" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentSoftBrush}"
                              VerticalAlignment="Center" />
                   <TextBlock Text="{Binding ClipboardSnippetPreview}" FontSize="11"
                              Foreground="#334155" VerticalAlignment="Center"
@@ -617,13 +617,13 @@
                       Command="{Binding ToggleSplitBrainCommand}"
                       ToolTip.Tip="Split-brain is on — next send runs explainer + implementer. Click to turn off." />
               <Button Classes="planchip" Margin="0,0,6,4"
-                      IsVisible="{Binding PlanModeEnabled}"
-                      Command="{Binding TogglePlanModeCommand}"
-                      ToolTip.Tip="Plan mode is on — clarify in chat, plan updates in the plan window. Click to turn off.">
+                      IsVisible="{Binding PlanChipVisible}"
+                      Command="{Binding TogglePlanWindowCommand}"
+                      ToolTip.Tip="Collapse or expand the plan window. Turn plan mode off from the + menu.">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <!-- Checklist / map-path glyph -->
                   <Path Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"
-                        Stroke="#7C4DFF" StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"
+                        Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"
                         Data="M2,3 H9 M2,6 H9 M2,9 H6 M1.5,3 V9.5" />
                   <TextBlock Text="{Binding PlanModeChipLabel}" FontSize="11" FontWeight="SemiBold"
                              VerticalAlignment="Center" />
@@ -699,14 +699,14 @@
                               ToolTip.Tip="Browse and install MCP servers for Grok" />
                   </MenuFlyout>
                 </Button.Flyout>
-                <Path Data="M12,5 L12,19 M5,12 L19,12" Stroke="#7C4DFF" StrokeThickness="2"
+                <Path Data="M12,5 L12,19 M5,12 L19,12" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"
                       StrokeLineCap="Round" Width="13" Height="13" Stretch="Uniform" />
               </Button>
 
               <TextBox Grid.Column="1" Name="QuestionBox" Text="{Binding Question}" AcceptsReturn="True"
                        PlaceholderText="{Binding ComposePlaceholder}"
                        MinHeight="40" MaxHeight="132" TextWrapping="Wrap" FontSize="14"
-                       Foreground="#080F23" CaretBrush="#7C4DFF" SelectionBrush="#332563FF"
+                       Foreground="{DynamicResource TextBrightBrush}" CaretBrush="{DynamicResource AccentBrush}" SelectionBrush="#332563EB"
                        VerticalContentAlignment="Center"
                        Background="Transparent" BorderBrush="Transparent" BorderThickness="0"
                        Padding="8,9" />
@@ -739,8 +739,8 @@
                 </Button.Flyout>
                 <StackPanel Orientation="Horizontal" Spacing="5">
                   <TextBlock Text="{Binding ModelPickerLabel}" FontSize="11.5" FontWeight="SemiBold"
-                             Foreground="#4338CA" VerticalAlignment="Center" />
-                  <Path Data="M6,9 L12,15 L18,9" Stroke="#7C4DFF" StrokeThickness="1.6"
+                             Foreground="{DynamicResource AccentSoftBrush}" VerticalAlignment="Center" />
+                  <Path Data="M6,9 L12,15 L18,9" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.6"
                         StrokeLineCap="Round" StrokeJoin="Round"
                         Width="9" Height="6" Stretch="Uniform" VerticalAlignment="Center"
                         Opacity="0.75" />
@@ -769,7 +769,7 @@
       <Border Name="ResizeGrip" Width="18" Height="18" Background="Transparent" IsVisible="False"
               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8"
               Cursor="BottomRightCorner" ToolTip.Tip="Drag to resize">
-        <Path Data="M12,4 L4,12 M12,8 L8,12" Stroke="#C4B5FD" StrokeThickness="1.6"
+        <Path Data="M12,4 L4,12 M12,8 L8,12" Stroke="#93C5FD" StrokeThickness="1.6"
               StrokeLineCap="Round" />
       </Border>
     </Grid>

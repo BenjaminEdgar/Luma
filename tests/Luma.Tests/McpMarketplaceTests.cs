@@ -142,9 +142,27 @@ public sealed class McpMarketplaceTests
     public void CuratedCatalogHasCategoriesAndMoreRecipes()
     {
         Assert.Contains("Core", McpCuratedCatalog.Categories);
-        Assert.True(McpCuratedCatalog.All.Count >= 10);
+        Assert.Contains("Dev", McpCuratedCatalog.Categories);
+        Assert.Contains("Testing", McpCuratedCatalog.Categories);
+        Assert.Contains("Cloud", McpCuratedCatalog.Categories);
+        Assert.True(McpCuratedCatalog.All.Count >= 25);
         Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/sequential-thinking");
         Assert.Contains(McpCuratedCatalog.All, e => e.DefaultEnv.ContainsKey("DATABASE_URL"));
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/gitlab");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/linear");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/playwright" && e.IsFeatured);
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/docker" && e.IsFeatured);
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/mongodb");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/supabase");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/sentry");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/exa");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/firecrawl");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/context7");
+        Assert.Contains(McpCuratedCatalog.All, e => e.Id == "curated/chrome-devtools");
+        // Featured stays lean: Dev-biased additions without flooding the strip.
+        Assert.InRange(McpCuratedCatalog.All.Count(e => e.IsFeatured), 6, 12);
+        Assert.All(McpCuratedCatalog.All.Where(e => e.InstallKind == McpInstallKind.RemoteHttp),
+            e => Assert.False(string.IsNullOrWhiteSpace(e.RemoteUrl)));
     }
 
     [Fact]

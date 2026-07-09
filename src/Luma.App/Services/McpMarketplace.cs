@@ -401,10 +401,231 @@ public static class McpCuratedCatalog
             Category = "Core",
             Version = "latest",
         },
+
+        // ── SCM / issues ──────────────────────────────────────────────
+        new()
+        {
+            Id = "curated/gitlab",
+            Title = "GitLab",
+            Description = "Projects, MRs, issues, and pipelines via the GitLab API. Set GITLAB_PERSONAL_ACCESS_TOKEN.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@modelcontextprotocol/server-gitlab"],
+            DefaultEnv = new Dictionary<string, string>
+            {
+                ["GITLAB_PERSONAL_ACCESS_TOKEN"] = "",
+                ["GITLAB_API_URL"] = "https://gitlab.com/api/v4",
+            },
+            Category = "Dev",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/linear",
+            Title = "Linear",
+            Description = "Issues, projects, and cycles via Linear's hosted MCP (OAuth in Grok).",
+            Source = "curated",
+            InstallKind = McpInstallKind.RemoteHttp,
+            RemoteUrl = "https://mcp.linear.app/mcp",
+            Category = "Dev",
+            IsFeatured = true,
+            Version = "latest",
+            WebsiteUrl = "https://linear.app",
+        },
+        new()
+        {
+            Id = "curated/bitbucket",
+            Title = "Bitbucket",
+            Description = "Repos, PRs, and pipelines on Bitbucket Cloud. Set email + API token (app password).",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@aashari/mcp-server-atlassian-bitbucket"],
+            DefaultEnv = new Dictionary<string, string>
+            {
+                ["ATLASSIAN_USER_EMAIL"] = "",
+                ["ATLASSIAN_API_TOKEN"] = "",
+            },
+            Category = "Dev",
+            Version = "latest",
+        },
+
+        // ── Local coding ──────────────────────────────────────────────
+        new()
+        {
+            Id = "curated/playwright",
+            Title = "Playwright",
+            Description = "Browser automation and end-to-end testing with Playwright (navigate, click, screenshot).",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@playwright/mcp@latest"],
+            Category = "Testing",
+            IsFeatured = true,
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/context7",
+            Title = "Context7",
+            Description = "Up-to-date library docs and code examples for any package. Optional CONTEXT7_API_KEY for higher limits.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@upstash/context7-mcp"],
+            Category = "Dev",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/chrome-devtools",
+            Title = "Chrome DevTools",
+            Description = "Drive a live Chrome instance via DevTools Protocol — inspect, debug, and profile pages.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "chrome-devtools-mcp@latest"],
+            Category = "Testing",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/docker",
+            Title = "Docker",
+            Description = "List containers, images, logs, and run Docker operations against the local engine.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "docker-mcp"],
+            Category = "Dev",
+            IsFeatured = true,
+            Version = "latest",
+        },
+
+        // ── Data ──────────────────────────────────────────────────────
+        new()
+        {
+            Id = "curated/mongodb",
+            Title = "MongoDB",
+            Description = "Query and manage MongoDB. Set MDB_MCP_CONNECTION_STRING after install.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "mongodb-mcp-server"],
+            DefaultEnv = new Dictionary<string, string> { ["MDB_MCP_CONNECTION_STRING"] = "" },
+            Category = "Data",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/redis",
+            Title = "Redis",
+            Description = "Inspect keys and run Redis commands. Set REDIS_HOST (and optional port/password).",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@gongrzhe/server-redis-mcp"],
+            DefaultEnv = new Dictionary<string, string>
+            {
+                ["REDIS_HOST"] = "127.0.0.1",
+                ["REDIS_PORT"] = "6379",
+            },
+            Category = "Data",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/mysql",
+            Title = "MySQL",
+            Description = "Query MySQL/MariaDB. Set MYSQL_HOST, MYSQL_USER, MYSQL_PASS, and MYSQL_DB.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@benborla29/mcp-server-mysql"],
+            DefaultEnv = new Dictionary<string, string>
+            {
+                ["MYSQL_HOST"] = "127.0.0.1",
+                ["MYSQL_PORT"] = "3306",
+                ["MYSQL_USER"] = "",
+                ["MYSQL_PASS"] = "",
+                ["MYSQL_DB"] = "",
+            },
+            Category = "Data",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/supabase",
+            Title = "Supabase",
+            Description = "Supabase projects, tables, and auth admin tools. Set SUPABASE_ACCESS_TOKEN (personal access token).",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "@supabase/mcp-server-supabase@latest"],
+            DefaultEnv = new Dictionary<string, string> { ["SUPABASE_ACCESS_TOKEN"] = "" },
+            Category = "Data",
+            Version = "latest",
+        },
+
+        // ── Cloud / ship ──────────────────────────────────────────────
+        new()
+        {
+            Id = "curated/cloudflare",
+            Title = "Cloudflare",
+            Description = "Cloudflare documentation and product guidance via hosted MCP (OAuth in Grok).",
+            Source = "curated",
+            InstallKind = McpInstallKind.RemoteHttp,
+            RemoteUrl = "https://docs.mcp.cloudflare.com/mcp",
+            Category = "Cloud",
+            Version = "latest",
+            WebsiteUrl = "https://developers.cloudflare.com",
+        },
+        new()
+        {
+            Id = "curated/sentry",
+            Title = "Sentry",
+            Description = "Error monitoring, issues, and performance via Sentry's hosted MCP (OAuth in Grok).",
+            Source = "curated",
+            InstallKind = McpInstallKind.RemoteHttp,
+            RemoteUrl = "https://mcp.sentry.dev/mcp",
+            Category = "Cloud",
+            Version = "latest",
+            WebsiteUrl = "https://sentry.io",
+        },
+        // Vercel / AWS docs: no solid single npx recipe yet — skip until package is reliable.
+
+        // ── Research / Web ────────────────────────────────────────────
+        new()
+        {
+            Id = "curated/exa",
+            Title = "Exa Search",
+            Description = "Neural web search and content retrieval via Exa. Set EXA_API_KEY after install.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "exa-mcp-server"],
+            DefaultEnv = new Dictionary<string, string> { ["EXA_API_KEY"] = "" },
+            Category = "Web",
+            Version = "latest",
+        },
+        new()
+        {
+            Id = "curated/firecrawl",
+            Title = "Firecrawl",
+            Description = "Crawl and scrape websites into clean markdown/JSON. Set FIRECRAWL_API_KEY after install.",
+            Source = "curated",
+            InstallKind = McpInstallKind.NpxPackage,
+            Command = "npx",
+            Args = ["-y", "firecrawl-mcp"],
+            DefaultEnv = new Dictionary<string, string> { ["FIRECRAWL_API_KEY"] = "" },
+            Category = "Web",
+            Version = "latest",
+        },
     ];
 
     public static IReadOnlyList<string> Categories { get; } =
-        ["All", "Core", "Dev", "Web", "Data", "Registry"];
+        ["All", "Core", "Dev", "Testing", "Web", "Data", "Cloud", "Registry"];
 }
 
 /// <summary>Persists installs and syncs them into Grok Build's config.toml.</summary>

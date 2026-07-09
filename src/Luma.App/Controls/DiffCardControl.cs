@@ -9,10 +9,10 @@ using Luma.App.Services;
 
 namespace Luma.App.Controls;
 
-/// <summary>Renders a <see cref="CodeChatSession"/> inline in a chat bubble: the checkbox-driven
-/// structured diff (with a read-only raw fallback when parsing fails), a status line, and
-/// Apply/Run tests/Revert buttons. Rebuilds when the session raises PropertyChanged, but keeps the
-/// DiffView instance alive so per-file collapse state is preserved.</summary>
+/// <summary>Renders a <see cref="CodeChatSession"/> patch artifact inline when one exists
+/// (structured DiffView or raw fallback). Apply is intentionally omitted — workspace write-audit
+/// Undo and Live Pair are the coding feedback path. Rebuilds on PropertyChanged but keeps DiffView
+/// alive so per-file collapse state is preserved.</summary>
 public sealed class DiffCardControl : ContentControl
 {
     public static readonly StyledProperty<CodeChatSession?> SessionProperty =
@@ -38,10 +38,11 @@ public sealed class DiffCardControl : ContentControl
         HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
     };
     private readonly Grid _artifactHost = new();
-    private readonly Button _apply = new() { Content = "Apply patch", Padding = new Thickness(16, 9), CornerRadius = new CornerRadius(10) };
+    private readonly Border _card;
     private readonly TextBox _verifyCommandBox = new() { Width = 200, PlaceholderText = "e.g. dotnet test", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _verifyButton = new() { Content = "Run tests", Padding = new Thickness(14, 8) };
     private readonly Button _revertButton = new() { Content = "Revert", Padding = new Thickness(14, 8) };
+    private readonly WrapPanel _actions;
 
     private CodeChatSession? _subscribed;
 
@@ -62,12 +63,6 @@ public sealed class DiffCardControl : ContentControl
             if (Session is { } session) await session.OnSelectionChangedAsync(CancellationToken.None);
         };
 
-        _apply.Classes.Add("accent");
-        _apply.Click += async (_, _) =>
-        {
-            if (Session is { } session) await session.ApplyAsync(CancellationToken.None);
-        };
-
         _verifyCommandBox.TextChanged += (_, _) =>
         {
             if (Session is { } session) session.VerifyCommand = _verifyCommandBox.Text ?? string.Empty;
@@ -84,15 +79,16 @@ public sealed class DiffCardControl : ContentControl
             if (Session is { } session) await session.RevertAsync(CancellationToken.None);
         };
 
-        var actions = new WrapPanel
+        _actions = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             ItemSpacing = 9,
-            Children = { _verifyCommandBox, _verifyButton, _revertButton, _apply },
+            Children = { _verifyCommandBox, _verifyButton, _revertButton },
+            IsVisible = false,
         };
 
-        Content = new Border
+        _card = new Border
         {
             Background = CardBg,
             BorderBrush = CardBorder,
@@ -101,13 +97,15 @@ public sealed class DiffCardControl : ContentControl
             Padding = new Thickness(12),
             ClipToBounds = true,
             HorizontalAlignment = HorizontalAlignment.Stretch,
+            IsVisible = false,
             Child = new StackPanel
             {
                 Spacing = 8,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Children = { _status, _artifactHost, actions },
+                Children = { _status, _artifactHost, _actions },
             },
         };
+        Content = _card;
     }
 
     private void Rebind()
@@ -123,11 +121,22 @@ public sealed class DiffCardControl : ContentControl
     private void Rebuild()
     {
         var session = Session;
-        if (session is null) return;
-
-        _status.Text = session.StatusMessage;
+        if (session is null)
+        {
+            _card.IsVisible = false;
+            return;
+        }
 
         var hasStructured = session.Document is { Files.Count: > 0 };
+        var hasRaw = !string.IsNullOrWhiteSpace(session.RawPatch);
+        var hasArtifact = hasStructured || hasRaw;
+        // Collapse entirely when the coding session has no patch to show (write-audit/Live Pair cover feedback).
+        _card.IsVisible = hasArtifact;
+        if (!hasArtifact) return;
+
+        _status.Text = session.StatusMessage;
+        _status.IsVisible = !string.IsNullOrWhiteSpace(session.StatusMessage);
+
         if (hasStructured)
         {
             if (!ReferenceEquals(_diffView.Document, session.Document))
@@ -139,12 +148,16 @@ public sealed class DiffCardControl : ContentControl
         _artifactHost.Children.Clear();
         if (hasStructured)
             _artifactHost.Children.Add(_diffView);
-        else if (!string.IsNullOrWhiteSpace(session.RawPatch))
+        else
             _artifactHost.Children.Add(_rawScroll);
 
-        _apply.IsEnabled = session.CanApply;
-        _verifyCommandBox.IsVisible = session.CanVerify;
-        _verifyButton.IsVisible = session.CanVerify;
-        _revertButton.IsVisible = session.CanRevert;
+        var showVerify = session.CanVerify;
+        var showRevert = session.CanRevert;
+        _verifyCommandBox.IsVisible = showVerify;
+        _verifyButton.IsVisible = showVerify;
+        _revertButton.IsVisible = showRevert;
+        _actions.IsVisible = showVerify || showRevert;
+        if (showVerify && _verifyCommandBox.Text != session.VerifyCommand)
+            _verifyCommandBox.Text = session.VerifyCommand;
     }
 }

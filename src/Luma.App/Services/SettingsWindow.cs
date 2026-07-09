@@ -34,10 +34,19 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _codexEffort;
     private readonly TextBox _grokChat;
     private readonly TextBox _grokSuggest;
+    private readonly ComboBox _theme;
 
     public SettingsWindow()
     {
         var settings = AppSettings.Current;
+        _theme = new ComboBox
+        {
+            FontSize = 13,
+            MinHeight = 36,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = LumaTheme.ThemeChoices.Select(t => t.Label).ToList(),
+            SelectedIndex = (int)LumaTheme.ParseThemeId(settings.UiTheme),
+        };
         _capture = Toggle("Capture the screen when the panel opens", settings.CaptureScreenOnOpen);
         _suggest = Toggle("Suggest prompts from what's on screen", settings.SuggestFromScreen);
         _prewarm = Toggle("Prepare suggestions when Luma starts", settings.PrewarmOnLaunch);
@@ -106,6 +115,9 @@ public sealed class SettingsWindow : Window
                             Spacing = 9, Margin = new Thickness(0, 0, 6, 0),
                             Children =
                             {
+                                Section("Appearance"),
+                                Labeled("Theme", _theme),
+                                Hint("Blue is white→blue glass (default). Colorful is the violet→cyan Aurora look."),
                                 Section("Screen context"),
                                 _globalShortcut,
                                 Hint("From any application, press Ctrl+Shift+E to select a region and explain it. Restart Luma after changing this."),
@@ -187,6 +199,13 @@ public sealed class SettingsWindow : Window
         settings.EnableGlobalExplainShortcut = _globalShortcut.IsChecked ?? true;
         settings.ChaosMode = _chaosMode.IsChecked ?? false;
         settings.ChaosPomodoroMinutes = (int)(_chaosPomodoro.Value ?? 25);
+        var themeId = _theme.SelectedIndex switch
+        {
+            1 => UiThemeId.Colorful,
+            _ => UiThemeId.Blue,
+        };
+        settings.UiTheme = LumaTheme.ThemeIdToSetting(themeId);
+        LumaTheme.Apply(themeId);
         settings.SuggestionCount = (int)(_count.Value ?? 3);
         settings.SuggestionFreshSeconds = (int)(_fresh.Value ?? 90);
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);

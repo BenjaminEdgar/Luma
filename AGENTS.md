@@ -13,7 +13,7 @@ Always-on-top **Avalonia 12** / **.NET 10** dock (`src/Luma.App`, assembly `Luma
 | Outcome memory | `%LocalAppData%/Luma/outcome-memory.json` |
 | MCP installs | `%LocalAppData%/Luma/mcp-installs.json` → syncs `~/.grok/config.toml` managed block |
 
-**TFM:** `net10.0` (not windows-only). **Theme:** `LumaTheme` + `App.axaml` (**Luma Aurora** brand — violet `#7C4DFF` → cyan `#00E5FF`, mist `#F2F4FF`). Secondary windows use `LumaTheme` (keep in sync with `App.axaml`).
+**TFM:** `net10.0` (not windows-only). **Theme:** `LumaTheme` + `App.axaml` — default **Blue** (white→`#2563EB`/`#38BDF8`); **Colorful** = Aurora violet→cyan. `AppSettings.UiTheme`; Settings picker; `LumaTheme.Apply` at startup.
 
 ## Core chat path
 

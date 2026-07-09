@@ -69,7 +69,12 @@ public partial class MainWindow : Window
         _viewModel.PlanModeChanged = on =>
         {
             ApplyPlanTint(on || _viewModel.PlanProgressTracking);
-            if (on) ShowPlanWindow();
+            if (on)
+            {
+                // Entering plan mode: show expanded checklist (chip only collapses, never mode-off).
+                EnsurePlanWindow().SetCollapsed(false);
+                ShowPlanWindow();
+            }
             // User left plan mode (not mid-implement) — hide. Implement-end keeps the window
             // so checked-off steps stay visible.
             else if (!_viewModel.PlanProgressTracking) _planWindow?.Hide();
@@ -77,10 +82,14 @@ public partial class MainWindow : Window
         _viewModel.PlanProgressTrackingChanged = tracking =>
         {
             ApplyPlanTint(tracking || _viewModel.PlanModeEnabled);
+            EnsurePlanWindow().SetProgressTracking(tracking);
             if (tracking) ShowPlanWindow();
             // Do not hide when tracking ends — user should see final check-offs.
         };
-        _viewModel.PlanUpdated = ShowPlanWindow;
+        // Plan chip: collapse ↔ expand mini dock; does not toggle plan mode.
+        _viewModel.PlanWindowToggleRequested = TogglePlanWindowCollapsed;
+        // Live PLAN: updates only refresh content — do not re-anchor/activate every tick.
+        _viewModel.PlanUpdated = OnPlanUpdated;
         // Capture ambient context while the window is still the tiny dock, so the panel
         // itself never covers what the user was looking at; suggestions stream in after.
         DockButton.Click += async (_, _) =>
@@ -198,13 +207,41 @@ public partial class MainWindow : Window
 
     private void ShowPlanWindow()
     {
+        EnsurePlanWindow().ShowBeside(this);
+    }
+
+    private void TogglePlanWindowCollapsed()
+    {
+        var window = EnsurePlanWindow();
+        if (!window.IsVisible)
+        {
+            window.SetCollapsed(false);
+            window.ShowBeside(this);
+            return;
+        }
+        window.ToggleCollapsed();
+    }
+
+    private void OnPlanUpdated()
+    {
+        var window = EnsurePlanWindow();
+        // Live check-offs update both expanded checklist and dock caption via SyncFromDocument.
+        if (window.IsVisible)
+            window.RefreshContent();
+        else
+            window.ShowBeside(this);
+    }
+
+    private PlanDocumentWindow EnsurePlanWindow()
+    {
         _planWindow ??= CreatePlanWindow();
-        _planWindow.ShowBeside(this);
+        return _planWindow;
     }
 
     private PlanDocumentWindow CreatePlanWindow()
     {
         var window = new PlanDocumentWindow(_viewModel.Plan);
+        window.SetProgressTracking(_viewModel.PlanProgressTracking);
         window.ImplementRequested += markdown =>
         {
             if (string.IsNullOrWhiteSpace(markdown)) return;

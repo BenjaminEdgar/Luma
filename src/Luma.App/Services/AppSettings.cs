@@ -69,6 +69,9 @@ public sealed class AppSettings
     /// <summary>When Chaos Mode is on, Start focus lock blocks explain for this many minutes.</summary>
     public int ChaosPomodoroMinutes { get; set; } = 25;
 
+    /// <summary>UI theme id: Blue (default) or Colorful. See <see cref="UiThemeId"/>.</summary>
+    public string UiTheme { get; set; } = nameof(UiThemeId.Blue);
+
     public static void Load()
     {
         try

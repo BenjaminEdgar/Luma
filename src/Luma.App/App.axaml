@@ -3,117 +3,119 @@
              xmlns:c="using:Luma.App.Controls"
              x:Class="Luma.App.App"
              RequestedThemeVariant="Light">
-    <!-- Luma Aurora: brand boards — violet → cyan, soft mist, star mark. -->
+    <!-- Default theme: Blue (white → blue). Colorful applied at runtime via LumaTheme.Apply. -->
 
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Brand palette: Aurora Violet, Luma Blue, Electric Cyan, Mist, Deep Space. -->
-            <Color x:Key="AccentStart">#7C4DFF</Color>
-            <Color x:Key="AccentEnd">#00E5FF</Color>
-            <Color x:Key="AccentSoft">#2563FF</Color>
-            <Color x:Key="InkPanel">#F2F4FF</Color>
-            <Color x:Key="TextBright">#080F23</Color>
+            <Color x:Key="AccentStart">#2563EB</Color>
+            <Color x:Key="AccentEnd">#38BDF8</Color>
+            <Color x:Key="AccentSoft">#3B82F6</Color>
+            <Color x:Key="InkPanel">#F0F7FF</Color>
+            <Color x:Key="TextBright">#0F172A</Color>
             <Color x:Key="TextBody">#1E293B</Color>
-            <Color x:Key="TextMuted">#6B7280</Color>
+            <Color x:Key="TextMuted">#64748B</Color>
 
-            <!-- Primary CTA: violet → cyan (brand board primary button). -->
+            <SolidColorBrush x:Key="AccentBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="AccentSoftBrush" Color="#3B82F6" />
+            <SolidColorBrush x:Key="AccentEndBrush" Color="#38BDF8" />
+            <SolidColorBrush x:Key="TextBrightBrush" Color="#0F172A" />
+            <SolidColorBrush x:Key="TextBodyBrush" Color="#1E293B" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="#64748B" />
+
             <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#7C4DFF" Offset="0" />
-                <GradientStop Color="#2563FF" Offset="0.45" />
-                <GradientStop Color="#00E5FF" Offset="1" />
+                <GradientStop Color="#2563EB" Offset="0" />
+                <GradientStop Color="#3B82F6" Offset="0.45" />
+                <GradientStop Color="#38BDF8" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="AccentGradientBright" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#9470FF" Offset="0" />
-                <GradientStop Color="#3B82F6" Offset="0.45" />
-                <GradientStop Color="#22EEFF" Offset="1" />
+                <GradientStop Color="#3B82F6" Offset="0" />
+                <GradientStop Color="#60A5FA" Offset="0.45" />
+                <GradientStop Color="#7DD3FC" Offset="1" />
             </LinearGradientBrush>
-            <!-- Soft aurora wash for marks / send. -->
             <LinearGradientBrush x:Key="StarMarkBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#A78BFF" Offset="0" />
-                <GradientStop Color="#7C4DFF" Offset="0.4" />
-                <GradientStop Color="#2563FF" Offset="0.75" />
-                <GradientStop Color="#00E5FF" Offset="1" />
+                <GradientStop Color="#93C5FD" Offset="0" />
+                <GradientStop Color="#2563EB" Offset="0.4" />
+                <GradientStop Color="#3B82F6" Offset="0.75" />
+                <GradientStop Color="#38BDF8" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="UserBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Color="#FBFAFF" Offset="0" />
-                <GradientStop Color="#F3F0FF" Offset="1" />
+                <GradientStop Color="#F8FBFF" Offset="0" />
+                <GradientStop Color="#DBEAFE" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="AssistantBubbleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
                 <GradientStop Color="#FFFFFFFF" Offset="0" />
-                <GradientStop Color="#F8F7FF" Offset="1" />
+                <GradientStop Color="#F0F7FF" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="StreamEnergyBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#007C4DFF" Offset="0" />
-                <GradientStop Color="#FF7C4DFF" Offset="0.35" />
-                <GradientStop Color="#FF00E5FF" Offset="0.75" />
-                <GradientStop Color="#0000E5FF" Offset="1" />
+                <GradientStop Color="#002563EB" Offset="0" />
+                <GradientStop Color="#FF2563EB" Offset="0.35" />
+                <GradientStop Color="#FF38BDF8" Offset="0.75" />
+                <GradientStop Color="#0038BDF8" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="ModuleInsetBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                 <GradientStop Color="#88FFFFFF" Offset="0" />
                 <GradientStop Color="#00FFFFFF" Offset="0.4" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="SplitBrainBorderBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#AA7C4DFF" Offset="0" />
-                <GradientStop Color="#AA00E5FF" Offset="1" />
+                <GradientStop Color="#AA2563EB" Offset="0" />
+                <GradientStop Color="#AA38BDF8" Offset="1" />
             </LinearGradientBrush>
-            <!-- Mist panel: soft white → lavender haze. -->
             <LinearGradientBrush x:Key="PanelFillBrush" StartPoint="0%,0%" EndPoint="50%,100%">
-                <GradientStop Color="#FFFFFEFF" Offset="0" />
-                <GradientStop Color="#FFF2F4FF" Offset="0.55" />
-                <GradientStop Color="#FFF8F0FF" Offset="1" />
+                <GradientStop Color="#FFFFFFFF" Offset="0" />
+                <GradientStop Color="#FFF0F7FF" Offset="0.55" />
+                <GradientStop Color="#FFE0EFFF" Offset="1" />
             </LinearGradientBrush>
             <SolidColorBrush x:Key="SurfaceGlassBrush" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="QuietGlassBrush" Color="#F8F7FF" />
+            <SolidColorBrush x:Key="QuietGlassBrush" Color="#F0F7FF" />
             <SolidColorBrush x:Key="ComposeFillBrush" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="PanelBorderBrush" Color="#E8E4F8" />
-            <SolidColorBrush x:Key="PanelBorderBusyBrush" Color="#B8A6FF" />
-            <SolidColorBrush x:Key="PanelBorderWritingBrush" Color="#7FFFDA" />
+            <SolidColorBrush x:Key="PanelBorderBrush" Color="#BFDBFE" />
+            <SolidColorBrush x:Key="PanelBorderBusyBrush" Color="#93C5FD" />
+            <SolidColorBrush x:Key="PanelBorderWritingBrush" Color="#34D399" />
             <LinearGradientBrush x:Key="HeaderSheenBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#007C4DFF" Offset="0" />
-                <GradientStop Color="#887C4DFF" Offset="0.35" />
-                <GradientStop Color="#8800E5FF" Offset="0.7" />
-                <GradientStop Color="#0000E5FF" Offset="1" />
+                <GradientStop Color="#002563EB" Offset="0" />
+                <GradientStop Color="#882563EB" Offset="0.35" />
+                <GradientStop Color="#8838BDF8" Offset="0.7" />
+                <GradientStop Color="#0038BDF8" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="PrismEdgeBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#007C4DFF" Offset="0" />
-                <GradientStop Color="#CC7C4DFF" Offset="0.3" />
-                <GradientStop Color="#AA00E5FF" Offset="0.7" />
-                <GradientStop Color="#0000E5FF" Offset="1" />
+                <GradientStop Color="#002563EB" Offset="0" />
+                <GradientStop Color="#CC2563EB" Offset="0.3" />
+                <GradientStop Color="#AA38BDF8" Offset="0.7" />
+                <GradientStop Color="#0038BDF8" Offset="1" />
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="PrismEdgeVerticalBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Color="#887C4DFF" Offset="0" />
-                <GradientStop Color="#00E8E4F8" Offset="1" />
+                <GradientStop Color="#882563EB" Offset="0" />
+                <GradientStop Color="#00BFDBFE" Offset="1" />
             </LinearGradientBrush>
-            <!-- Compose: soft border; listening = brand gradient (periwinkle→lavender→peach). -->
-            <SolidColorBrush x:Key="ComposeBorderBrush" Color="#E0DCF5" />
+            <SolidColorBrush x:Key="ComposeBorderBrush" Color="#DBEAFE" />
             <LinearGradientBrush x:Key="ComposeBorderListeningBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Color="#7A7BFF" Offset="0" />
-                <GradientStop Color="#C08CFF" Offset="0.5" />
-                <GradientStop Color="#FFC7A3" Offset="1" />
+                <GradientStop Color="#2563EB" Offset="0" />
+                <GradientStop Color="#3B82F6" Offset="0.5" />
+                <GradientStop Color="#38BDF8" Offset="1" />
             </LinearGradientBrush>
             <RadialGradientBrush x:Key="DockGlowBrush" Center="50%,50%" GradientOrigin="45%,40%">
-                <GradientStop Color="#CC7C4DFF" Offset="0" />
-                <GradientStop Color="#882563FF" Offset="0.45" />
-                <GradientStop Color="#4400E5FF" Offset="0.7" />
+                <GradientStop Color="#CC2563EB" Offset="0" />
+                <GradientStop Color="#883B82F6" Offset="0.45" />
+                <GradientStop Color="#4438BDF8" Offset="0.7" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
             <RadialGradientBrush x:Key="OrbTopBrush" Center="15%,10%" GradientOrigin="15%,10%">
-                <GradientStop Color="#557C4DFF" Offset="0" />
+                <GradientStop Color="#552563EB" Offset="0" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
             <RadialGradientBrush x:Key="OrbMidBrush" Center="80%,40%" GradientOrigin="80%,40%">
-                <GradientStop Color="#3300E5FF" Offset="0" />
+                <GradientStop Color="#3338BDF8" Offset="0" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
             <RadialGradientBrush x:Key="OrbBottomBrush" Center="50%,95%" GradientOrigin="50%,95%">
-                <GradientStop Color="#28FFB6C7" Offset="0" />
+                <GradientStop Color="#28BFDBFE" Offset="0" />
                 <GradientStop Color="#00000000" Offset="1" />
             </RadialGradientBrush>
             <ConicGradientBrush x:Key="ThinkingBrush" Center="50%,50%">
-                <GradientStop Color="#007C4DFF" Offset="0" />
-                <GradientStop Color="#FF7C4DFF" Offset="0.45" />
-                <GradientStop Color="#FF00E5FF" Offset="0.85" />
-                <GradientStop Color="#007C4DFF" Offset="1" />
+                <GradientStop Color="#002563EB" Offset="0" />
+                <GradientStop Color="#FF2563EB" Offset="0.45" />
+                <GradientStop Color="#FF38BDF8" Offset="0.85" />
+                <GradientStop Color="#002563EB" Offset="1" />
             </ConicGradientBrush>
         </ResourceDictionary>
     </Application.Resources>
@@ -123,7 +125,7 @@
 
         <!-- Primary: brand gradient (violet → cyan), flat interaction. -->
         <Style Selector="Button.accent">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="BorderThickness" Value="0" />
@@ -132,11 +134,11 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentGradientBright}" />
+            <Setter Property="Background" Value="{DynamicResource AccentGradientBright}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Opacity" Value="0.92" />
         </Style>
@@ -172,7 +174,7 @@
         </Style>
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#F8F7FF" />
-            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="#080F23" />
         </Style>
         <Style Selector="Button.outline:pressed /template/ ContentPresenter#PART_ContentPresenter">
@@ -189,7 +191,7 @@
         <Style Selector="Border.statuspill.plan">
             <Setter Property="Background" Value="#F5F0FF" />
             <Setter Property="BorderBrush" Value="#C4B5FD" />
-            <Setter Property="BoxShadow" Value="0 0 14 0 #337C4DFF" />
+            <Setter Property="BoxShadow" Value="0 0 14 0 #332563EB" />
         </Style>
 
         <!-- Soft pill chips. -->
@@ -211,8 +213,8 @@
             <Setter Property="Foreground" Value="#080F23" />
         </Style>
         <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#7C4DFF" />
-            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -238,7 +240,7 @@
 
         <Style Selector="Button.msgcopy">
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="#7C4DFF" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderBrush" Value="#E8E4F8" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="10.5" />
@@ -257,8 +259,8 @@
             <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="Button.msgcopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#7C4DFF" />
-            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -272,7 +274,7 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.codecopy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#7C4DFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -330,7 +332,7 @@
 
         <Style Selector="Ellipse.thinkingring">
             <Setter Property="Width" Value="15" /><Setter Property="Height" Value="15" />
-            <Setter Property="Fill" Value="Transparent" /><Setter Property="Stroke" Value="{StaticResource ThinkingBrush}" />
+            <Setter Property="Fill" Value="Transparent" /><Setter Property="Stroke" Value="{DynamicResource ThinkingBrush}" />
             <Setter Property="StrokeThickness" Value="2.2" /><Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="RenderTransform"><RotateTransform /></Setter>
             <Style.Animations>
@@ -354,7 +356,7 @@
             </Style.Animations>
         </Style>
         <Style Selector="Border.streamcursor">
-            <Setter Property="Background" Value="{StaticResource StreamEnergyBrush}" />
+            <Setter Property="Background" Value="{DynamicResource StreamEnergyBrush}" />
             <Setter Property="CornerRadius" Value="1.5" />
             <Setter Property="Width" Value="3" />
             <Setter Property="Height" Value="16" />
@@ -372,9 +374,9 @@
         <Style Selector="Border.streamshimmer">
             <Setter Property="Height" Value="3" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Background" Value="{StaticResource StreamEnergyBrush}" />
+            <Setter Property="Background" Value="{DynamicResource StreamEnergyBrush}" />
             <Setter Property="Margin" Value="0,8,0,2" />
-            <Setter Property="BoxShadow" Value="0 0 12 0 #2E7C4DFF" />
+            <Setter Property="BoxShadow" Value="0 0 12 0 #2E2563EB" />
             <Setter Property="Opacity" Value="0.8" />
             <Style.Animations>
                 <Animation Duration="0:0:1.1" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
@@ -417,13 +419,13 @@
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceGlassBrush}" />
             <Setter Property="BoxShadow" Value="0 8 22 0 #22000000, 0 0 18 0 #1A000000, inset 0 1 0 0 #AAFFFFFF" />
         </Style>
 
         <!-- Clarifying question: violet module nested in the assistant bubble. -->
         <Style Selector="Border.questioncard">
-            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceGlassBrush}" />
             <Setter Property="BorderBrush" Value="#C7D2FE" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
@@ -443,7 +445,7 @@
             </Style.Animations>
         </Style>
         <Style Selector="Border.questionbadge">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}" />
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}" />
             <Setter Property="BoxShadow" Value="0 4 14 0 #E2E8F0" />
         </Style>
         <Style Selector="TextBlock.questionprompt">
@@ -606,7 +608,7 @@
             <Setter Property="Margin" Value="0,5" />
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="ClipToBounds" Value="True" />
-            <Setter Property="BoxShadow" Value="0 6 18 0 #0E7C4DFF, 0 1 2 0 #06080F23" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #0E2563EB, 0 1 2 0 #06080F23" />
         </Style>
         <Style Selector="Border.bubble">
             <Style.Animations>
@@ -623,12 +625,12 @@
             </Style.Animations>
         </Style>
         <Style Selector="Border.bubble.user">
-            <Setter Property="Background" Value="{StaticResource UserBubbleBrush}" />
+            <Setter Property="Background" Value="{DynamicResource UserBubbleBrush}" />
             <Setter Property="BorderBrush" Value="#E4DDFB" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18,18,6,18" />
             <Setter Property="HorizontalAlignment" Value="Right" />
-            <Setter Property="BoxShadow" Value="0 6 18 0 #0E7C4DFF, 0 1 2 0 #06080F23" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #0E2563EB, 0 1 2 0 #06080F23" />
         </Style>
         <Style Selector="Border.bubble.error">
             <Setter Property="Background" Value="#FEF2F2" />
@@ -695,11 +697,11 @@
         </Style>
 
         <Style Selector="Border.panelshell">
-            <Setter Property="Background" Value="{StaticResource PanelFillBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource PanelFillBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="24" />
-            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 40 0 #227C4DFF" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 40 0 #222563EB" />
             <Setter Property="ClipToBounds" Value="True" />
             <Setter Property="Transitions">
                 <Transitions>
@@ -711,23 +713,23 @@
         <!-- Plan mode idle rim: subtle cyan/violet aurora (busy/writing override below). -->
         <Style Selector="Border.panelshell.plan">
             <Setter Property="BorderBrush" Value="#B8A4FF" />
-            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 44 0 #337C4DFF, 0 0 22 0 #2200E5FF" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 44 0 #332563EB, 0 0 22 0 #2238BDF8" />
         </Style>
         <Style Selector="Border.panelshell.busy">
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBusyBrush}" />
-            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 48 0 #447C4DFF, 0 0 24 0 #2200E5FF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBusyBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 48 0 #442563EB, 0 0 24 0 #2238BDF8" />
         </Style>
         <Style Selector="Border.panelshell.writing">
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderWritingBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderWritingBrush}" />
             <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 36 0 #337FFFDA" />
         </Style>
         <Style Selector="Border.panelshell.busy.writing">
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderWritingBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderWritingBrush}" />
             <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 40 0 #447FFFDA" />
         </Style>
         <Style Selector="Border.panelshell.flash">
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBusyBrush}" />
-            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 56 0 #667C4DFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBusyBrush}" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 56 0 #662563EB" />
         </Style>
 
         <Style Selector="Border.infostrip">
@@ -752,7 +754,7 @@
             <Setter Property="Padding" Value="10,6" />
         </Style>
         <Style Selector="Border.memorychip">
-            <Setter Property="Background" Value="{StaticResource QuietGlassBrush}" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
             <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
@@ -804,7 +806,7 @@
         </Style>
         <!-- Write audit: cool lilac module. -->
         <Style Selector="Border.writeaudit">
-            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceGlassBrush}" />
             <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
@@ -827,7 +829,7 @@
         </Style>
         <!-- Live pair: file chips + unified line preview. -->
         <Style Selector="Border.livepair">
-            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceGlassBrush}" />
             <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
@@ -955,8 +957,8 @@
             <Setter Property="Foreground" Value="#312E81" />
         </Style>
         <Style Selector="Button.planchip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#7C4DFF" />
-            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Ellipse.planpulse">
@@ -966,15 +968,15 @@
             <Setter Property="Fill" Value="#00E5FF" />
             <Style.Animations>
                 <Animation Duration="0:0:1.4" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.35" /><Setter Property="Fill" Value="#7C4DFF" /></KeyFrame>
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.35" /><Setter Property="Fill" Value="{DynamicResource AccentBrush}" /></KeyFrame>
                     <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /><Setter Property="Fill" Value="#00E5FF" /></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
         <!-- Split-brain: dual-energy module. -->
         <Style Selector="Border.splitbrain">
-            <Setter Property="Background" Value="{StaticResource SurfaceGlassBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource SplitBrainBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SplitBrainBorderBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12,10" />
@@ -992,12 +994,12 @@
         <!-- Compose: seamless floating capsule — the shell IS the input (no inner box).
              Rest = quiet white float; listening = aurora ring + lift. -->
         <Style Selector="Border.composeshell">
-            <Setter Property="Background" Value="{StaticResource ComposeFillBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource ComposeBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ComposeFillBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="26" />
             <Setter Property="Padding" Value="9,8" />
-            <Setter Property="BoxShadow" Value="0 10 30 0 #147C4DFF, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
+            <Setter Property="BoxShadow" Value="0 10 30 0 #142563EB, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
             <Setter Property="Transitions">
                 <Transitions>
                     <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.16" />
@@ -1006,12 +1008,12 @@
             </Setter>
         </Style>
         <Style Selector="Border.composeshell:pointerover">
-            <Setter Property="BoxShadow" Value="0 12 34 0 #1C7C4DFF, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
+            <Setter Property="BoxShadow" Value="0 12 34 0 #1C2563EB, 0 2 6 0 #08080F23, inset 0 1 0 0 #CCFFFFFF" />
         </Style>
         <Style Selector="Border.composeshell.listening">
-            <Setter Property="BorderBrush" Value="{StaticResource ComposeBorderListeningBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderListeningBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="BoxShadow" Value="0 0 0 1 #447C4DFF, 0 12 34 0 #267C4DFF, 0 0 24 0 #1AFFC7A3, inset 0 1 0 0 #CCFFFFFF" />
+            <Setter Property="BoxShadow" Value="0 0 0 1 #442563EB, 0 12 34 0 #262563EB, 0 0 24 0 #1A93C5FD, inset 0 1 0 0 #CCFFFFFF" />
         </Style>
         <!-- Inside the capsule the TextBox draws no chrome of its own, in any state. -->
         <Style Selector="Border.composeshell TextBox /template/ Border#PART_BorderElement">
@@ -1037,7 +1039,7 @@
             </Setter>
         </Style>
         <Style Selector="Border.sendhalo.lit">
-            <Setter Property="BoxShadow" Value="0 5 16 0 #4D7C4DFF, 0 0 20 0 #2600E5FF" />
+            <Setter Property="BoxShadow" Value="0 5 16 0 #4D2563EB, 0 0 20 0 #2638BDF8" />
         </Style>
         <Style Selector="Border.livepair.writing">
             <Setter Property="BorderBrush" Value="#7FFFDA" />
@@ -1045,9 +1047,9 @@
         </Style>
 
         <Style Selector="Border.heromark">
-            <Setter Property="Background" Value="{StaticResource StarMarkBrush}" />
+            <Setter Property="Background" Value="{DynamicResource StarMarkBrush}" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="BoxShadow" Value="0 12 36 0 #447C4DFF, 0 0 28 0 #3300E5FF" />
+            <Setter Property="BoxShadow" Value="0 12 36 0 #442563EB, 0 0 28 0 #3338BDF8" />
         </Style>
         <Style Selector="Border.heroground">
             <Setter Property="Width" Value="36" />

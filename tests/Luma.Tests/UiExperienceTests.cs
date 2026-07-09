@@ -84,22 +84,46 @@ public sealed class UiExperienceTests
     }
 
     [Fact]
-    public void ThemePaletteMatchesVioletGlassDesignSystem()
+    public void ThemePaletteDefaultsToBlueAndSupportsColorful()
     {
-        // Aurora brand: violet #7C4DFF → cyan #00E5FF, mist #F2F4FF, blue soft #2563FF.
-        Assert.Equal(0x7C, LumaTheme.AccentStart.R);
-        Assert.Equal(0x4D, LumaTheme.AccentStart.G);
-        Assert.Equal(0xFF, LumaTheme.AccentStart.B);
-        Assert.Equal(0x00, LumaTheme.AccentEnd.R);
-        Assert.Equal(0xE5, LumaTheme.AccentEnd.G);
-        Assert.Equal(0xFF, LumaTheme.AccentEnd.B);
-        Assert.Equal(0x25, LumaTheme.AccentSoft.R);
-        Assert.Equal(0xF2, LumaTheme.InkPanel.R); // mist
+        // Default Blue: #2563EB → #38BDF8, soft #3B82F6, mist #F0F7FF.
+        LumaTheme.Apply(UiThemeId.Blue, app: null);
+        Assert.Equal(UiThemeId.Blue, LumaTheme.CurrentId);
+        Assert.Equal(0x25, LumaTheme.AccentStart.R);
+        Assert.Equal(0x63, LumaTheme.AccentStart.G);
+        Assert.Equal(0xEB, LumaTheme.AccentStart.B);
+        Assert.Equal(0x38, LumaTheme.AccentEnd.R);
+        Assert.Equal(0xBD, LumaTheme.AccentEnd.G);
+        Assert.Equal(0xF8, LumaTheme.AccentEnd.B);
+        Assert.Equal(0xF0, LumaTheme.InkPanel.R);
         Assert.True(LumaTheme.FloatingCornerRadius >= 16);
         Assert.NotNull(LumaTheme.CreatePanelBorderBrush());
         Assert.NotNull(LumaTheme.CreateAccentGradient());
         Assert.NotNull(LumaTheme.GlassFillBrush);
         Assert.NotNull(LumaTheme.AccentSoftBrush);
+
+        LumaTheme.Apply(UiThemeId.Colorful, app: null);
+        Assert.Equal(UiThemeId.Colorful, LumaTheme.CurrentId);
+        Assert.Equal(0x7C, LumaTheme.AccentStart.R);
+        Assert.Equal(0x4D, LumaTheme.AccentStart.G);
+        Assert.Equal(0xFF, LumaTheme.AccentStart.B);
+        Assert.Equal(0x00, LumaTheme.AccentEnd.R);
+        Assert.Equal(0xE5, LumaTheme.AccentEnd.G);
+
+        // Restore default for other tests.
+        LumaTheme.Apply(UiThemeId.Blue, app: null);
+    }
+
+    [Fact]
+    public void ThemeSettingParsesBlueAndColorful()
+    {
+        Assert.Equal(UiThemeId.Blue, LumaTheme.ParseThemeId(null));
+        Assert.Equal(UiThemeId.Blue, LumaTheme.ParseThemeId("Blue"));
+        Assert.Equal(UiThemeId.Colorful, LumaTheme.ParseThemeId("Colorful"));
+        Assert.Equal(UiThemeId.Colorful, LumaTheme.ParseThemeId("aurora"));
+        Assert.Contains("UiTheme", ReadShipped("src/Luma.App/Services/AppSettings.cs"));
+        Assert.Contains("LumaTheme.Apply", ReadShipped("src/Luma.App/Services/SettingsWindow.cs"));
+        Assert.Contains("ApplyFromSettings", ReadShipped("src/Luma.App/App.axaml.cs"));
     }
 
     [Fact]
@@ -151,8 +175,14 @@ public sealed class UiExperienceTests
         Assert.Contains("Selector=\"Border.composeshell\"", xaml);
         Assert.Contains("Selector=\"Border.dockglow\"", xaml);
         Assert.Contains("Selector=\"Ellipse.thinkingring\"", xaml);
-        Assert.Contains("#7C4DFF", xaml);
-        Assert.Contains("#00E5FF", xaml);
+        // Default seed palette is Blue (white → blue).
+        Assert.Contains("#2563EB", xaml);
+        Assert.Contains("#38BDF8", xaml);
+        // Colorful palette still lives in LumaTheme for switching.
+        var theme = ReadShipped("src/Luma.App/Services/LumaTheme.cs");
+        Assert.Contains("#7C4DFF", theme);
+        Assert.Contains("#00E5FF", theme);
+        Assert.Contains("UiThemeId.Colorful", theme);
     }
 
     [Fact]
@@ -252,6 +282,7 @@ public sealed class UiExperienceTests
         var diffCard = ReadShipped("src/Luma.App/Controls/DiffCardControl.cs");
         Assert.Contains("WrapWithOverflow", diffCard);
         Assert.Contains("ClipToBounds = true", diffCard);
+        Assert.DoesNotContain("Apply patch", diffCard);
     }
 
     private static string ReadShipped(string relativePath)

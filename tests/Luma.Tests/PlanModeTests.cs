@@ -117,8 +117,11 @@ public sealed class PlanModeTests
     public void ShippedUiWiresPlanMode()
     {
         var xaml = ReadShipped("src/Luma.App/MainWindow.axaml");
+        // Mode toggle lives on the + menu only; chip collapses/expands the plan window.
         Assert.Contains("TogglePlanModeCommand", xaml, StringComparison.Ordinal);
         Assert.Contains("PlanModeMenuLabel", xaml, StringComparison.Ordinal);
+        Assert.Contains("TogglePlanWindowCommand", xaml, StringComparison.Ordinal);
+        Assert.Contains("PlanChipVisible", xaml, StringComparison.Ordinal);
         Assert.Contains("ImplementPlanCommand", xaml, StringComparison.Ordinal);
         Assert.Contains("PlanModeChipLabel", xaml, StringComparison.Ordinal);
         Assert.Contains("planchip", xaml, StringComparison.Ordinal);
@@ -129,6 +132,42 @@ public sealed class PlanModeTests
         Assert.Contains("Button.planchip", appXaml, StringComparison.Ordinal);
         Assert.Contains("panelshell.plan", appXaml, StringComparison.Ordinal);
         Assert.Contains("statuspill.plan", appXaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PlanWindowPolishesLiveUpdatesAndChecklist()
+    {
+        var planWin = ReadShipped("src/Luma.App/Services/PlanDocumentWindow.cs");
+        Assert.Contains("ScrollViewer", planWin, StringComparison.Ordinal);
+        Assert.Contains("RefreshContent", planWin, StringComparison.Ordinal);
+        Assert.Contains("_hasAnchored", planWin, StringComparison.Ordinal);
+        Assert.Contains("UpdateStepsList", planWin, StringComparison.Ordinal);
+        Assert.Contains("StepRow", planWin, StringComparison.Ordinal);
+        // Tick-box default; raw markdown only via Edit toggle.
+        Assert.Contains("ToggleEdit", planWin, StringComparison.Ordinal);
+        Assert.Contains("IsVisible = false", planWin, StringComparison.Ordinal);
+        // Collapse ↔ mini dock; progress tracking hides Clear/Edit/Implement.
+        Assert.Contains("SetCollapsed", planWin, StringComparison.Ordinal);
+        Assert.Contains("_collapsedDock", planWin, StringComparison.Ordinal);
+        Assert.Contains("SetProgressTracking", planWin, StringComparison.Ordinal);
+
+        var mainCs = ReadShipped("src/Luma.App/MainWindow.axaml.cs");
+        Assert.Contains("OnPlanUpdated", mainCs, StringComparison.Ordinal);
+        Assert.Contains("RefreshContent", mainCs, StringComparison.Ordinal);
+        Assert.Contains("PlanUpdated = OnPlanUpdated", mainCs, StringComparison.Ordinal);
+        Assert.Contains("PlanWindowToggleRequested", mainCs, StringComparison.Ordinal);
+        Assert.Contains("SetProgressTracking", mainCs, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DiffCardDropsApplyPatchAndHidesEmptyArtifact()
+    {
+        var diffCard = ReadShipped("src/Luma.App/Controls/DiffCardControl.cs");
+        Assert.DoesNotContain("Apply patch", diffCard, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApplyAsync", diffCard, StringComparison.Ordinal);
+        Assert.Contains("hasArtifact", diffCard, StringComparison.Ordinal);
+        Assert.Contains("_card.IsVisible = hasArtifact", diffCard, StringComparison.Ordinal);
+        Assert.Contains("write-audit", diffCard, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ReadShipped(string relativePath)
