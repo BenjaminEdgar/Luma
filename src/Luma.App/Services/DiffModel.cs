@@ -82,6 +82,7 @@ public sealed class DiffDocument
 public static class DiffParser
 {
     private static readonly Regex FileHeaderRegex = new(@"^diff --git a/(.+) b/(.+)$", RegexOptions.Multiline);
+    private static readonly Regex PlainOldPathRegex = new(@"^--- (?:a/)?(.+)$", RegexOptions.Multiline);
     private static readonly Regex HunkHeaderRegex = new(@"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@");
 
     public static DiffDocument Parse(string unifiedDiff)
@@ -89,16 +90,30 @@ public static class DiffParser
         var document = new DiffDocument();
         var normalized = unifiedDiff.Replace("\r\n", "\n").Replace("\r", "\n");
         var matches = FileHeaderRegex.Matches(normalized);
-        for (var i = 0; i < matches.Count; i++)
+        if (matches.Count > 0)
         {
-            var start = matches[i].Index;
-            var end = i + 1 < matches.Count ? matches[i + 1].Index : normalized.Length;
-            document.Files.Add(ParseFile(normalized[start..end]));
+            for (var i = 0; i < matches.Count; i++)
+            {
+                var start = matches[i].Index;
+                var end = i + 1 < matches.Count ? matches[i + 1].Index : normalized.Length;
+                document.Files.Add(ParseGitFile(normalized[start..end]));
+            }
+            return document;
+        }
+
+        // Agents sometimes emit plain unified diffs without "diff --git" headers.
+        var plainMatches = PlainOldPathRegex.Matches(normalized);
+        for (var i = 0; i < plainMatches.Count; i++)
+        {
+            var start = plainMatches[i].Index;
+            var end = i + 1 < plainMatches.Count ? plainMatches[i + 1].Index : normalized.Length;
+            var file = ParsePlainFile(normalized[start..end]);
+            if (file is not null) document.Files.Add(file);
         }
         return document;
     }
 
-    private static DiffFile ParseFile(string block)
+    private static DiffFile ParseGitFile(string block)
     {
         var lines = block.Split('\n');
         if (lines.Length > 0 && lines[^1].Length == 0) lines = lines[..^1];
@@ -122,6 +137,38 @@ public static class DiffParser
             index++;
         }
 
+        ParseHunks(file, lines, index);
+        return file;
+    }
+
+    private static DiffFile? ParsePlainFile(string block)
+    {
+        var lines = block.Split('\n');
+        if (lines.Length > 0 && lines[^1].Length == 0) lines = lines[..^1];
+        if (lines.Length < 2) return null;
+
+        var oldPath = StripPathPrefix(lines[0], "--- ");
+        if (oldPath is null) return null;
+        var newPath = StripPathPrefix(lines[1], "+++ ");
+        if (newPath is null) return null;
+
+        var file = new DiffFile
+        {
+            OldPath = NormalizePath(oldPath),
+            NewPath = NormalizePath(newPath),
+            IsNew = oldPath is "/dev/null" or "dev/null",
+            IsDeleted = newPath is "/dev/null" or "dev/null",
+        };
+        // Synthesize a git-style header so BuildPatch/apply keep working.
+        file.HeaderLines.Add($"diff --git a/{file.OldPath} b/{file.NewPath}");
+        file.HeaderLines.Add(lines[0]);
+        file.HeaderLines.Add(lines[1]);
+        ParseHunks(file, lines, 2);
+        return file.Hunks.Count == 0 && !file.IsBinary ? null : file;
+    }
+
+    private static void ParseHunks(DiffFile file, string[] lines, int index)
+    {
         while (index < lines.Length)
         {
             var hunkMatch = HunkHeaderRegex.Match(lines[index]);
@@ -135,15 +182,25 @@ public static class DiffParser
                 NewCount = hunkMatch.Groups[4].Success ? int.Parse(hunkMatch.Groups[4].Value) : 1,
             };
             index++;
-            while (index < lines.Length && !HunkHeaderRegex.IsMatch(lines[index]))
+            while (index < lines.Length && !HunkHeaderRegex.IsMatch(lines[index]) && !lines[index].StartsWith("--- ", StringComparison.Ordinal))
             {
                 hunk.Lines.Add(new DiffLine { Kind = ClassifyLine(lines[index]), Text = lines[index] });
                 index++;
             }
             file.Hunks.Add(hunk);
         }
+    }
 
-        return file;
+    private static string? StripPathPrefix(string line, string prefix)
+    {
+        if (!line.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        var rest = line[prefix.Length..].Trim();
+        // Drop optional "a/" / "b/" and tab-timestamp suffixes from `diff -u`.
+        var tab = rest.IndexOf('\t');
+        if (tab >= 0) rest = rest[..tab];
+        if (rest.StartsWith("a/", StringComparison.Ordinal) || rest.StartsWith("b/", StringComparison.Ordinal))
+            rest = rest[2..];
+        return rest.Trim().Trim('"');
     }
 
     private static DiffLineKind ClassifyLine(string line)

@@ -186,6 +186,11 @@
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="11,5" />
         </Style>
+        <Style Selector="Border.statuspill.plan">
+            <Setter Property="Background" Value="#F5F0FF" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="BoxShadow" Value="0 0 14 0 #337C4DFF" />
+        </Style>
 
         <!-- Soft pill chips. -->
         <Style Selector="Button.chip">
@@ -703,6 +708,11 @@
                 </Transitions>
             </Setter>
         </Style>
+        <!-- Plan mode idle rim: subtle cyan/violet aurora (busy/writing override below). -->
+        <Style Selector="Border.panelshell.plan">
+            <Setter Property="BorderBrush" Value="#B8A4FF" />
+            <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 44 0 #337C4DFF, 0 0 22 0 #2200E5FF" />
+        </Style>
         <Style Selector="Border.panelshell.busy">
             <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBusyBrush}" />
             <Setter Property="BoxShadow" Value="0 20 50 0 #14080F23, 0 0 48 0 #447C4DFF, 0 0 24 0 #2200E5FF" />
@@ -926,6 +936,40 @@
             <Setter Property="Background" Value="#4F46E5" />
             <Setter Property="BorderBrush" Value="#4F46E5" />
             <Setter Property="Foreground" Value="White" />
+        </Style>
+        <!-- Plan mode chip: aurora pill (distinct from chaos/cwd). BoxShadow not on Button. -->
+        <Style Selector="Button.planchip">
+            <Setter Property="Background" Value="#EEF6FF" />
+            <Setter Property="Foreground" Value="#4338CA" />
+            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.planchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E8F0FF" />
+            <Setter Property="BorderBrush" Value="#A78BFF" />
+            <Setter Property="Foreground" Value="#312E81" />
+        </Style>
+        <Style Selector="Button.planchip:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#7C4DFF" />
+            <Setter Property="BorderBrush" Value="#7C4DFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Ellipse.planpulse">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="#00E5FF" />
+            <Style.Animations>
+                <Animation Duration="0:0:1.4" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.35" /><Setter Property="Fill" Value="#7C4DFF" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /><Setter Property="Fill" Value="#00E5FF" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
         <!-- Split-brain: dual-energy module. -->
         <Style Selector="Border.splitbrain">

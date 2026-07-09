@@ -210,6 +210,11 @@ public abstract class CliAiClient : IAiClient
             if (directive is not null) builder.AppendLine(directive);
         }
 
+        if (!garnish && PlanMode.Active)
+            builder.AppendLine(PlanMode.SystemDirective);
+        else if (!garnish && PlanMode.TrackingProgress)
+            builder.AppendLine(PlanMode.ProgressDirective);
+
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
         if (hasVisualContext && !garnish)
         {

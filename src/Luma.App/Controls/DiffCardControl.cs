@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -8,11 +9,10 @@ using Luma.App.Services;
 
 namespace Luma.App.Controls;
 
-/// <summary>Renders a <see cref="CodeChatSession"/> inline in a chat bubble: the checkbox diff
-/// view (or a raw editable fallback), a status line, and Apply/Run tests/Revert buttons - the same
-/// chrome the former CodeTaskWindow popup provided, minus the window frame. Rebuilds its visible
-/// state whenever the session raises PropertyChanged, but keeps the DiffView/raw-textbox instances
-/// alive across rebuilds so per-file collapse state and in-progress typing aren't lost.</summary>
+/// <summary>Renders a <see cref="CodeChatSession"/> inline in a chat bubble: the checkbox-driven
+/// structured diff (with a read-only raw fallback when parsing fails), a status line, and
+/// Apply/Run tests/Revert buttons. Rebuilds when the session raises PropertyChanged, but keeps the
+/// DiffView instance alive so per-file collapse state is preserved.</summary>
 public sealed class DiffCardControl : ContentControl
 {
     public static readonly StyledProperty<CodeChatSession?> SessionProperty =
@@ -23,16 +23,19 @@ public sealed class DiffCardControl : ContentControl
     private static readonly IBrush CardBorder = new SolidColorBrush(Color.Parse("#887C5CFF"));
 
     private readonly TextBlock _status = new() { FontSize = 12, Foreground = MutedFg, TextWrapping = TextWrapping.WrapWithOverflow };
-    private readonly Button _toggle = new() { Padding = new Thickness(10, 5), HorizontalAlignment = HorizontalAlignment.Right };
     private readonly DiffView _diffView = new() { MaxHeight = 360 };
-    private readonly TextBox _rawBox = new()
+    private readonly TextBlock _rawFallback = new()
     {
-        AcceptsReturn = true,
-        TextWrapping = TextWrapping.Wrap,
-        FontFamily = FontFamily.Parse("Consolas"),
+        FontFamily = FontFamily.Parse("Cascadia Mono,Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,monospace"),
         FontSize = 12,
-        MinHeight = 160,
+        Foreground = MutedFg,
+        TextWrapping = TextWrapping.WrapWithOverflow,
+    };
+    private readonly ScrollViewer _rawScroll = new()
+    {
         MaxHeight = 360,
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
     };
     private readonly Grid _artifactHost = new();
     private readonly Button _apply = new() { Content = "Apply patch", Padding = new Thickness(16, 9), CornerRadius = new CornerRadius(10) };
@@ -52,15 +55,12 @@ public sealed class DiffCardControl : ContentControl
 
     public DiffCardControl()
     {
-        _toggle.Classes.Add("ghost");
-        _toggle.Click += (_, _) => Session?.ToggleRawView();
+        _rawScroll.Content = _rawFallback;
 
         _diffView.SelectionChanged += async () =>
         {
             if (Session is { } session) await session.OnSelectionChangedAsync(CancellationToken.None);
         };
-
-        _rawBox.TextChanged += (_, _) => Session?.SetRawPatch(_rawBox.Text ?? string.Empty);
 
         _apply.Classes.Add("accent");
         _apply.Click += async (_, _) =>
@@ -105,7 +105,7 @@ public sealed class DiffCardControl : ContentControl
             {
                 Spacing = 8,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Children = { _status, _toggle, _artifactHost, actions },
+                Children = { _status, _artifactHost, actions },
             },
         };
     }
@@ -126,13 +126,21 @@ public sealed class DiffCardControl : ContentControl
         if (session is null) return;
 
         _status.Text = session.StatusMessage;
-        _toggle.Content = session.ShowStructured ? "Edit raw patch" : "Structured view";
 
-        if (!ReferenceEquals(_diffView.Document, session.Document)) _diffView.Document = session.Document;
-        if (!_rawBox.IsFocused && _rawBox.Text != session.RawPatch) _rawBox.Text = session.RawPatch;
+        var hasStructured = session.Document is { Files.Count: > 0 };
+        if (hasStructured)
+        {
+            if (!ReferenceEquals(_diffView.Document, session.Document))
+                _diffView.Document = session.Document;
+        }
+        else
+            _rawFallback.Text = session.RawPatch;
 
         _artifactHost.Children.Clear();
-        _artifactHost.Children.Add(session.ShowStructured ? _diffView : _rawBox);
+        if (hasStructured)
+            _artifactHost.Children.Add(_diffView);
+        else if (!string.IsNullOrWhiteSpace(session.RawPatch))
+            _artifactHost.Children.Add(_rawScroll);
 
         _apply.IsEnabled = session.CanApply;
         _verifyCommandBox.IsVisible = session.CanVerify;

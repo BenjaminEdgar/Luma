@@ -98,6 +98,26 @@ public sealed class DiffModelTests
     }
 
     [Fact]
+    public void ParsesPlainUnifiedDiffWithoutGitHeader()
+    {
+        const string diff =
+            "--- a/notes.txt\n" +
+            "+++ b/notes.txt\n" +
+            "@@ -1,2 +1,2 @@\n" +
+            " hello\n" +
+            "-old\n" +
+            "+new\n";
+
+        var document = DiffParser.Parse(diff);
+
+        Assert.Single(document.Files);
+        Assert.Equal("notes.txt", document.Files[0].NewPath);
+        Assert.Single(document.Files[0].Hunks);
+        Assert.Contains("diff --git a/notes.txt b/notes.txt", document.BuildPatch());
+        Assert.Contains("+new", document.BuildPatch());
+    }
+
+    [Fact]
     public async Task SelectiveHunkPatchAppliesOnlySelectedChangeToRealFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "LumaTests", Guid.NewGuid().ToString("N"));

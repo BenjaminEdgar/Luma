@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly KillTargetWindow _killTarget = new();
     private readonly DispatcherTimer _killTargetTimer;
     private readonly QuestionPromptWindow _questionWindow = new();
+    private PlanDocumentWindow? _planWindow;
     private readonly GlobalShortcutService _globalShortcut = new();
     private ChatMessage? _pendingQuestion;
     private bool _expanded;
@@ -65,6 +66,21 @@ public partial class MainWindow : Window
             if (answer is null) _viewModel.SkipQuestionCommand.Execute(message);
             else { message.QuestionAnswer = answer; _viewModel.AnswerQuestionCommand.Execute(message); }
         };
+        _viewModel.PlanModeChanged = on =>
+        {
+            ApplyPlanTint(on || _viewModel.PlanProgressTracking);
+            if (on) ShowPlanWindow();
+            // User left plan mode (not mid-implement) — hide. Implement-end keeps the window
+            // so checked-off steps stay visible.
+            else if (!_viewModel.PlanProgressTracking) _planWindow?.Hide();
+        };
+        _viewModel.PlanProgressTrackingChanged = tracking =>
+        {
+            ApplyPlanTint(tracking || _viewModel.PlanModeEnabled);
+            if (tracking) ShowPlanWindow();
+            // Do not hide when tracking ends — user should see final check-offs.
+        };
+        _viewModel.PlanUpdated = ShowPlanWindow;
         // Capture ambient context while the window is still the tiny dock, so the panel
         // itself never covers what the user was looking at; suggestions stream in after.
         DockButton.Click += async (_, _) =>
@@ -92,7 +108,16 @@ public partial class MainWindow : Window
         DragHandle.PointerPressed += OnHeaderPressed;
         LogoButton.Click += (_, _) => SetExpanded(false);
         ClosePanelButton.Click += (_, _) => SetExpanded(false);
-        Closing += (_, _) => { SaveSettings(); _globalShortcut.Dispose(); _operations.CancelAll(); _killTarget.Close(); _questionWindow.Close(); _viewModel.Dispose(); };
+        Closing += (_, _) =>
+        {
+            SaveSettings();
+            _globalShortcut.Dispose();
+            _operations.CancelAll();
+            _killTarget.Close();
+            _questionWindow.Close();
+            try { _planWindow?.Close(); } catch { /* ignore */ }
+            _viewModel.Dispose();
+        };
         Opened += (_, _) =>
         {
             SnapToNearestEdge();
@@ -162,6 +187,32 @@ public partial class MainWindow : Window
     {
         _pendingQuestion = null;
         _questionWindow.Hide();
+    }
+
+    private void ApplyPlanTint(bool on)
+    {
+        // Idle aurora tint — busy/writing styles override panelshell.plan when active.
+        PanelBackground.Classes.Set("plan", on);
+        StatusPill.Classes.Set("plan", on);
+    }
+
+    private void ShowPlanWindow()
+    {
+        _planWindow ??= CreatePlanWindow();
+        _planWindow.ShowBeside(this);
+    }
+
+    private PlanDocumentWindow CreatePlanWindow()
+    {
+        var window = new PlanDocumentWindow(_viewModel.Plan);
+        window.ImplementRequested += markdown =>
+        {
+            if (string.IsNullOrWhiteSpace(markdown)) return;
+            _viewModel.Plan.ReplaceFromMarkdown(markdown);
+            if (_viewModel.ImplementPlanCommand.CanExecute(null))
+                _viewModel.ImplementPlanCommand.Execute(null);
+        };
+        return window;
     }
 
     private void OnQuestionChoiceClick(object? sender, RoutedEventArgs e)

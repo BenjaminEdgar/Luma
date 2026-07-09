@@ -50,6 +50,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly DispatcherTimer _chaosTicker;
     private readonly DispatcherTimer _livePairTicker;
     private bool _splitBrainEnabled;
+    private bool _planModeEnabled;
+    private bool _planProgressTracking;
     private WorkspaceSnapshot? _livePairSnapshot;
     private string? _livePairRoot;
     private ChatMessage? _livePairAnswer;
@@ -95,6 +97,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ArgueWithYourselfCommand = new AsyncCommand(ArgueWithYourselfAsync, () => IsIdle && ChaosModeEnabled && SelectedDiagnostic?.IsAvailable != false);
         TogglePomodoroCommand = new RelayCommand(TogglePomodoro, () => ChaosModeEnabled);
         ToggleSplitBrainCommand = new RelayCommand(ToggleSplitBrain);
+        TogglePlanModeCommand = new RelayCommand(TogglePlanMode);
+        ImplementPlanCommand = new AsyncCommand(ImplementApprovedPlanAsync,
+            () => IsIdle && PlanModeEnabled && Plan.CanImplement && SelectedDiagnostic?.IsAvailable != false);
         ShowWhereCommand = new ParameterCommand(ShowWhereOnScreen);
         ChooseSplitBrainCommand = new ParameterCommand(ChooseSplitBrainSide);
         JumpLivePairCommand = new ParameterCommand(JumpLivePairFile);
@@ -141,6 +146,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ArgueWithYourselfCommand { get; }
     public RelayCommand TogglePomodoroCommand { get; }
     public RelayCommand ToggleSplitBrainCommand { get; }
+    public RelayCommand TogglePlanModeCommand { get; }
+    public AsyncCommand ImplementPlanCommand { get; }
     public ParameterCommand ShowWhereCommand { get; }
     public ParameterCommand ChooseSplitBrainCommand { get; }
     public ParameterCommand JumpLivePairCommand { get; }
@@ -264,6 +271,45 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
     public string SplitBrainMenuLabel => SplitBrainEnabled ? "Split-brain: ON" : "Split-brain: OFF";
     public string SplitBrainChipLabel => SplitBrainEnabled ? "Split-brain ON" : "Split-brain";
+    /// <summary>Live plan document for Plan Mode (separate window + Implement handoff).</summary>
+    public PlanDocument Plan { get; } = new();
+    public bool PlanModeEnabled
+    {
+        get => _planModeEnabled;
+        private set
+        {
+            if (_planModeEnabled == value) return;
+            Set(ref _planModeEnabled, value);
+            PlanMode.Active = value;
+            OnPropertyChanged(nameof(PlanModeMenuLabel));
+            OnPropertyChanged(nameof(PlanModeChipLabel));
+            OnPropertyChanged(nameof(ComposePlaceholder));
+            ImplementPlanCommand.RaiseCanExecuteChanged();
+            NotifySurfaceStateChanged();
+            PlanModeChanged?.Invoke(value);
+        }
+    }
+    public string PlanModeMenuLabel => PlanModeEnabled ? "Plan mode: ON" : "Plan mode: OFF";
+    public string PlanModeChipLabel => "Plan";
+    /// <summary>True while Implement is running — plan window stays open and accepts step check-offs.</summary>
+    public bool PlanProgressTracking
+    {
+        get => _planProgressTracking;
+        private set
+        {
+            if (_planProgressTracking == value) return;
+            _planProgressTracking = value;
+            PlanMode.TrackingProgress = value;
+            OnPropertyChanged(nameof(PlanProgressTracking));
+            PlanProgressTrackingChanged?.Invoke(value);
+        }
+    }
+    /// <summary>Raised when plan mode is toggled so the UI can show/hide the plan window.</summary>
+    public Action<bool>? PlanModeChanged { get; set; }
+    /// <summary>Raised when implement progress tracking starts/stops (keep plan window + dock tint).</summary>
+    public Action<bool>? PlanProgressTrackingChanged { get; set; }
+    /// <summary>Raised when the plan document is updated from a PLAN: directive.</summary>
+    public Action? PlanUpdated { get; set; }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
     public Func<Task<string?>>? WorkingDirectoryRequested { get; set; }
     public Func<Task<bool>>? NewChatConfirmationRequested { get; set; }
@@ -350,7 +396,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public string WorkingDirectoryTip => WorkingDirectory is null
         ? "Set a project folder so Luma can read local files"
         : WorkingDirectory;
-    public string ComposePlaceholder => HasWorkingDirectory
+    public string ComposePlaceholder => PlanModeEnabled
+        ? "Describe what you want to plan…  Enter to send"
+        : HasWorkingDirectory
         ? "Describe a code change…  @file to pin  ·  Enter to send"
         : "Ask anything…  @file to pin  ·  Enter to send";
     public bool ShowScreenLandingActions => Messages.Count == 0 && !HasWorkingDirectory;
@@ -386,6 +434,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : _busy ? _activityStatus
         : IsImprovingPrompt ? "Improving prompt"
         : IsSuggesting ? "Preparing shortcuts"
+        : PlanModeEnabled ? "Plan"
         : ChaosModeEnabled ? "Chaos"
         : LeanChatEnabled ? "Lean"
         : HasRegion ? "Region ready"
@@ -397,16 +446,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         : _busy ? (HasRunningOperations ? RunningStatus : _activityDetail)
         : IsImprovingPrompt ? "Rewriting your draft — not sent yet"
         : IsSuggesting ? "Generating quick actions"
+        : PlanModeEnabled ? "Chat clarifies · plan window updates."
         : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
         : LeanChatEnabled ? "Short prompts · tighter history · fewer tokens"
         : HasRegion ? "Selected area stays in focus until you clear it"
         : HasContext ? "Screen context loaded"
         : "No screen context yet";
-    public string LandingTitle => ChaosModeEnabled
+    public string LandingTitle => PlanModeEnabled
+        ? "Draft the plan."
+        : ChaosModeEnabled
         ? "Chaos Mode is on."
         : HasWorkingDirectory ? "What should change?"
         : HasCapture ? "Ask about your screen." : "Start with the screen.";
-    public string LandingSubtitle => ChaosModeEnabled
+    public string LandingSubtitle => PlanModeEnabled
+        ? "Clarify in chat · approve → Implement."
+        : ChaosModeEnabled
         ? "Roast, debate, flip tone, or focus-lock Explain."
         : HasWorkingDirectory
             ? "Type a change, or pick a chip below."
@@ -759,6 +813,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Question = string.Empty;
         ClearClipboardSnippet();
         ClearAttachedFiles();
+        Plan.Clear();
+        ImplementPlanCommand.RaiseCanExecuteChanged();
         if (_regionPath is not null) ReplaceCapture(ref _regionPath, null);
         OnPropertyChanged(nameof(CanStartNewChat));
         NewChatCommand.RaiseCanExecuteChanged();
@@ -857,6 +913,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         Suggestions.Clear();
         var prompt = Question.Trim();
         Question = string.Empty;
+        // Plan mode stays in chat (clarify + PLAN: updates) — never route to code/shell workspaces.
+        if (PlanModeEnabled)
+        {
+            await RunTurnAsync(prompt, attachCaptures: false);
+            return;
+        }
         var kind = TaskRouter.Classify(prompt);
         if (kind == TaskKind.Code)
         {
@@ -936,7 +998,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ticker.Start();
         // Coalesce stream partials onto a short interval so multi-chunk output does not schedule
         // one UI apply per line; progressive text still appears and finalize applies full extract.
-        using var streamBridge = new ChatStreamUiBridge(answer, providerName);
+        using var streamBridge = new ChatStreamUiBridge(answer, providerName, TryApplyPlanMarkdown);
         try
         {
             var history = Messages.Take(Messages.Count - 2).ToArray();
@@ -1055,6 +1117,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var writeSnapshot = WorkspaceWriteAuditor.Capture(repository);
             BeginLivePair(repository, writeSnapshot, answer);
             var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
+            if (PlanProgressTracking)
+            {
+                // Always apply when this session was started for implement — do not re-check
+                // PlanProgressTracking (UI posts can run after finally clears the flag).
+                session.PlanMarkdownReceived = md =>
+                {
+                    if (string.IsNullOrWhiteSpace(md)) return;
+                    void Apply()
+                    {
+                        Plan.ReplaceFromMarkdown(md);
+                        ImplementPlanCommand.RaiseCanExecuteChanged();
+                        PlanUpdated?.Invoke();
+                    }
+                    if (Dispatcher.UIThread.CheckAccess()) Apply();
+                    else Dispatcher.UIThread.Post(Apply);
+                };
+            }
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
             SetActivity("Writing files", "Auditing workspace changes");
@@ -1115,12 +1194,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>Final answer apply: full clean/extract and promote IsQuestion only when complete.</summary>
-    private static void ApplyFinalAnswerText(ChatMessage answer, string rawText)
+    private void ApplyFinalAnswerText(ChatMessage answer, string rawText)
     {
         var (withoutWhere, where) = ShowWhereParser.Extract(rawText);
         var applied = ChatStreamTextPolicy.ApplyFinal(withoutWhere);
         answer.Text = applied.Text;
         answer.ShowWhere = where;
+        TryApplyPlanMarkdown(applied.PlanMarkdown, answer);
         if (!applied.IsQuestion) return;
         answer.Question = applied.Question;
         answer.QuestionChoices = applied.QuestionChoices;
@@ -1131,6 +1211,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         if (parameter is not ChatMessage { ShowWhere: { } target }) return;
         GhostCursorWindow.PointAt(_owner, target.X, target.Y, target.Width, target.Height, target.Label);
+    }
+
+    private void TogglePlanMode()
+    {
+        PlanModeEnabled = !PlanModeEnabled;
+        if (PlanModeEnabled)
+            PlanUpdated?.Invoke();
+        else
+            PlanMode.Active = false;
+    }
+
+    /// <summary>Hands the approved plan into a normal coding turn in this chat, then exits plan mode.
+    /// Plan window stays open and checks steps off as the agent emits PLAN: progress updates.</summary>
+    private async Task ImplementApprovedPlanAsync()
+    {
+        if (!PlanModeEnabled || !Plan.CanImplement || _busy) return;
+        var planMarkdown = Plan.Markdown.Trim();
+        if (string.IsNullOrWhiteSpace(planMarkdown)) return;
+
+        var prompt = PlanMode.BuildImplementPrompt(planMarkdown);
+        // Track before leaving plan mode so the window stays open for check-offs.
+        PlanProgressTracking = true;
+        PlanModeEnabled = false;
+        PlanMode.Active = false;
+        PlanUpdated?.Invoke();
+
+        try
+        {
+            var repository = WorkingDirectoryRequested is null ? WorkingDirectory : await WorkingDirectoryRequested();
+            if (repository is null)
+            {
+                // No folder — still run as chat so the plan is not lost; user can set cwd later.
+                await RunTurnAsync(prompt, displayPrompt: "Implement approved plan", attachCaptures: false);
+                return;
+            }
+
+            WorkingDirectory = repository;
+            await RunCodeTurnAsync(prompt, repository);
+        }
+        finally
+        {
+            PlanProgressTracking = false;
+        }
+    }
+
+    /// <summary>Applies a PLAN: body during plan mode or live implement progress tracking.</summary>
+    private void TryApplyPlanMarkdown(string? planMarkdown, ChatMessage? answer = null)
+    {
+        if (string.IsNullOrWhiteSpace(planMarkdown)) return;
+        if (!PlanModeEnabled && !PlanProgressTracking) return;
+
+        Plan.ReplaceFromMarkdown(planMarkdown);
+        ImplementPlanCommand.RaiseCanExecuteChanged();
+        PlanUpdated?.Invoke();
+        // Leave a short note in chat when the reply was only a plan block (planning turns).
+        if (answer is not null && PlanModeEnabled && string.IsNullOrWhiteSpace(answer.Text))
+            answer.Text = PlanMode.FormatChatNote(Plan.Title);
     }
 
     private void ToggleSplitBrain() => SplitBrainEnabled = !SplitBrainEnabled;
@@ -1234,15 +1371,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly ChatMessage _answer;
         private readonly string _providerName;
+        private readonly Action<string?>? _onPlanMarkdown;
         private readonly StreamPartialCoalescer _coalescer = new();
         private readonly DispatcherTimer _flushTimer;
         private int _epoch = 1; // 0 = sealed; reopen bumps so late posts from prior streams never match
         private int _reopenSeq = 1;
 
-        public ChatStreamUiBridge(ChatMessage answer, string providerName)
+        public ChatStreamUiBridge(ChatMessage answer, string providerName, Action<string?>? onPlanMarkdown = null)
         {
             _answer = answer;
             _providerName = providerName;
+            _onPlanMarkdown = onPlanMarkdown;
             _flushTimer = new DispatcherTimer(StreamPartialCoalescer.DefaultInterval, DispatcherPriority.Background,
                 (_, _) => TryFlushHeld());
             _flushTimer.Start();
@@ -1289,7 +1428,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             _answer.IsStreaming = true;
             _answer.Caption = $"✦ {_providerName}";
             // Progressive text only — never flip IsQuestion from mid-stream fragments.
-            _answer.Text = ChatStreamTextPolicy.ApplyPartial(raw).Text;
+            // Plan body may update the plan window (check-offs) during plan/implement tracking.
+            var applied = ChatStreamTextPolicy.ApplyPartial(raw);
+            _answer.Text = applied.Text;
+            _onPlanMarkdown?.Invoke(applied.PlanMarkdown);
         }
 
         public void Dispose()
@@ -1883,6 +2025,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         NotifySurfaceStateChanged();
         CaptureCommand.RaiseCanExecuteChanged(); ExplainSelectionCommand.RaiseCanExecuteChanged(); ExplainScreenCommand.RaiseCanExecuteChanged();
         SendCommand.RaiseCanExecuteChanged(); ImprovePromptCommand.RaiseCanExecuteChanged();
+        ImplementPlanCommand.RaiseCanExecuteChanged();
         StopCommand.RaiseCanExecuteChanged(); NewChatCommand.RaiseCanExecuteChanged();
         RoastUiCommand.RaiseCanExecuteChanged(); ArgueWithYourselfCommand.RaiseCanExecuteChanged();
     }
@@ -1932,6 +2075,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         _livePairTicker.Stop();
         _chaosTicker.Stop();
         _lifetime.Cancel();
+        PlanMode.Active = false;
+        PlanMode.TrackingProgress = false;
         DisposeMessages();
         ReplaceCapture(ref _regionPath, null);
         ReplaceCapture(ref _contextPath, null);

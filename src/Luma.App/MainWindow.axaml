@@ -84,7 +84,7 @@
               <TextBlock Text="Luma" Classes="brandmark" />
             </Border>
           </StackPanel>
-          <Border Grid.Column="2" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,8,0">
+          <Border Grid.Column="2" Name="StatusPill" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Ellipse Width="7" Height="7" VerticalAlignment="Center" IsVisible="{Binding !IsBusy}"
                        Fill="#7C4DFF" />
@@ -616,6 +616,25 @@
                       IsVisible="{Binding SplitBrainEnabled}"
                       Command="{Binding ToggleSplitBrainCommand}"
                       ToolTip.Tip="Split-brain is on — next send runs explainer + implementer. Click to turn off." />
+              <Button Classes="planchip" Margin="0,0,6,4"
+                      IsVisible="{Binding PlanModeEnabled}"
+                      Command="{Binding TogglePlanModeCommand}"
+                      ToolTip.Tip="Plan mode is on — clarify in chat, plan updates in the plan window. Click to turn off.">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <!-- Checklist / map-path glyph -->
+                  <Path Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"
+                        Stroke="#7C4DFF" StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round"
+                        Data="M2,3 H9 M2,6 H9 M2,9 H6 M1.5,3 V9.5" />
+                  <TextBlock Text="{Binding PlanModeChipLabel}" FontSize="11" FontWeight="SemiBold"
+                             VerticalAlignment="Center" />
+                  <Ellipse Classes="planpulse" />
+                </StackPanel>
+              </Button>
+              <Button Classes="accent" Content="Implement plan" Margin="0,0,6,4" Padding="10,4"
+                      IsVisible="{Binding PlanModeEnabled}"
+                      Command="{Binding ImplementPlanCommand}"
+                      FontSize="11" CornerRadius="999"
+                      ToolTip.Tip="Run the approved plan as a coding turn in this chat" />
             </WrapPanel>
 
             <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
@@ -672,6 +691,9 @@
                     <MenuItem Header="{Binding SplitBrainMenuLabel}"
                               Command="{Binding ToggleSplitBrainCommand}"
                               ToolTip.Tip="Dual-provider explain + implement on the next send" />
+                    <MenuItem Header="{Binding PlanModeMenuLabel}"
+                              Command="{Binding TogglePlanModeCommand}"
+                              ToolTip.Tip="Plan in chat with questions; live plan in a separate window; Implement when ready" />
                     <MenuItem Header="MCP Marketplace…"
                               Click="OnMcpMarketplaceClick"
                               ToolTip.Tip="Browse and install MCP servers for Grok" />

@@ -16,12 +16,15 @@ public static class ChatStreamTextPolicy
         // Strip a complete ASK_USER / NEED_SCREEN line for nicer progressive display only —
         // do not report the question (that waits for finalize).
         cleaned = ClarifyingQuestionParser.RemoveScreenRereadDirective(cleaned);
-        var extracted = ClarifyingQuestionParser.ExtractDetailed(cleaned);
+        // Strip PLAN: body for progressive display; surface plan body so implement progress can check steps off mid-stream.
+        var (withoutPlan, planMarkdown) = PlanParser.Extract(cleaned);
+        var extracted = ClarifyingQuestionParser.ExtractDetailed(withoutPlan);
         return new AppliedStreamText(
             Text: TextSanitizer.Clean(extracted.Text),
             IsQuestion: false,
             Question: null,
-            QuestionChoices: []);
+            QuestionChoices: [],
+            PlanMarkdown: planMarkdown);
     }
 
     /// <summary>Final clean + extract. Promotes IsQuestion only when a complete directive is present.</summary>
@@ -31,25 +34,29 @@ public static class ChatStreamTextPolicy
         cleaned = ClarifyingQuestionParser.RemoveScreenRereadDirective(cleaned);
         if (string.IsNullOrWhiteSpace(cleaned))
             cleaned = string.Empty;
-        var extracted = ClarifyingQuestionParser.ExtractDetailed(cleaned);
+        var (withoutPlan, planMarkdown) = PlanParser.Extract(cleaned);
+        var extracted = ClarifyingQuestionParser.ExtractDetailed(withoutPlan);
         var text = TextSanitizer.Clean(extracted.Text);
         if (extracted.Question is null)
-            return new AppliedStreamText(text, false, null, []);
+            return new AppliedStreamText(text, false, null, [], planMarkdown);
 
         return new AppliedStreamText(
             Text: text,
             IsQuestion: true,
             Question: TextSanitizer.Clean(extracted.Question),
-            QuestionChoices: extracted.Choices);
+            QuestionChoices: extracted.Choices,
+            PlanMarkdown: planMarkdown);
     }
 }
 
 /// <param name="IsQuestion">True only after finalization when a complete ASK_USER directive was found.</param>
+/// <param name="PlanMarkdown">Full PLAN: body when present (stripped from <see cref="Text"/>).</param>
 public readonly record struct AppliedStreamText(
     string Text,
     bool IsQuestion,
     string? Question,
-    IReadOnlyList<string> QuestionChoices);
+    IReadOnlyList<string> QuestionChoices,
+    string? PlanMarkdown = null);
 
 /// <summary>
 /// Bounds rapid stream partials to at most one publish per interval while always retaining

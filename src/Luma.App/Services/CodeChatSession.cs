@@ -29,7 +29,6 @@ public sealed class CodeChatSession : INotifyPropertyChanged
 
     private DiffDocument? _document;
     private string _rawPatch = string.Empty;
-    private bool _showStructured = true;
     private string _statusMessage = string.Empty;
     private bool _canApply;
     private bool _canVerify;
@@ -38,9 +37,11 @@ public sealed class CodeChatSession : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>Optional: PLAN: bodies extracted from stream/final text (implement progress check-offs).</summary>
+    public Action<string>? PlanMarkdownReceived { get; set; }
+
     public DiffDocument? Document { get => _document; private set => Set(ref _document, value); }
     public string RawPatch { get => _rawPatch; private set => Set(ref _rawPatch, value); }
-    public bool ShowStructured { get => _showStructured; private set => Set(ref _showStructured, value); }
     public string StatusMessage { get => _statusMessage; private set => Set(ref _statusMessage, value); }
     public bool CanApply { get => _canApply; private set => Set(ref _canApply, value); }
     public bool CanVerify { get => _canVerify; private set => Set(ref _canVerify, value); }
@@ -117,11 +118,18 @@ public sealed class CodeChatSession : INotifyPropertyChanged
             {
                 _message.IsPending = false;
                 _message.IsStreaming = true;
-                _message.Text = TextSanitizer.Clean(partial);
+                var cleaned = TextSanitizer.Clean(partial);
+                var (display, plan) = PlanParser.Extract(cleaned);
+                if (plan is not null) PlanMarkdownReceived?.Invoke(plan);
+                _message.Text = display;
             },
             token);
 
-        var parsed = TaskResponseParser.Parse(raw, TaskKind.Code);
+        var cleanedRaw = TextSanitizer.Clean(raw);
+        var (withoutPlan, planMarkdown) = PlanParser.Extract(cleanedRaw);
+        if (planMarkdown is not null) PlanMarkdownReceived?.Invoke(planMarkdown);
+
+        var parsed = TaskResponseParser.Parse(withoutPlan, TaskKind.Code);
         _history.Add(new ChatMessage("user", TextSanitizer.Clean(prompt)));
         _history.Add(new ChatMessage("assistant", parsed.Question is null ? parsed.Text : $"{parsed.Text}\nQuestion: {parsed.Question}"));
         _message.Text = TextSanitizer.Clean(parsed.Text);
@@ -138,9 +146,9 @@ public sealed class CodeChatSession : INotifyPropertyChanged
 
     private async Task IngestArtifactAsync(string artifact, CancellationToken token)
     {
-        var validation = await _git.ValidateDiffAsync(_workingDirectory, artifact, _protectedPaths, token);
-        StatusMessage = validation.Message;
         ShowStructuredIfPossible(artifact);
+        var validation = await _git.ValidateDiffAsync(_workingDirectory, RawPatch, _protectedPaths, token);
+        StatusMessage = validation.Message;
 
         if (validation.IsValid)
         {
@@ -153,24 +161,23 @@ public sealed class CodeChatSession : INotifyPropertyChanged
             $"The proposed patch failed validation: {validation.Message}\n" +
             "Produce a corrected, complete unified diff that fixes this specific problem. " +
             $"Repository root: {_workingDirectory}. Paths must remain repository-relative.", token);
-        if (!retried) StatusMessage = "Patch blocked - edit manually or ask again";
+        if (!retried) StatusMessage = "Patch blocked - ask again with a corrected diff";
     }
 
-    /// <summary>Parses the artifact into a structured diff for the checkbox-driven review UI;
-    /// falls back to the raw editable text if parsing yields nothing usable, so a parser gap never
-    /// leaves the user with less capability than before.</summary>
+    /// <summary>Parses the artifact into a structured diff for the checkbox-driven review UI.
+    /// When parsing succeeds, RawPatch is rebuilt from the document so Apply matches the live
+    /// selection view; otherwise the cleaned raw text is kept for a last-resort display/apply.</summary>
     private void ShowStructuredIfPossible(string artifact)
     {
         RawPatch = TextSanitizer.Clean(artifact);
-        var document = DiffParser.Parse(artifact);
+        var document = DiffParser.Parse(RawPatch);
         if (document.Files.Count == 0)
         {
             Document = null;
-            ShowStructured = false;
             return;
         }
         Document = document;
-        ShowStructured = true;
+        RawPatch = document.BuildPatch();
     }
 
     /// <summary>Starts another AI turn asking for a corrected artifact, bounded to MaxAutoRetries.
@@ -202,17 +209,6 @@ public sealed class CodeChatSession : INotifyPropertyChanged
         StatusMessage = validation.Message;
         CanApply = validation.IsValid;
     }
-
-    /// <summary>Toggles between the checkbox-driven structured view and the raw editable patch text.</summary>
-    public void ToggleRawView()
-    {
-        if (ShowStructured) { ShowStructured = false; return; }
-        var reparsed = DiffParser.Parse(RawPatch);
-        if (reparsed.Files.Count > 0) Document = reparsed;
-        ShowStructured = true;
-    }
-
-    public void SetRawPatch(string text) => RawPatch = text;
 
     public async Task ApplyAsync(CancellationToken token)
     {
