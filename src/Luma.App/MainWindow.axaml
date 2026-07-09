@@ -47,7 +47,7 @@
               ToolTip.Tip="Open Luma — ask anything about your screen">&#x2726;</Button>
 
       <Grid Name="Panel" IsVisible="False" Opacity="0" RenderTransform="translateY(14px) scale(0.96)"
-            Margin="20,18,18,18" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            Margin="20,18,18,18" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
         <Grid.Transitions>
           <Transitions>
             <DoubleTransition Property="Opacity" Duration="0:0:0.26" Easing="CubicEaseOut" />
@@ -382,23 +382,26 @@
                             <ItemsControl ItemsSource="{Binding FileChanges}">
                               <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,6" ColumnSpacing="8">
-                                    <Border Width="22" Height="22" CornerRadius="7" Background="#288A63F5"
-                                            VerticalAlignment="Center">
-                                      <TextBlock Text="{Binding KindLabel}" FontSize="12" FontWeight="Bold"
-                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                 Foreground="#EDE8FF" />
-                                    </Border>
-                                    <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="12"
-                                               TextWrapping="WrapWithOverflow" VerticalAlignment="Center"
-                                               Foreground="#E4E2F0" />
-                                    <Button Grid.Column="2" Classes="outline" Content="Undo"
-                                            Padding="10,4" CornerRadius="8" FontSize="11"
-                                            IsVisible="{Binding CanUndo}"
-                                            Command="{Binding $parent[Window].DataContext.UndoFileChangeCommand}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip.Tip="Restore this file to its pre-turn content" />
-                                  </Grid>
+                                  <Border Classes="auditrow" Classes.focused="{Binding IsFocused}"
+                                          Margin="0,0,0,4" Padding="6,4" CornerRadius="8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                      <Border Width="22" Height="22" CornerRadius="7" Background="#288A63F5"
+                                              VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="12" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="#EDE8FF" />
+                                      </Border>
+                                      <TextBlock Grid.Column="1" Text="{Binding Summary}" FontSize="12"
+                                                 TextWrapping="WrapWithOverflow" VerticalAlignment="Center"
+                                                 Foreground="#E4E2F0" />
+                                      <Button Grid.Column="2" Classes="outline" Content="Undo"
+                                              Padding="10,4" CornerRadius="8" FontSize="11"
+                                              IsVisible="{Binding CanUndo}"
+                                              Command="{Binding $parent[Window].DataContext.UndoFileChangeCommand}"
+                                              CommandParameter="{Binding}"
+                                              ToolTip.Tip="Restore this file to its pre-turn content" />
+                                    </Grid>
+                                  </Border>
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -438,8 +441,75 @@
           </ScrollViewer>
         </Grid>
 
+        <!-- Live coding pair: mini-map + heat while the agent writes -->
+        <Border Grid.Row="4" Classes="livepair" Margin="0,0,0,10"
+                IsVisible="{Binding ShowLivePair}">
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+              <StackPanel Spacing="1">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                           IsVisible="{Binding IsLivePairWatching}">
+                    <Ellipse.Fill>
+                      <SolidColorBrush Color="#6DFF9A" />
+                    </Ellipse.Fill>
+                  </Ellipse>
+                  <TextBlock Text="{Binding LivePairTitle}" Classes="sectionlabel"
+                             VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding LivePairSubtitle}" FontSize="11" Classes="muted" />
+              </StackPanel>
+              <Border Grid.Column="1" Classes="livepairbadge" VerticalAlignment="Center"
+                      IsVisible="{Binding IsLivePairWatching}">
+                <TextBlock Text="LIVE" FontSize="9" FontWeight="Bold" Foreground="#9EFFC2" />
+              </Border>
+              <Button Grid.Column="2" Classes="ghost" Content="×" Width="28" Height="28"
+                      Padding="0" CornerRadius="8" FontSize="14" VerticalAlignment="Center"
+                      Command="{Binding DismissLivePairCommand}"
+                      ToolTip.Tip="Dismiss pair map" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding LivePairFiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Classes="livepairrow" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Command="{Binding $parent[Window].DataContext.JumpLivePairCommand}"
+                          CommandParameter="{Binding}"
+                          ToolTip.Tip="{Binding Summary}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,1">
+                      <Border Width="20" Height="20" CornerRadius="6" Background="#288A63F5"
+                              VerticalAlignment="Center"
+                              Classes.fresh="{Binding IsFresh}">
+                        <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#EDE8FF" />
+                      </Border>
+                      <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="#F0EEFF" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding FolderHint}" FontSize="10" Classes="muted"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding FolderHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <StackPanel Orientation="Horizontal" Spacing="2" Height="5" Margin="0,1,0,0">
+                          <Border Height="5" CornerRadius="2" Background="#5546E87A"
+                                  Width="{Binding AddBarWidth}" MinWidth="0" />
+                          <Border Height="5" CornerRadius="2" Background="#55FF6B7A"
+                                  Width="{Binding DelBarWidth}" MinWidth="0" />
+                        </StackPanel>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding StatsLabel}" FontSize="10.5"
+                                 FontFamily="Cascadia Mono, Consolas, monospace"
+                                 Foreground="#B3A6FF" VerticalAlignment="Center" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
         <!-- Follow-up chips -->
-        <StackPanel Grid.Row="4" Margin="0,0,0,10" Spacing="7">
+        <StackPanel Grid.Row="5" Margin="0,0,0,10" Spacing="7">
           <TextBlock Text="NEXT STEPS" Classes="sectionlabel"
                      IsVisible="{Binding Messages.Count}" />
           <ItemsControl ItemsSource="{Binding Suggestions}" IsVisible="{Binding Messages.Count}">
@@ -460,7 +530,7 @@
         </StackPanel>
 
         <!-- Compose bar -->
-        <Border Grid.Row="5" Classes="composeshell">
+        <Border Grid.Row="6" Classes="composeshell">
           <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
             <!-- Context chips: project folder, clipboard, attached files -->
             <WrapPanel Orientation="Horizontal">

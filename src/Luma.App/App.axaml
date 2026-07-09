@@ -657,6 +657,39 @@
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="12,10" />
         </Style>
+        <Style Selector="Border.auditrow.focused">
+            <Setter Property="Background" Value="#448A63F5" />
+            <Setter Property="BoxShadow" Value="0 0 0 1 #AA8A63F5" />
+        </Style>
+        <Style Selector="Border.livepair">
+            <Setter Property="Background" Value="#22161A28" />
+            <Setter Property="BorderBrush" Value="#668A63F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #33000000" />
+            <Setter Property="MaxHeight" Value="168" />
+        </Style>
+        <Style Selector="Border.livepairbadge">
+            <Setter Property="Background" Value="#3346E87A" />
+            <Setter Property="BorderBrush" Value="#6646E87A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+        <Style Selector="Button.livepairrow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,5" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.livepairrow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#228A63F5" />
+        </Style>
+        <Style Selector="Border.fresh">
+            <Setter Property="Background" Value="#5546E87A" />
+        </Style>
         <Style Selector="Button.chaoschip">
             <Setter Property="Background" Value="#33FF5D6E" />
             <Setter Property="Foreground" Value="#FFE8E2FF" />

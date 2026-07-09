@@ -43,7 +43,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     private readonly List<string> _attachedFilePaths = [];
     private DateTimeOffset? _focusUntilUtc;
     private readonly DispatcherTimer _chaosTicker;
+    private readonly DispatcherTimer _livePairTicker;
     private bool _splitBrainEnabled;
+    private WorkspaceSnapshot? _livePairSnapshot;
+    private string? _livePairRoot;
+    private ChatMessage? _livePairAnswer;
+    private bool _livePairActive;
 
     public MainWindowViewModel(Window owner, IScreenCaptureService captureService, IAiClientFactory clientFactory,
         IRunningOperationCoordinator operations, ProviderDiagnostics diagnostics, IScreenDifferenceService screenDifference)
@@ -58,6 +63,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             (_, _) => RefreshOperationStatus());
         _chaosTicker = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
             (_, _) => TickChaosFocus());
+        _livePairTicker = new DispatcherTimer(TimeSpan.FromMilliseconds(1100), DispatcherPriority.Background,
+            (_, _) => PollLivePair());
         CaptureCommand = new AsyncCommand(CaptureAsync, () => IsIdle);
         ExplainSelectionCommand = new AsyncCommand(ExplainSelectionAsync, () => IsIdle && !IsFocusLocked && SelectedDiagnostic?.IsAvailable != false);
         ExplainScreenCommand = new AsyncCommand(ExplainScreenAsync, () => IsIdle && !IsFocusLocked && SelectedDiagnostic?.IsAvailable != false);
@@ -81,6 +88,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         ToggleSplitBrainCommand = new RelayCommand(ToggleSplitBrain);
         ShowWhereCommand = new ParameterCommand(ShowWhereOnScreen);
         ChooseSplitBrainCommand = new ParameterCommand(ChooseSplitBrainSide);
+        JumpLivePairCommand = new ParameterCommand(JumpLivePairFile);
+        DismissLivePairCommand = new RelayCommand(DismissLivePair);
         _operations.Changed += OnOperationsChanged;
         Messages.CollectionChanged += (_, _) =>
         {
@@ -115,8 +124,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand ToggleSplitBrainCommand { get; }
     public ParameterCommand ShowWhereCommand { get; }
     public ParameterCommand ChooseSplitBrainCommand { get; }
+    public ParameterCommand JumpLivePairCommand { get; }
+    public RelayCommand DismissLivePairCommand { get; }
     /// <summary>Opens a file picker (wired from MainWindow) and returns absolute paths.</summary>
     public Func<Task<IReadOnlyList<string>>>? AttachFilesRequested { get; set; }
+    /// <summary>Raised when the user picks a file in the live pair map so the UI can scroll to the audit row.</summary>
+    public Action<ChatMessage, string>? LivePairJumpRequested { get; set; }
+    /// <summary>Files the agent has touched so far this turn (live mini-map).</summary>
+    public ObservableCollection<LivePairFile> LivePairFiles { get; } = [];
+    public bool HasLivePair => LivePairFiles.Count > 0;
+    public bool IsLivePairWatching => _livePairActive;
+    /// <summary>Show the strip while watching (even empty) or after files land.</summary>
+    public bool ShowLivePair => _livePairActive || LivePairFiles.Count > 0;
+    public string LivePairTitle => _livePairActive
+        ? (LivePairFiles.Count == 0 ? "PAIR · watching writes…" : $"PAIR · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}")
+        : (LivePairFiles.Count == 0 ? "PAIR" : $"PAIR · {LivePairFiles.Count} file{(LivePairFiles.Count == 1 ? "" : "s")}");
+    public string LivePairSubtitle => _livePairActive
+        ? "Live heatmap while the agent writes"
+        : "Click a file to jump to the audit entry";
     /// <summary>Short prompt ideas derived from the ambient screen capture, shown as chips.</summary>
     public ObservableCollection<string> Suggestions { get; } = [];
     /// <summary>Display names of files attached for the next send (@file or picker).</summary>
@@ -672,6 +697,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
             var taskContext = BuildTurnContext(prompt);
             // Snapshot project files so we can audit agent writes after the turn.
             var writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+            BeginLivePair(WorkingDirectory, writeSnapshot, answer);
             // Attach the chosen project folder so providers can read files (cwd + prompt root).
             var request = new AiRequest(prompt, region, context, history)
             {
@@ -700,6 +726,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
                 streamBridge.Reopen();
                 writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+                BeginLivePair(WorkingDirectory, writeSnapshot, answer);
                 var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history)
                 {
                     WorkingDirectory = WorkingDirectory,
@@ -736,6 +763,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         finally
         {
+            EndLivePairWatch();
             ticker.Stop();
             stopwatch.Stop();
             answer.IsPending = false;
@@ -772,6 +800,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var writeSnapshot = WorkspaceWriteAuditor.Capture(repository);
+            BeginLivePair(repository, writeSnapshot, answer);
             var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
             answer.CodeSession = session;
             await session.RunAsync(prompt, cts.Token);
@@ -793,6 +822,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         finally
         {
+            EndLivePairWatch();
             ticker.Stop();
             stopwatch.Stop();
             answer.IsPending = false;
@@ -888,6 +918,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _requestCts = cts;
         var writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
+        BeginLivePair(WorkingDirectory, writeSnapshot, answer);
         try
         {
             var taskContext = BuildTurnContext(prompt);
@@ -931,6 +962,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
         finally
         {
+            EndLivePairWatch();
             answer.IsPending = false;
             answer.IsStreaming = false;
             _requestCts = null;
@@ -1111,20 +1143,156 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     private void AttachWriteAudit(ChatMessage answer, WorkspaceSnapshot snapshot)
     {
-        if (string.IsNullOrWhiteSpace(WorkingDirectory)) return;
+        var root = _livePairRoot ?? WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(root)) return;
         try
         {
-            var changes = WorkspaceWriteAuditor.Diff(WorkingDirectory, snapshot);
+            var changes = WorkspaceWriteAuditor.Diff(root, snapshot);
+            // Final poll so the mini-map matches the audit list.
+            try
+            {
+                LivePairMap.MergeInto(LivePairFiles, LivePairMap.Scan(root, snapshot));
+                NotifyLivePairChanged();
+            }
+            catch { /* live map is best-effort */ }
             if (changes.Count == 0) return;
             answer.SetFileChanges(changes);
+            _livePairAnswer = answer;
             var names = string.Join(", ", changes.Take(4).Select(c => c.RelativePath));
             OutcomeMemory.Record(OutcomeKind.Write,
                 changes.Count == 1 ? $"Edited {changes[0].RelativePath}" : $"Changed {changes.Count} files ({names})",
-                WorkingDirectory,
+                root,
                 changes.Select(c => c.RelativePath).Take(8));
             RefreshOutcomeChips();
         }
         catch { /* audit is best-effort */ }
+    }
+
+    /// <summary>Starts the live coding pair mini-map for an agent turn with a project folder.</summary>
+    private void BeginLivePair(string? root, WorkspaceSnapshot snapshot, ChatMessage answer)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            // No project folder — clear any stale map from a previous turn.
+            if (!_livePairActive && LivePairFiles.Count == 0) return;
+            DismissLivePair();
+            return;
+        }
+
+        _livePairRoot = root;
+        _livePairSnapshot = snapshot;
+        _livePairAnswer = answer;
+        LivePairFiles.Clear();
+        _livePairActive = true;
+        if (!_livePairTicker.IsEnabled) _livePairTicker.Start();
+        NotifyLivePairChanged();
+        // Immediate scan so create/write mid-turn shows up without waiting a full tick.
+        PollLivePair();
+    }
+
+    /// <summary>Stops polling but keeps the mini-map until dismiss or next turn.</summary>
+    private void EndLivePairWatch()
+    {
+        if (!_livePairActive) return;
+        _livePairActive = false;
+        _livePairTicker.Stop();
+        // One last scan so late flushes land before the audit card freezes.
+        if (_livePairSnapshot is not null && !string.IsNullOrWhiteSpace(_livePairRoot))
+        {
+            try { LivePairMap.MergeInto(LivePairFiles, LivePairMap.Scan(_livePairRoot, _livePairSnapshot)); }
+            catch { /* ignore */ }
+        }
+        NotifyLivePairChanged();
+    }
+
+    private void PollLivePair()
+    {
+        if (!_livePairActive || _livePairSnapshot is null || string.IsNullOrWhiteSpace(_livePairRoot))
+            return;
+        try
+        {
+            // Cool previous pulse first; MergeInto re-marks files that just grew.
+            foreach (var file in LivePairFiles) file.IsFresh = false;
+            var scan = LivePairMap.Scan(_livePairRoot, _livePairSnapshot);
+            LivePairMap.MergeInto(LivePairFiles, scan);
+            NotifyLivePairChanged();
+        }
+        catch { /* best-effort */ }
+    }
+
+    private void JumpLivePairFile(object? parameter)
+    {
+        if (parameter is not LivePairFile file) return;
+        // Prefer the answer from this pair session; fall back to newest message with that path.
+        ChatMessage? target = null;
+        FileChangeRecord? record = null;
+        if (_livePairAnswer is { HasFileChanges: true } answer)
+        {
+            record = answer.FileChanges.FirstOrDefault(c =>
+                string.Equals(c.RelativePath, file.RelativePath, StringComparison.OrdinalIgnoreCase));
+            if (record is not null) target = answer;
+        }
+        if (target is null)
+        {
+            for (var i = Messages.Count - 1; i >= 0; i--)
+            {
+                var msg = Messages[i];
+                if (!msg.HasFileChanges) continue;
+                record = msg.FileChanges.FirstOrDefault(c =>
+                    string.Equals(c.RelativePath, file.RelativePath, StringComparison.OrdinalIgnoreCase));
+                if (record is null) continue;
+                target = msg;
+                break;
+            }
+        }
+
+        if (target is null || record is null)
+        {
+            // Turn still running or audit not attached yet — flash the mini-map row.
+            file.IsFresh = true;
+            return;
+        }
+
+        // Clear previous focus highlights.
+        foreach (var msg in Messages)
+            foreach (var change in msg.FileChanges)
+                change.IsFocused = false;
+        record.IsFocused = true;
+        LivePairJumpRequested?.Invoke(target, file.RelativePath);
+
+        // Auto-clear highlight after a moment.
+        var focused = record;
+        _ = ClearFocusLaterAsync(focused);
+    }
+
+    private static async Task ClearFocusLaterAsync(FileChangeRecord focused)
+    {
+        try
+        {
+            await Task.Delay(2800);
+            await Dispatcher.UIThread.InvokeAsync(() => focused.IsFocused = false);
+        }
+        catch { /* ignore */ }
+    }
+
+    private void DismissLivePair()
+    {
+        _livePairActive = false;
+        _livePairTicker.Stop();
+        _livePairSnapshot = null;
+        _livePairRoot = null;
+        _livePairAnswer = null;
+        LivePairFiles.Clear();
+        NotifyLivePairChanged();
+    }
+
+    private void NotifyLivePairChanged()
+    {
+        OnPropertyChanged(nameof(HasLivePair));
+        OnPropertyChanged(nameof(ShowLivePair));
+        OnPropertyChanged(nameof(IsLivePairWatching));
+        OnPropertyChanged(nameof(LivePairTitle));
+        OnPropertyChanged(nameof(LivePairSubtitle));
     }
 
     private void RefreshOutcomeChips(string? promptHint = null)
@@ -1389,6 +1557,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         _operations.Changed -= OnOperationsChanged;
         _operationTicker.Stop();
+        _livePairTicker.Stop();
+        _chaosTicker.Stop();
         _lifetime.Cancel();
         DisposeMessages();
         ReplaceCapture(ref _regionPath, null);

@@ -112,6 +112,12 @@ public partial class MainWindow : Window
                     };
             ScrollChatToEnd();
         };
+        _viewModel.LivePairJumpRequested = (_, _) => ScrollChatToEnd();
+        _viewModel.LivePairFiles.CollectionChanged += (_, _) =>
+        {
+            // Keep the latest write in view when the mini-map first appears.
+            if (_viewModel.LivePairFiles.Count == 1) ScrollChatToEnd();
+        };
     }
 
     /// <summary>

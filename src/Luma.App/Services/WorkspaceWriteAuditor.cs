@@ -6,6 +6,7 @@ public enum FileChangeKind { Created, Modified, Deleted }
 public sealed class FileChangeRecord : System.ComponentModel.INotifyPropertyChanged
 {
     private bool _isUndone;
+    private bool _isFocused;
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
@@ -14,6 +15,18 @@ public sealed class FileChangeRecord : System.ComponentModel.INotifyPropertyChan
     /// <summary>Content before the turn (null when the file was created). Too-large files omit content.</summary>
     public string? PreviousContent { get; init; }
     public bool ContentTracked { get; init; } = true;
+
+    /// <summary>True when the live pair mini-map jumped here (brief highlight).</summary>
+    public bool IsFocused
+    {
+        get => _isFocused;
+        set
+        {
+            if (_isFocused == value) return;
+            _isFocused = value;
+            PropertyChanged?.Invoke(this, new(nameof(IsFocused)));
+        }
+    }
 
     public bool IsUndone
     {
