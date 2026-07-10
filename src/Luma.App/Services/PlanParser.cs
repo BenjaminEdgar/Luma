@@ -112,6 +112,8 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
     private string _title = "Plan";
     private string _markdown = string.Empty;
     private IReadOnlyList<PlanStep> _steps = [];
+    private string _lastActivity = "Waiting for plan...";
+    private DateTimeOffset _lastActivityAt = DateTimeOffset.MinValue;
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
@@ -139,6 +141,7 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new(nameof(HasContent)));
             PropertyChanged?.Invoke(this, new(nameof(CanImplement)));
             PropertyChanged?.Invoke(this, new(nameof(StepSummary)));
+            PropertyChanged?.Invoke(this, new(nameof(ProgressSummary)));
         }
     }
 
@@ -150,11 +153,47 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
             _steps = value ?? [];
             PropertyChanged?.Invoke(this, new(nameof(Steps)));
             PropertyChanged?.Invoke(this, new(nameof(StepSummary)));
+            PropertyChanged?.Invoke(this, new(nameof(ProgressSummary)));
         }
     }
 
     public bool HasContent => !string.IsNullOrWhiteSpace(Markdown);
     public bool CanImplement => HasContent;
+
+    public string ProgressSummary
+    {
+        get
+        {
+            if (Steps.Count == 0)
+                return HasContent ? "Editable plan" : "Waiting for plan...";
+            var done = Steps.Count(s => s.Done);
+            var percent = Math.Clamp((int)Math.Round(done * 100.0 / Steps.Count), 0, 100);
+            return $"{done}/{Steps.Count} steps checked · {percent}% complete";
+        }
+    }
+
+    public string LastActivity
+    {
+        get => _lastActivity;
+        private set
+        {
+            var next = string.IsNullOrWhiteSpace(value) ? "Waiting for plan..." : value.Trim();
+            if (_lastActivity == next) return;
+            _lastActivity = next;
+            PropertyChanged?.Invoke(this, new(nameof(LastActivity)));
+        }
+    }
+
+    public DateTimeOffset LastActivityAt
+    {
+        get => _lastActivityAt;
+        private set
+        {
+            if (_lastActivityAt == value) return;
+            _lastActivityAt = value;
+            PropertyChanged?.Invoke(this, new(nameof(LastActivityAt)));
+        }
+    }
 
     public string StepSummary
     {
@@ -173,6 +212,7 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
         Title = PlanParser.InferTitle(md);
         Steps = PlanParser.ParseSteps(md);
         Markdown = md;
+        RecordActivity(HasContent ? $"Plan refreshed: {ProgressSummary}" : "Plan cleared");
     }
 
     public void Clear()
@@ -180,6 +220,7 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
         Title = "Plan";
         Steps = [];
         Markdown = string.Empty;
+        RecordActivity("Plan cleared");
     }
 
     /// <summary>Marks a checklist step done/undone and rewrites the matching markdown checkbox.</summary>
@@ -193,6 +234,13 @@ public sealed class PlanDocument : System.ComponentModel.INotifyPropertyChanged
         next[index] = current with { Done = done };
         Steps = next;
         Markdown = PlanParser.RewriteChecklistMarkdown(Markdown, next);
+        RecordActivity($"{current.Text} {(done ? "checked off" : "reopened")}");
+    }
+
+    private void RecordActivity(string activity)
+    {
+        LastActivity = activity;
+        LastActivityAt = DateTimeOffset.UtcNow;
     }
 }
 

@@ -98,12 +98,15 @@ public sealed class PlanModeTests
     {
         var doc = PlanParser.Parse("# Ship\n- [ ] One\n- [ ] Two");
         Assert.Equal(0, doc.Steps.Count(s => s.Done));
+        Assert.Equal("0/2 steps checked · 0% complete", doc.ProgressSummary);
+        Assert.Contains("Plan refreshed", doc.LastActivity, StringComparison.Ordinal);
         doc.SetStepDone(0, true);
         Assert.True(doc.Steps[0].Done);
         Assert.False(doc.Steps[1].Done);
         Assert.Contains("- [x] One", doc.Markdown, StringComparison.Ordinal);
         Assert.Contains("- [ ] Two", doc.Markdown, StringComparison.Ordinal);
-        Assert.Equal("1/2 steps checked", doc.StepSummary);
+        Assert.Equal("1/2 steps checked · 50% complete", doc.ProgressSummary);
+        Assert.Contains("One checked off", doc.LastActivity, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -146,6 +149,8 @@ public sealed class PlanModeTests
         Assert.Contains("_hasAnchored", planWin, StringComparison.Ordinal);
         Assert.Contains("UpdateStepsList", planWin, StringComparison.Ordinal);
         Assert.Contains("StepRow", planWin, StringComparison.Ordinal);
+        Assert.Contains("Recent activity", planWin, StringComparison.Ordinal);
+        Assert.Contains("ProgressSummary", planWin, StringComparison.Ordinal);
         // Tick-box default; raw markdown only via Edit toggle.
         Assert.Contains("ToggleEdit", planWin, StringComparison.Ordinal);
         Assert.Contains("IsVisible = false", planWin, StringComparison.Ordinal);
@@ -160,6 +165,9 @@ public sealed class PlanModeTests
         Assert.Contains("PlanUpdated = OnPlanUpdated", mainCs, StringComparison.Ordinal);
         Assert.Contains("PlanWindowToggleRequested", mainCs, StringComparison.Ordinal);
         Assert.Contains("SetProgressTracking", mainCs, StringComparison.Ordinal);
+        Assert.Contains("When the dock is collapsed, keep it", mainCs, StringComparison.Ordinal);
+        Assert.Contains("collapsed and use the floating prompt as the default answer surface", mainCs,
+            StringComparison.Ordinal);
     }
 
     [Fact]

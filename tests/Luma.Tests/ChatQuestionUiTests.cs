@@ -73,6 +73,21 @@ public sealed class ChatQuestionUiTests
         Assert.Contains("TextBlock.questionprompt", axaml);
     }
 
+    [Fact]
+    public void CollapsedQuestionsUsePopupWithoutForcingExpand()
+    {
+        var mainCs = ReadShipped("src/Luma.App/MainWindow.axaml.cs");
+        Assert.Contains("When the dock is collapsed, keep it", mainCs, StringComparison.Ordinal);
+        Assert.Contains("collapsed and use the floating prompt as the default answer surface", mainCs,
+            StringComparison.Ordinal);
+        var methodStart = mainCs.IndexOf("private void PresentClarifyingQuestion(", StringComparison.Ordinal);
+        var methodEnd = mainCs.IndexOf("private void ClearPendingQuestion()", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = mainCs[methodStart..methodEnd];
+        Assert.Contains("if (wasCollapsed)", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("SetExpanded(true);", method, StringComparison.Ordinal);
+    }
+
     private static string BuildPrompt(AiRequest request)
     {
         // Same surface as CliParsingTests — exercises the shipped BuildPrompt path.

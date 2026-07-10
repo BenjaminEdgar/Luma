@@ -29,6 +29,22 @@ public sealed class PlanDocumentWindow : Window
         Foreground = LumaTheme.TextMutedBrush,
         VerticalAlignment = VerticalAlignment.Center,
     };
+    private readonly TextBlock _activityLabel = new()
+    {
+        Text = "Recent activity",
+        FontSize = 10,
+        FontWeight = FontWeight.SemiBold,
+        LetterSpacing = 1.1,
+        Foreground = LumaTheme.AccentSoftBrush,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+    private readonly TextBlock _activity = new()
+    {
+        FontSize = 11.5,
+        Foreground = LumaTheme.TextBodyBrush,
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
     private readonly TextBlock _dockTitle = new()
     {
         FontSize = 12.5,
@@ -170,6 +186,16 @@ public sealed class PlanDocumentWindow : Window
                                 _summary,
                             },
                         },
+                        new Grid
+                        {
+                            ColumnDefinitions = ColumnDefinitions.Parse("Auto,*"),
+                            ColumnSpacing = 10,
+                            Children =
+                            {
+                                _activityLabel,
+                                _activity,
+                            },
+                        },
                     },
                 },
                 close,
@@ -177,6 +203,7 @@ public sealed class PlanDocumentWindow : Window
         };
         Grid.SetColumn(close, 1);
         Grid.SetColumn(_summary, 1);
+        Grid.SetColumn(_activity, 1);
 
         // Clear + Edit left; full-width accent Implement.
         var leftActions = new StackPanel
@@ -239,7 +266,8 @@ public sealed class PlanDocumentWindow : Window
         {
             if (e.PropertyName is nameof(PlanDocument.Markdown) or nameof(PlanDocument.Title)
                 or nameof(PlanDocument.StepSummary) or nameof(PlanDocument.CanImplement)
-                or nameof(PlanDocument.Steps))
+                or nameof(PlanDocument.Steps) or nameof(PlanDocument.ProgressSummary)
+                or nameof(PlanDocument.LastActivity))
                 Dispatcher.UIThread.Post(SyncFromDocument);
         };
 
@@ -554,9 +582,10 @@ public sealed class PlanDocumentWindow : Window
     private void RefreshChrome()
     {
         _title.Text = _document.Title;
-        _summary.Text = _document.StepSummary;
+        _summary.Text = _document.ProgressSummary;
         _dockTitle.Text = string.IsNullOrWhiteSpace(_document.Title) ? "Plan" : _document.Title;
         _dockSummary.Text = _document.StepSummary;
+        _activity.Text = _document.LastActivity;
         _implement.IsEnabled = _document.CanImplement;
         ApplyEditVisibility();
         ApplyActionVisibility();

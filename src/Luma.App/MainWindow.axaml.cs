@@ -177,19 +177,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Surfaces a clarifying question via the in-chat card. If the dock was collapsed, also opens
-    /// the floating prompt so the question is impossible to miss while the panel expands.
+    /// Surfaces a clarifying question via the in-chat card. When the dock is collapsed, keep it
+    /// collapsed and use the floating prompt as the default answer surface.
     /// </summary>
     private void PresentClarifyingQuestion(ChatMessage message)
     {
         _pendingQuestion = message;
         var wasCollapsed = !_expanded;
-        SetExpanded(true);
-        ScrollChatToEnd();
         if (wasCollapsed)
+        {
             _questionWindow.Show(this, TextSanitizer.Clean(message.Question!), message.QuestionChoices);
-        else
-            _questionWindow.Hide();
+            return;
+        }
+
+        ScrollChatToEnd();
+        _questionWindow.Hide();
     }
 
     private void ClearPendingQuestion()
