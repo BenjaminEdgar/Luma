@@ -126,6 +126,7 @@ public sealed class PlanModeTests
         Assert.Contains("TogglePlanWindowCommand", xaml, StringComparison.Ordinal);
         Assert.Contains("PlanChipVisible", xaml, StringComparison.Ordinal);
         Assert.Contains("ImplementPlanCommand", xaml, StringComparison.Ordinal);
+        Assert.Contains("ShowImplementPlanButton", xaml, StringComparison.Ordinal);
         Assert.Contains("PlanModeChipLabel", xaml, StringComparison.Ordinal);
         Assert.Contains("IsPlanWindowCollapsed", xaml, StringComparison.Ordinal);
         Assert.Contains("planchip", xaml, StringComparison.Ordinal);
@@ -165,6 +166,10 @@ public sealed class PlanModeTests
         Assert.Contains("PlanUpdated = OnPlanUpdated", mainCs, StringComparison.Ordinal);
         Assert.Contains("PlanWindowToggleRequested", mainCs, StringComparison.Ordinal);
         Assert.Contains("SetProgressTracking", mainCs, StringComparison.Ordinal);
+        Assert.Contains("ReplacePlanMarkdownFromWindow", mainCs, StringComparison.Ordinal);
+        Assert.DoesNotContain("_viewModel.Plan.ReplaceFromMarkdown", mainCs, StringComparison.Ordinal);
+        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        Assert.Contains("ShowImplementPlanButton", vm, StringComparison.Ordinal);
         Assert.Contains("When the dock is collapsed, keep it", mainCs, StringComparison.Ordinal);
         Assert.Contains("collapsed and use the floating prompt as the default answer surface", mainCs,
             StringComparison.Ordinal);

@@ -25,10 +25,13 @@ public static partial class ClarifyingQuestionParser
         var parts = match.Groups["q"].Value.Split("||", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         var question = parts.FirstOrDefault()?.Trim();
         var cleaned = (text[..match.Index] + text[(match.Index + match.Length)..]).Trim();
+        var choices = parts.Skip(1).Take(4).ToArray();
+        if (!string.IsNullOrWhiteSpace(question) && choices.Length == 0)
+            choices = ["Do your best", "Continue without it"];
         return new(
             string.IsNullOrWhiteSpace(cleaned) ? "One quick question before I continue:" : cleaned,
             question,
-            parts.Skip(1).Take(4).ToArray());
+            choices);
     }
 
     public static bool TryExtractScreenRereadReason(string text, out string reason)

@@ -4,6 +4,7 @@ using Luma.App.Services;
 namespace Luma.Tests;
 
 /// <summary>Guards that provider CLIs allow read + write file tools on agent turns.</summary>
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class AgentReadToolsTests
 {
     [Fact]
@@ -41,7 +42,7 @@ public sealed class AgentReadToolsTests
     [Fact]
     public void ChatTurnPassesWorkingDirectorySoAgentsCanTouchProjectFiles()
     {
-        var source = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var source = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
         Assert.Contains("WorkingDirectory = WorkingDirectory", source);
         Assert.Contains("new AiRequest(prompt, region, context, history)", source);
     }

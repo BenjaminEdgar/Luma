@@ -51,7 +51,7 @@ public sealed class PromptImproveTests
         Assert.Contains("Improve prompt", xaml);
         Assert.Contains("ImprovePromptCommand", xaml);
 
-        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Capture.cs");
         Assert.Contains("ImprovePromptAsync", vm);
         Assert.Contains("TaskKind.ImprovePrompt", vm);
     }

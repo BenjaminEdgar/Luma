@@ -50,9 +50,7 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     private readonly DispatcherTimer _chaosTicker;
     private readonly DispatcherTimer _livePairTicker;
     private bool _splitBrainEnabled;
-    private bool _planModeEnabled;
-    private bool _planProgressTracking;
-    private bool _planWindowCollapsed;
+    private readonly PlanCoordinator _planCoordinator = new();
     private WorkspaceSnapshot? _livePairSnapshot;
     private string? _livePairRoot;
     private ChatMessage? _livePairAnswer;
@@ -118,6 +116,19 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
             OnPropertyChanged(nameof(ShowScreenLandingActions));
             OnPropertyChanged(nameof(ShowRepoLandingActions));
             NewChatCommand.RaiseCanExecuteChanged();
+        };
+        _planCoordinator.StateChanged += NotifyPlanStateChanged;
+        _planCoordinator.ModeChanged += on =>
+        {
+            if (on) IsPlanWindowCollapsed = false; // entering plan shows expanded checklist
+            PlanModeChanged?.Invoke(on);
+        };
+        _planCoordinator.ProgressTrackingChanged += tracking => PlanProgressTrackingChanged?.Invoke(tracking);
+        _planCoordinator.WindowCollapsedChanged += collapsed => PlanWindowCollapsedChanged?.Invoke(collapsed);
+        _planCoordinator.PlanUpdated += () =>
+        {
+            ImplementPlanCommand.RaiseCanExecuteChanged();
+            PlanUpdated?.Invoke();
         };
     }
 
@@ -276,54 +287,33 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     public string SplitBrainMenuLabel => SplitBrainEnabled ? "Split-brain: ON" : "Split-brain: OFF";
     public string SplitBrainChipLabel => SplitBrainEnabled ? "Split-brain ON" : "Split-brain";
     /// <summary>Live plan document for Plan Mode (separate window + Implement handoff).</summary>
-    public PlanDocument Plan { get; } = new();
+    public PlanDocument Plan => _planCoordinator.Document;
     public bool PlanModeEnabled
     {
-        get => _planModeEnabled;
-        private set
-        {
-            if (_planModeEnabled == value) return;
-            Set(ref _planModeEnabled, value);
-            PlanMode.Active = value;
-            OnPropertyChanged(nameof(PlanModeMenuLabel));
-            OnPropertyChanged(nameof(PlanModeChipLabel));
-            OnPropertyChanged(nameof(PlanChipVisible));
-            OnPropertyChanged(nameof(ComposePlaceholder));
-            ImplementPlanCommand.RaiseCanExecuteChanged();
-            TogglePlanWindowCommand.RaiseCanExecuteChanged();
-            NotifySurfaceStateChanged();
-            if (value) IsPlanWindowCollapsed = false; // entering plan shows expanded checklist
-            PlanModeChanged?.Invoke(value);
-        }
+        get => _planCoordinator.ModeEnabled;
+        private set => _planCoordinator.SetModeEnabled(value);
     }
     public string PlanModeMenuLabel => PlanModeEnabled ? "Plan mode: ON" : "Plan mode: OFF";
     public string PlanModeChipLabel => "Plan";
+    public bool ShowImplementPlanButton => PlanModeEnabled && Plan.CanImplement;
     /// <summary>Tracks last known collapsed state of the side plan window for chevron affordance on chip.</summary>
     public bool IsPlanWindowCollapsed
     {
-        get => _planWindowCollapsed;
+        get => _planCoordinator.WindowCollapsed;
         internal set
         {
-            if (_planWindowCollapsed == value) return;
-            Set(ref _planWindowCollapsed, value);
+            if (IsPlanWindowCollapsed == value) return;
+            _planCoordinator.SetWindowCollapsed(value);
+            OnPropertyChanged(nameof(IsPlanWindowCollapsed));
         }
     }
     /// <summary>Plan chip stays while mode is on or implement is tracking progress (collapse/expand only).</summary>
-    public bool PlanChipVisible => PlanDockExperience.ChipVisible(PlanModeEnabled, PlanProgressTracking);
+    public bool PlanChipVisible => _planCoordinator.ChipVisible;
     /// <summary>True while Implement is running — plan window stays open and accepts step check-offs.</summary>
     public bool PlanProgressTracking
     {
-        get => _planProgressTracking;
-        private set
-        {
-            if (_planProgressTracking == value) return;
-            _planProgressTracking = value;
-            PlanMode.TrackingProgress = value;
-            OnPropertyChanged(nameof(PlanProgressTracking));
-            OnPropertyChanged(nameof(PlanChipVisible));
-            TogglePlanWindowCommand.RaiseCanExecuteChanged();
-            PlanProgressTrackingChanged?.Invoke(value);
-        }
+        get => _planCoordinator.ProgressTracking;
+        private set => _planCoordinator.SetProgressTracking(value);
     }
     /// <summary>Raised when plan mode is toggled so the UI can show/hide the plan window.</summary>
     public Action<bool>? PlanModeChanged { get; set; }
@@ -331,6 +321,8 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     public Action<bool>? PlanProgressTrackingChanged { get; set; }
     /// <summary>Raised when the plan chip asks to collapse/expand the plan window (not mode).</summary>
     public Action? PlanWindowToggleRequested { get; set; }
+    /// <summary>Raised when coordinator state needs the real plan window collapsed/expanded.</summary>
+    public Action<bool>? PlanWindowCollapsedChanged { get; set; }
     /// <summary>Raised when the plan document is updated from a PLAN: directive.</summary>
     public Action? PlanUpdated { get; set; }
     public Func<TaskLaunchRequest, Task<bool>>? TaskLaunchRequested { get; set; }
@@ -552,42 +544,6 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         NotifySurfaceStateChanged();
     }
 
-    /// <summary>Runs a clicked suggestion chip as a plain chat turn regardless of the selected
-    /// mode - suggestions describe what is on screen, never code or shell work.</summary>
-    // Chat turn flow moved to MainWindowViewModel.Chat.cs.
-    // GenerateScreenDigestAsync
-    // BuildTurnContext
-    // ContextAttachments
-    // await RunTurnAsync(prompt, attachCaptures: false)
-    // RunTurnAsync(answer, attachCaptures: false)
-    // RunTurnAsync(prompt, displayPrompt: suggestion, attachCaptures: true)
-    // ChatCaptureAttachment.ForFirstRequest
-    // ChatStreamUiBridge
-    // streamBridge.OnPartial
-    // ChatStreamTextPolicy.ApplyPartial
-    // ApplyFinalAnswerText
-    // ChatStreamTextPolicy.ApplyFinal
-    // _ = GenerateFollowUpSuggestionsAsync()
-    // TryExtractScreenRereadReason
-    // Messages.Take(Messages.Count - 2)
-    // new AiRequest(prompt, region, context, history)
-    // WorkingDirectory = WorkingDirectory
-    // WorkspaceWriteAuditor
-    // !sentVisual && ClarifyingQuestionParser.TryExtractScreenRereadReason
-    // ImprovePromptAsync
-    // TaskKind.ImprovePrompt
-    // ArgueWithYourselfAsync
-    // TogglePomodoro
-    // IsFocusLocked
-    // GhostCursorWindow.PointAt
-    // RunSplitBrainTurnAsync
-    // never turns plan mode off
-    // OutcomeMemory
-    // ShowWhereParser
-    // BeginLivePair
-    // LivePairMap
-    // PlanWindowToggleRequested
-
     private void ShowWhereOnScreen(object? parameter)
     {
         if (parameter is not ChatMessage { ShowWhere: { } target }) return;
@@ -615,34 +571,6 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         if (!CanStartNewChat) return;
         ForceNewChat();
     }
-
-    private string? BuildTurnContext(string prompt) =>
-        ContextAttachments.BuildTaskContext(ClipboardSnippet, _attachedFilePaths, WorkingDirectory, prompt);
-
-    private void ConsumeEphemeralAttachments()
-    {
-        // Clipboard + explicit file pins apply once, then clear so they don't leak into every turn.
-        ClearClipboardSnippet();
-        ClearAttachedFiles();
-    }
-
-    private async Task UseClipboardAsync()
-    {
-        try
-        {
-            if (_owner.Clipboard is null) return;
-            var text = await ClipboardExtensions.TryGetTextAsync(_owner.Clipboard);
-            if (string.IsNullOrWhiteSpace(text)) return;
-            ClipboardSnippet = text.Trim();
-        }
-        catch { /* clipboard unavailable */ }
-    }
-
-    private void ClearClipboardSnippet()
-    {
-        ClipboardSnippet = null;
-    }
-
 
     /// <summary>Shows the region (preferred) or full-screen capture inside a chat bubble.</summary>
     private static void AttachCaptureToMessage(ChatMessage message, string? regionPath, string? contextPath)
@@ -712,6 +640,21 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         OnPropertyChanged(nameof(ShowGlobalExplainHint));
     }
 
+    private void NotifyPlanStateChanged()
+    {
+        OnPropertyChanged(nameof(PlanModeEnabled));
+        OnPropertyChanged(nameof(PlanModeMenuLabel));
+        OnPropertyChanged(nameof(PlanModeChipLabel));
+        OnPropertyChanged(nameof(ShowImplementPlanButton));
+        OnPropertyChanged(nameof(PlanProgressTracking));
+        OnPropertyChanged(nameof(IsPlanWindowCollapsed));
+        OnPropertyChanged(nameof(PlanChipVisible));
+        OnPropertyChanged(nameof(ComposePlaceholder));
+        ImplementPlanCommand.RaiseCanExecuteChanged();
+        TogglePlanWindowCommand.RaiseCanExecuteChanged();
+        NotifySurfaceStateChanged();
+    }
+
     private static string MemoryPreview(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return string.Empty;
@@ -726,8 +669,7 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         _livePairTicker.Stop();
         _chaosTicker.Stop();
         _lifetime.Cancel();
-        PlanMode.Active = false;
-        PlanMode.TrackingProgress = false;
+        _planCoordinator.Dispose();
         DisposeMessages();
         ReplaceCapture(ref _regionPath, null);
         ReplaceCapture(ref _contextPath, null);

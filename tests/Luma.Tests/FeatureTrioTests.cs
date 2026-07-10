@@ -92,11 +92,14 @@ public sealed class FeatureTrioTests
         Assert.Contains("HasClipboardSnippet", xaml);
         Assert.Contains("ActionChips", xaml);
 
-        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
-        Assert.Contains("WorkspaceWriteAuditor", vm);
-        Assert.Contains("GenerateScreenDigestAsync", vm);
-        Assert.Contains("BuildTurnContext", vm);
-        Assert.Contains("ContextAttachments", vm);
+        var chatVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
+        var codeVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Code.cs");
+        var captureVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Capture.cs");
+        var attachmentsVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Attachments.cs");
+        Assert.Contains("WorkspaceWriteAuditor", chatVm + codeVm);
+        Assert.Contains("GenerateScreenDigestAsync", captureVm);
+        Assert.Contains("BuildTurnContext", attachmentsVm);
+        Assert.Contains("ContextAttachments", attachmentsVm);
     }
 
     private static string ReadShipped(string relativePath)

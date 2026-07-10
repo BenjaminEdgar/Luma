@@ -2,6 +2,7 @@ using Luma.App.Services;
 
 namespace Luma.Tests;
 
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class ChaosModeTests
 {
     [Fact]
@@ -65,7 +66,7 @@ public sealed class ChaosModeTests
         Assert.Contains("ToggleChaosModeCommand", xaml);
         Assert.Contains("chaoschip", xaml);
 
-        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chaos.cs");
         Assert.Contains("ArgueWithYourselfAsync", vm);
         Assert.Contains("TogglePomodoro", vm);
         Assert.Contains("IsFocusLocked", vm);

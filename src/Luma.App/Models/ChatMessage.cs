@@ -16,7 +16,6 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
     private string? _turnMeta;
     private bool _isQuestion;
     private string? _question;
-    private string _questionAnswer = string.Empty;
     private IReadOnlyList<string> _questionChoices = [];
     private bool _isStreaming;
     private CodeChatSession? _codeSession;
@@ -139,7 +138,6 @@ public sealed class ChatMessage(string role, string text, bool isPending = false
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowQuestionCard)));
         }
     }
-    public string QuestionAnswer { get => _questionAnswer; set => Set(ref _questionAnswer, value); }
     public IReadOnlyList<string> QuestionChoices
     {
         get => _questionChoices;

@@ -4,6 +4,7 @@ using Luma.App.Services;
 namespace Luma.Tests;
 
 /// <summary>Guards the clarifying-question chat UX: model directive → message state → in-chat card wiring.</summary>
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class ChatQuestionUiTests
 {
     [Fact]
@@ -68,9 +69,20 @@ public sealed class ChatQuestionUiTests
         var axaml = ReadShipped("src/Luma.App/App.axaml");
         Assert.Contains("Border.questioncard", axaml);
         Assert.Contains("Button.qchoice", axaml);
-        Assert.Contains("TextBox.qanswer", axaml);
+        Assert.DoesNotContain("TextBox.qanswer", axaml);
         Assert.Contains("Border.bubble.question", axaml);
         Assert.Contains("TextBlock.questionprompt", axaml);
+
+        var chatXaml = ReadShipped("src/Luma.App/MainWindow.axaml");
+        Assert.DoesNotContain("OnQuestionAnswerKeyDown", chatXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("QuestionAnswer", chatXaml, StringComparison.Ordinal);
+
+        var messageModel = ReadShipped("src/Luma.App/Models/ChatMessage.cs");
+        Assert.DoesNotContain("QuestionAnswer", messageModel, StringComparison.Ordinal);
+        Assert.DoesNotContain("_questionAnswer", messageModel, StringComparison.Ordinal);
+
+        var vmChat = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
+        Assert.Contains("QuestionAnswerSelection", vmChat, StringComparison.Ordinal);
     }
 
     [Fact]

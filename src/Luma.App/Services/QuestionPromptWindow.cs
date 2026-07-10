@@ -29,20 +29,6 @@ public sealed class QuestionPromptWindow : Window
         LineHeight = 24,
     };
     private readonly StackPanel _choices = new() { Spacing = 8 };
-    private readonly TextBox _freeText = new()
-    {
-        PlaceholderText = "Or type your own answer…",
-        AcceptsReturn = false,
-        MinHeight = 40,
-        FontSize = 13.5,
-        Foreground = LumaTheme.TextBrightBrush,
-        CaretBrush = LumaTheme.AccentSoftBrush,
-        Padding = new Thickness(12, 10),
-        CornerRadius = new CornerRadius(12),
-        Background = new SolidColorBrush(Color.Parse("#16FFFFFF")),
-        BorderBrush = LumaTheme.BorderAccentBrush,
-        BorderThickness = new Thickness(1),
-    };
 
     public event Action<string?>? Answered;
 
@@ -87,18 +73,6 @@ public sealed class QuestionPromptWindow : Window
             e.Handled = true;
         };
 
-        var sendButton = MakeButton("Send", "accent", () => Complete(_freeText.Text), wide: false);
-        sendButton.Width = 72;
-        sendButton.HorizontalAlignment = HorizontalAlignment.Right;
-
-        var freeRow = new Grid
-        {
-            ColumnDefinitions = ColumnDefinitions.Parse("*,Auto"),
-            ColumnSpacing = 8,
-            Children = { _freeText, sendButton },
-        };
-        Grid.SetColumn(sendButton, 1);
-
         Content = new Border
         {
             Background = LumaTheme.GlassFillBrush,
@@ -137,18 +111,11 @@ public sealed class QuestionPromptWindow : Window
                         Content = _question,
                     },
                     _choices,
-                    freeRow,
                     MakeButton("Continue without this", "ghost", () => Complete(null), wide: true),
                 },
             },
         };
 
-        _freeText.KeyDown += (_, e) =>
-        {
-            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None) return;
-            Complete(_freeText.Text);
-            e.Handled = true;
-        };
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { Complete(null); e.Handled = true; }
@@ -158,7 +125,6 @@ public sealed class QuestionPromptWindow : Window
     public void Show(Window owner, string question, IReadOnlyList<string> choices)
     {
         _question.Text = TextSanitizer.Clean(question);
-        _freeText.Text = string.Empty;
         _choices.Children.Clear();
         foreach (var choice in choices.Take(4))
             _choices.Children.Add(MakeButton(TextSanitizer.Clean(choice), "qchoice", () => Complete(choice), wide: true));
@@ -171,7 +137,6 @@ public sealed class QuestionPromptWindow : Window
 
         if (!IsVisible) base.Show(owner);
         Activate();
-        _freeText.Focus();
     }
 
     private void Complete(string? answer)

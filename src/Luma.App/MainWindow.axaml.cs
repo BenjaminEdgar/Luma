@@ -64,7 +64,7 @@ public partial class MainWindow : Window
             ClearPendingQuestion();
             if (message is null) return;
             if (answer is null) _viewModel.SkipQuestionCommand.Execute(message);
-            else { message.QuestionAnswer = answer; _viewModel.AnswerQuestionCommand.Execute(message); }
+            else _viewModel.AnswerQuestionCommand.Execute(new MainWindowViewModel.QuestionAnswerSelection(message, answer));
         };
         _viewModel.PlanModeChanged = on =>
         {
@@ -88,6 +88,11 @@ public partial class MainWindow : Window
         };
         // Plan chip: collapse ↔ expand mini dock; does not toggle plan mode.
         _viewModel.PlanWindowToggleRequested = TogglePlanWindowCollapsed;
+        _viewModel.PlanWindowCollapsedChanged = collapsed =>
+        {
+            if (_planWindow is not null && _planWindow.IsCollapsed != collapsed)
+                _planWindow.SetCollapsed(collapsed);
+        };
         // Live PLAN: updates only refresh content — do not re-anchor/activate every tick.
         _viewModel.PlanUpdated = OnPlanUpdated;
         // Capture ambient context while the window is still the tiny dock, so the panel
@@ -248,7 +253,7 @@ public partial class MainWindow : Window
         window.ImplementRequested += markdown =>
         {
             if (string.IsNullOrWhiteSpace(markdown)) return;
-            _viewModel.Plan.ReplaceFromMarkdown(markdown);
+            _viewModel.ReplacePlanMarkdownFromWindow(markdown);
             if (_viewModel.ImplementPlanCommand.CanExecute(null))
                 _viewModel.ImplementPlanCommand.Execute(null);
         };
@@ -259,20 +264,9 @@ public partial class MainWindow : Window
     {
         if (sender is not Button { DataContext: string choice, Tag: ChatMessage message }) return;
         if (string.IsNullOrWhiteSpace(choice) || !message.IsQuestion) return;
-        message.QuestionAnswer = choice.Trim();
-        if (_viewModel.AnswerQuestionCommand.CanExecute(message))
-            _viewModel.AnswerQuestionCommand.Execute(message);
-        ClearPendingQuestion();
-        e.Handled = true;
-    }
-
-    private void OnQuestionAnswerKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None) return;
-        if (sender is not TextBox { DataContext: ChatMessage message }) return;
-        if (!message.IsQuestion) return;
-        if (_viewModel.AnswerQuestionCommand.CanExecute(message))
-            _viewModel.AnswerQuestionCommand.Execute(message);
+        var selection = new MainWindowViewModel.QuestionAnswerSelection(message, choice.Trim());
+        if (_viewModel.AnswerQuestionCommand.CanExecute(selection))
+            _viewModel.AnswerQuestionCommand.Execute(selection);
         ClearPendingQuestion();
         e.Handled = true;
     }

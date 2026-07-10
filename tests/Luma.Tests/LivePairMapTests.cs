@@ -95,11 +95,12 @@ public sealed class LivePairMapTests
         Assert.Contains("livepairpreview", xaml);
         Assert.Contains("livepairchip", xaml);
 
-        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.LivePair.cs");
+        var mainVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
         Assert.Contains("BeginLivePair", vm);
         Assert.Contains("LivePairMap", vm);
-        Assert.Contains("JumpLivePairCommand", vm);
-        Assert.Contains("ActiveLivePairFile", vm);
+        Assert.Contains("JumpLivePairCommand", mainVm);
+        Assert.Contains("ActiveLivePairFile", mainVm);
         Assert.Contains("BuildPreview", ReadShipped("src/Luma.App/Services/LivePairMap.cs"));
 
         Assert.True(File.Exists(Path.Combine(FindRepoRoot(), "src/Luma.App/Services/LivePairMap.cs")));

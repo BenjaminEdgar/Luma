@@ -2,6 +2,7 @@ using Luma.App.Services;
 
 namespace Luma.Tests;
 
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class GhostSplitOutcomeTests
 {
     [Fact]
@@ -86,11 +87,13 @@ public sealed class GhostSplitOutcomeTests
         Assert.Contains("OnSplitBrainKeepClick", xaml);
         Assert.Contains("ToggleSplitBrainCommand", xaml);
 
-        var vm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
-        Assert.Contains("GhostCursorWindow.PointAt", vm);
-        Assert.Contains("RunSplitBrainTurnAsync", vm);
-        Assert.Contains("OutcomeMemory", vm);
-        Assert.Contains("ShowWhereParser", vm);
+        var mainVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var splitVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.SplitBrain.cs");
+        var chatVm = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
+        Assert.Contains("GhostCursorWindow.PointAt", mainVm);
+        Assert.Contains("RunSplitBrainTurnAsync", splitVm);
+        Assert.Contains("OutcomeMemory", splitVm);
+        Assert.Contains("ShowWhereParser", chatVm);
     }
 
     private static string ReadShipped(string relativePath)

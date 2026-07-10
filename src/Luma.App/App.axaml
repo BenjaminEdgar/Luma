@@ -477,16 +477,6 @@
             <Setter Property="BorderBrush" Value="#4F46E5" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="TextBox.qanswer">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="#0F172A" />
-            <Setter Property="CaretBrush" Value="#4F46E5" />
-            <Setter Property="Background" Value="#F8FFFFFF" />
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="12,10" />
-        </Style>
         <Style Selector="Button.qskip">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="#64748B" />

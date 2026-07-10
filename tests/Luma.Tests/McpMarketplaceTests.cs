@@ -3,6 +3,7 @@ using Luma.App.Services;
 
 namespace Luma.Tests;
 
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class McpMarketplaceTests
 {
     [Fact]

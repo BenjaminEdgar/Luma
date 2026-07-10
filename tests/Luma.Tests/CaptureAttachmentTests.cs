@@ -43,7 +43,7 @@ public sealed class CaptureAttachmentTests
     [Fact]
     public void RunTurnWiresTextFirstChatAndScreenAttachCallSites()
     {
-        var source = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var source = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
 
         // Straight typed chat and clarifying-question continuations stay text-first.
         Assert.Contains("await RunTurnAsync(prompt, attachCaptures: false)", source);

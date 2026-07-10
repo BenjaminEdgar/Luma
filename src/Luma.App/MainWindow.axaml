@@ -290,7 +290,7 @@
                               </Border>
                               <StackPanel Spacing="1" VerticalAlignment="Center">
                                 <TextBlock Text="QUICK QUESTION" Classes="sectionlabel" />
-                                <TextBlock Text="Answer below to continue" FontSize="11" Classes="muted" />
+                                <TextBlock Text="Pick an option to continue" FontSize="11" Classes="muted" />
                               </StackPanel>
                             </StackPanel>
 
@@ -315,19 +315,6 @@
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
-
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                              <TextBox Classes="qanswer" Text="{Binding QuestionAnswer}"
-                                       PlaceholderText="Or type your own answer…"
-                                       AcceptsReturn="False" MinHeight="40"
-                                       KeyDown="OnQuestionAnswerKeyDown" />
-                              <Button Grid.Column="1" Classes="accent qsend" Content="Send"
-                                      Width="64" Height="40" CornerRadius="12" Padding="0"
-                                      VerticalAlignment="Stretch"
-                                      Command="{Binding $parent[Window].DataContext.AnswerQuestionCommand}"
-                                      CommandParameter="{Binding}"
-                                      ToolTip.Tip="Send answer" />
-                            </Grid>
 
                             <Button Classes="ghost qskip" Content="Continue without this"
                                     HorizontalAlignment="Left" Padding="10,6" CornerRadius="10"
@@ -638,7 +625,7 @@
                 </StackPanel>
               </Button>
               <Button Classes="accent" Content="Implement plan" Margin="0,0,6,4" Padding="10,4"
-                      IsVisible="{Binding PlanModeEnabled}"
+                      IsVisible="{Binding ShowImplementPlanButton}"
                       Command="{Binding ImplementPlanCommand}"
                       FontSize="11" CornerRadius="999"
                       ToolTip.Tip="Run the approved plan as a coding turn in this chat" />

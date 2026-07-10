@@ -5,6 +5,7 @@ using Luma.App.ViewModels;
 
 namespace Luma.Tests;
 
+[Collection(EnvironmentMutationCollection.Name)]
 public sealed class CliParsingTests
 {
     [Fact]

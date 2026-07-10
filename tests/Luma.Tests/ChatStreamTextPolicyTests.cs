@@ -242,7 +242,7 @@ public sealed class ChatStreamTextPolicyTests
     [Fact]
     public void ChatTurnPathWiresCoalescedPartialsFinalExtractHistoryAndNonBlockingFollowUps()
     {
-        var viewModel = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.cs");
+        var viewModel = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
         Assert.Contains("ChatStreamUiBridge", viewModel);
         Assert.Contains("streamBridge.OnPartial", viewModel);
         Assert.Contains("ChatStreamTextPolicy.ApplyPartial", viewModel);
@@ -261,9 +261,10 @@ public sealed class ChatStreamTextPolicyTests
         var chatXaml = ReadShipped("src/Luma.App/MainWindow.axaml");
         Assert.Contains("Classes=\"questioncard\"", chatXaml);
         Assert.Contains("ShowQuestionCard", chatXaml);
-        Assert.Contains("AnswerQuestionCommand", chatXaml);
         Assert.Contains("SkipQuestionCommand", chatXaml);
         Assert.Contains("OnQuestionChoiceClick", chatXaml);
+        Assert.DoesNotContain("QuestionAnswer", chatXaml);
+        Assert.DoesNotContain("OnQuestionAnswerKeyDown", chatXaml);
     }
 
     private sealed class TestStreamClient : CliAiClient

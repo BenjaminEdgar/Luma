@@ -25,9 +25,10 @@ public sealed class ClarifyingQuestionParserTests
     public void TrailingDirectiveIsExtractedAndStripped()
     {
         var raw = "This looks like a null reference in your event handler.\nASK_USER: What's the project directory so I can check the file?";
-        var (text, question) = ClarifyingQuestionParser.Extract(raw);
-        Assert.Equal("This looks like a null reference in your event handler.", text);
-        Assert.Equal("What's the project directory so I can check the file?", question);
+        var result = ClarifyingQuestionParser.ExtractDetailed(raw);
+        Assert.Equal("This looks like a null reference in your event handler.", result.Text);
+        Assert.Equal("What's the project directory so I can check the file?", result.Question);
+        Assert.Equal(["Do your best", "Continue without it"], result.Choices);
     }
 
     [Fact]

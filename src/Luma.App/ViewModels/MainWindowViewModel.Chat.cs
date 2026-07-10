@@ -53,7 +53,7 @@ public sealed partial class MainWindowViewModel
         Question = string.Empty;
         ClearClipboardSnippet();
         ClearAttachedFiles();
-        Plan.Clear();
+        _planCoordinator.Clear();
         ImplementPlanCommand.RaiseCanExecuteChanged();
         if (_regionPath is not null) ReplaceCapture(ref _regionPath, null);
         OnPropertyChanged(nameof(CanStartNewChat));
@@ -179,11 +179,15 @@ public sealed partial class MainWindowViewModel
         await RunTurnAsync(prompt, attachCaptures: false);
     }
 
-    /// <summary>Sends the user's typed reply to a pending clarifying question as the next turn.</summary>
+    /// <summary>Payload for a selected multiple-choice clarifying-question answer.</summary>
+    public sealed record QuestionAnswerSelection(ChatMessage Message, string Answer);
+
+    /// <summary>Sends the selected clarifying-question choice as the next turn.</summary>
     private Task AnswerQuestionAsync(object? parameter)
     {
-        if (parameter is not ChatMessage source || _busy) return Task.CompletedTask;
-        var reply = source.QuestionAnswer.Trim();
+        if (parameter is not QuestionAnswerSelection { Message: var source, Answer: var answer } || _busy)
+            return Task.CompletedTask;
+        var reply = answer.Trim();
         source.IsQuestion = false;
         return ContinueQuestionAsync(source, string.IsNullOrWhiteSpace(reply)
             ? "I don't have that information - please continue and do your best without it."
@@ -317,112 +321,6 @@ public sealed partial class MainWindowViewModel
         finally
         {
             EndLivePairWatch();
-            ticker.Stop();
-            stopwatch.Stop();
-            answer.IsPending = false;
-            answer.IsStreaming = false;
-            answer.Elapsed = null;
-            _requestCts = null;
-            SetBusy(false);
-        }
-    }
-
-    /// <summary>Runs a coding request inline: streams the assistant's explanation into a normal
-    /// chat bubble like RunTurnAsync, and attaches a CodeChatSession that drives the diff review
-    /// card (DiffCardControl) once a patch artifact arrives.</summary>
-    public async Task RunCodeTurnAsync(string prompt, string repository)
-    {
-        var provider = (AiProvider)SelectedProviderIndex;
-        var providerName = Providers[SelectedProviderIndex];
-        var user = new ChatMessage("user", prompt);
-        AttachCaptureToMessage(user, _regionPath, _contextPath);
-        Messages.Add(user);
-        var answer = new ChatMessage("assistant", string.Empty, isPending: true)
-        {
-            Caption = $"✦ {providerName} is inspecting the repository",
-            Text = "Inspecting repository...",
-        };
-        answer.TurnMeta = BuildTurnMeta(providerName, "Code", ChatCaptureAttachment.HasVisual(_regionPath, _contextPath), repository);
-        Messages.Add(answer);
-        SetBusy(true);
-        SetActivity("Inspecting repo", "Preparing a coding turn");
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _requestCts = cts;
-        var stopwatch = Stopwatch.StartNew();
-        var ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background,
-            (_, _) => answer.Elapsed = $"{stopwatch.Elapsed.TotalSeconds:0.0} s");
-        ticker.Start();
-        try
-        {
-            var writeSnapshot = WorkspaceWriteAuditor.Capture(repository);
-            BeginLivePair(repository, writeSnapshot, answer);
-            var session = new CodeChatSession(answer, _clientFactory, provider, new GitService(), new ShellService(_operations), repository, _regionPath, _contextPath);
-            if (PlanProgressTracking)
-            {
-                // Always apply when this session was started for implement - do not re-check
-                // PlanProgressTracking (UI posts can run after finally clears the flag).
-                session.PlanMarkdownReceived = md =>
-                {
-                    if (string.IsNullOrWhiteSpace(md)) return;
-                    void Apply()
-                    {
-                        Plan.ReplaceFromMarkdown(md);
-                        ImplementPlanCommand.RaiseCanExecuteChanged();
-                        PlanUpdated?.Invoke();
-                    }
-                    if (Dispatcher.UIThread.CheckAccess()) Apply();
-                    else Dispatcher.UIThread.Post(Apply);
-                };
-            }
-            answer.CodeSession = session;
-            await session.RunAsync(prompt, cts.Token);
-            SetActivity("Writing files", "Auditing workspace changes");
-            answer.Caption = $"✦ {providerName} - {stopwatch.Elapsed.TotalSeconds:0.0} s";
-            AttachWriteAudit(answer, writeSnapshot);
-            ConsumeEphemeralAttachments();
-            _ = GenerateFollowUpSuggestionsAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            answer.Caption = $"✦ {providerName} - stopped";
-            if (string.IsNullOrWhiteSpace(answer.Text)) answer.Text = "*Stopped.*";
-        }
-        catch (Exception ex)
-        {
-            answer.IsError = true;
-            answer.Caption = $"✦ {providerName} - error";
-            answer.Text = ex.Message;
-        }
-        finally
-        {
-            EndLivePairWatch();
-            ticker.Stop();
-            stopwatch.Stop();
-            answer.IsPending = false;
-            answer.IsStreaming = false;
-            answer.Elapsed = null;
-            _requestCts = null;
-            SetBusy(false);
-        }
-    }
-
-    /// <summary>Resumes a CodeChatSession after its clarifying question was answered - continues
-    /// the same message/diff card rather than starting an unrelated plain-chat turn.</summary>
-    private async Task RunCodeContinuationAsync(ChatMessage answer, CodeChatSession session, string reply)
-    {
-        SetBusy(true);
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _requestCts = cts;
-        answer.IsPending = true;
-        var stopwatch = Stopwatch.StartNew();
-        var ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background,
-            (_, _) => answer.Elapsed = $"{stopwatch.Elapsed.TotalSeconds:0.0} s");
-        ticker.Start();
-        try { await session.ContinueAsync(reply, cts.Token); _ = GenerateFollowUpSuggestionsAsync(); }
-        catch (OperationCanceledException) { answer.Caption = "✦ stopped"; }
-        catch (Exception ex) { answer.IsError = true; answer.Text = ex.Message; }
-        finally
-        {
             ticker.Stop();
             stopwatch.Stop();
             answer.IsPending = false;
