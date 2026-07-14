@@ -373,7 +373,7 @@ public abstract class CliAiClient : IAiClient
 
     private static ProcessStartInfo BuildStartInfo(string executable, string workingDirectory)
     {
-        return new ProcessStartInfo(executable)
+        var psi = new ProcessStartInfo(executable)
         {
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
@@ -383,13 +383,17 @@ public abstract class CliAiClient : IAiClient
             StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
             CreateNoWindow = true
         };
+        // The CLI (and anything it spawns, e.g. codex's node) needs the real shell PATH too, not
+        // just the minimal PATH a GUI app inherits from launchd on macOS.
+        psi.Environment["PATH"] = ShellEnvironment.ResolvedPath;
+        return psi;
     }
 
     public static (string Executable, string[] PrefixArguments)? ResolveCommand(string command)
     {
         var names = OperatingSystem.IsWindows() ? new[] { $"{command}.exe", $"{command}.cmd", command } : new[] { command };
-        foreach (var folder in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator))
-            foreach (var name in names) { var path = Path.Combine(folder.Trim('"'), name); if (File.Exists(path)) return ExpandWindowsShim(command, path); }
+        foreach (var folder in ShellEnvironment.SearchDirectories())
+            foreach (var name in names) { var path = Path.Combine(folder, name); if (File.Exists(path)) return ExpandWindowsShim(command, path); }
         if (TryResolveWellKnownInstall(command) is { } wellKnown) return wellKnown;
         var npm = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var npmShim = Path.Combine(npm, "npm", $"{command}.cmd");
