@@ -89,6 +89,13 @@ mkdir -p "$MACOS_DIR" "$CONTENTS/Resources"
 cp -R "$OUTPUT/$RID/." "$MACOS_DIR/"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
+ICON="$REPO_ROOT/build/macos/$APP_NAME.icns"
+ICON_KEY=""
+if [[ -f "$ICON" ]]; then
+  cp "$ICON" "$CONTENTS/Resources/$APP_NAME.icns"
+  ICON_KEY="  <key>CFBundleIconFile</key>            <string>$APP_NAME</string>"
+fi
+
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -98,6 +105,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key>        <string>$APP_NAME</string>
   <key>CFBundleIdentifier</key>         <string>$BUNDLE_ID</string>
   <key>CFBundleExecutable</key>         <string>$APP_NAME</string>
+$ICON_KEY
   <key>CFBundlePackageType</key>        <string>APPL</string>
   <key>CFBundleShortVersionString</key> <string>$VERSION</string>
   <key>CFBundleVersion</key>            <string>$VERSION</string>
