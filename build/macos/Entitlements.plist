@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- .NET JITs managed code at runtime; without this the hardened-runtime app crashes on launch. Required. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- The CoreCLR JIT also writes to and executes non-JIT RWX pages. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!-- Lets the runtime load the bundled native libs, which aren't individually notarized. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <!-- Luma drives classic Outlook / other apps via Apple Events for email tasks. -->
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
+</dict>
+</plist>

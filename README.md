@@ -51,3 +51,16 @@ dotnet publish src/Luma.App -c Release -r win-x64 --self-contained
 ```
 
 Use `osx-arm64`, `osx-x64`, `linux-x64`, or `linux-arm64` as the runtime identifier for other platforms. macOS requires Screen Recording permission for `/usr/sbin/screencapture`.
+
+### Packaging a macOS `.app`
+
+`scripts/build-macos.sh` publishes, assembles, and code-signs a `Luma.app` bundle (hardened runtime + `build/macos/Entitlements.plist`, so it is notarization-ready):
+
+```bash
+scripts/build-macos.sh                       # arm64, signs with an auto-detected identity
+scripts/build-macos.sh --arch x64            # separate Intel build
+scripts/build-macos.sh --dmg                 # also produce a .dmg
+scripts/build-macos.sh --identity "Developer ID Application: …" --notarize <profile>
+```
+
+Signing identity is auto-detected: a Developer ID cert if present, otherwise the first code-signing identity (e.g. a self-signed dev cert), otherwise ad-hoc. Distribution to other machines needs a **Developer ID Application** certificate plus `--notarize` (a `notarytool` keychain profile); an ad-hoc/self-signed build runs locally but macOS keeps re-prompting for Screen Recording permission.
