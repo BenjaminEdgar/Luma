@@ -1,0 +1,8 @@
+{
+  "source": "monkt/paddleocr-onnx",
+  "detection": "detection/v5/det.onnx",
+  "recognition": "languages/english/rec.onnx",
+  "language": "english",
+  "ocrVersion": "PpOcrV5",
+  "note": "rec.onnx has character metadata embedded for Luma.Ocr"
+}

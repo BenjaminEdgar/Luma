@@ -44,7 +44,9 @@ public partial class MainWindow : Window
         _viewModel.TaskLaunchRequested = LaunchTaskAsync;
         _viewModel.NewChatConfirmationRequested = () => new ScreenChangeWindow().ShowDialog<bool>(this);
         _viewModel.ScreenExplanationReadyToShow = () => SetExpanded(true);
+        _viewModel.OcrUiChanged = ApplyOcrChrome;
         LoadSettings();
+        ApplyOcrChrome();
         _viewModel.WorkingDirectoryRequested = ResolveWorkingDirectoryAsync;
         _viewModel.AttachFilesRequested = PickFilesToAttachAsync;
         // Micro-delights: provider accent flash (skip initial settings load via Opened flag timing).
@@ -210,6 +212,23 @@ public partial class MainWindow : Window
         // Idle aurora tint — busy/writing styles override panelshell.plan when active.
         PanelBackground.Classes.Set("plan", on);
         StatusPill.Classes.Set("plan", on);
+    }
+
+    /// <summary>Make OCR running / ready / offline scream in the header pill + banner chrome.</summary>
+    private void ApplyOcrChrome()
+    {
+        var phase = _viewModel.OcrPhase;
+        var running = OcrUiStatus.IsBusyPhase(phase);
+        var ready = phase == OcrUiPhase.Ready;
+        var alert = OcrUiStatus.IsAlertPhase(phase);
+
+        StatusPill.Classes.Set("ocr-run", running);
+        StatusPill.Classes.Set("ocr-ready", ready && !running);
+        StatusPill.Classes.Set("ocr-alert", alert && !running);
+
+        OcrBanner.Classes.Set("running", running);
+        OcrBanner.Classes.Set("ready", ready && !running);
+        OcrBanner.Classes.Set("alert", alert && !running);
     }
 
     private void ShowPlanWindow()

@@ -72,10 +72,12 @@ public sealed partial class MainWindowViewModel
                 var b = providers[1];
                 var clientA = _clientFactory.Create((AiProvider)a);
                 var clientB = _clientFactory.Create((AiProvider)b);
-                var reqA = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side A - ship the bold option"), _regionPath, _contextPath, [])
-                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic) };
-                var reqB = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side B - ship the careful option"), _regionPath, _contextPath, [])
-                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic) };
+                var localOcr = await ResolveOcrForPathsAsync(_regionPath, _contextPath, cts.Token);
+                var (provR, provC) = ChatCaptureAttachment.ForProvider(_regionPath, _contextPath, localOcr);
+                var reqA = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side A - ship the bold option"), provR, provC, [])
+                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic), LocalOcrContext = localOcr };
+                var reqB = new AiRequest(ChaosMode.DualDebatePrompt(topic, "Side B - ship the careful option"), provR, provC, [])
+                { WorkingDirectory = WorkingDirectory, TaskContext = BuildTurnContext(topic), LocalOcrContext = localOcr };
                 var taskA = clientA.AskAsync(reqA, null, cts.Token);
                 var taskB = clientB.AskAsync(reqB, null, cts.Token);
                 await Task.WhenAll(taskA, taskB);
@@ -84,11 +86,14 @@ public sealed partial class MainWindowViewModel
             }
             else
             {
+                var localOcr = await ResolveOcrForPathsAsync(_regionPath, _contextPath, cts.Token);
+                var (provR, provC) = ChatCaptureAttachment.ForProvider(_regionPath, _contextPath, localOcr);
                 var text = await _clientFactory.Create((AiProvider)providers[0])
-                    .AskAsync(new AiRequest(ChaosMode.DebatePrompt(topic), _regionPath, _contextPath, [])
+                    .AskAsync(new AiRequest(ChaosMode.DebatePrompt(topic), provR, provC, [])
                     {
                         WorkingDirectory = WorkingDirectory,
                         TaskContext = BuildTurnContext(topic),
+                        LocalOcrContext = localOcr,
                     }, partial => Dispatcher.UIThread.Post(() =>
                     {
                         answer.IsPending = false;

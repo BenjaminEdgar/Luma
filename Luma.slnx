@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Luma.App/Luma.App.csproj" />
+    <Project Path="src/Luma.Ocr/Luma.Ocr.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Luma.Tests/Luma.Tests.csproj" />
+    <Project Path="tests/Luma.Ocr.Tests/Luma.Ocr.Tests.csproj" />
   </Folder>
 </Solution>

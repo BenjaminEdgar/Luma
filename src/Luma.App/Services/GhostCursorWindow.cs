@@ -88,8 +88,23 @@ public sealed class GhostCursorWindow : Window
         var canvas = new Canvas();
         Canvas.SetLeft(ring, logicalHighlight.X);
         Canvas.SetTop(ring, logicalHighlight.Y);
-        Canvas.SetLeft(label, logicalHighlight.X);
-        Canvas.SetTop(label, Math.Max(4, logicalHighlight.Y - 30));
+
+        // Position label centered above ring, with smart bounds checking
+        label.Measure(Size.Infinity);
+        var labelWidth = label.DesiredSize.Width > 0 ? label.DesiredSize.Width : 80;
+        var labelHeight = label.DesiredSize.Height > 0 ? label.DesiredSize.Height : 24;
+
+        // Center horizontally on ring center
+        var ringCenterX = logicalHighlight.X + ringW / 2;
+        var labelX = Math.Clamp(ringCenterX - labelWidth / 2, 4, Width - labelWidth - 4);
+
+        // Place above ring with 8px gap, or below if too close to top
+        var labelYAbove = logicalHighlight.Y - labelHeight - 8;
+        var labelY = labelYAbove >= 4 ? labelYAbove : logicalHighlight.Y + ringH + 8;
+        labelY = Math.Clamp(labelY, 4, Height - labelHeight - 4);
+
+        Canvas.SetLeft(label, labelX);
+        Canvas.SetTop(label, labelY);
         canvas.Children.Add(ring);
         canvas.Children.Add(label);
         Content = canvas;

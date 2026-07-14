@@ -11,6 +11,8 @@ public enum UiThemeId
     Blue = 0,
     /// <summary>Aurora violet → cyan (previous default).</summary>
     Colorful = 1,
+    /// <summary>White → mint glass, emerald accents.</summary>
+    Emerald = 2,
 }
 
 /// <summary>
@@ -60,6 +62,7 @@ public static class LumaTheme
     [
         (UiThemeId.Blue, "Blue — white & blue (default)"),
         (UiThemeId.Colorful, "Colorful — violet & cyan"),
+        (UiThemeId.Emerald, "Emerald — white & mint"),
     ];
 
     static LumaTheme()
@@ -77,8 +80,7 @@ public static class LumaTheme
     public static void Apply(UiThemeId id, Application? app = null)
     {
         app ??= Application.Current;
-        var palette = id == UiThemeId.Colorful ? ColorfulPalette() : BluePalette();
-        ApplyPalette(palette, id, app);
+        ApplyPalette(PaletteFor(id), id, app);
     }
 
     public static UiThemeId ParseThemeId(string? value)
@@ -88,6 +90,10 @@ public static class LumaTheme
             return (UiThemeId)n;
         if (Enum.TryParse<UiThemeId>(value.Trim(), ignoreCase: true, out var named))
             return named;
+        if (value.Contains("emerald", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("mint", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("green", StringComparison.OrdinalIgnoreCase))
+            return UiThemeId.Emerald;
         if (value.Contains("color", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("aurora", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("violet", StringComparison.OrdinalIgnoreCase))
@@ -113,9 +119,16 @@ public static class LumaTheme
 
     public static IBrush CreatePanelFillBrush()
     {
-        var p = CurrentId == UiThemeId.Colorful ? ColorfulPalette() : BluePalette();
+        var p = PaletteFor(CurrentId);
         return Linear(p.PanelFill0, p.PanelFill1, p.PanelFill2, vertical: true);
     }
+
+    private static ThemePalette PaletteFor(UiThemeId id) => id switch
+    {
+        UiThemeId.Colorful => ColorfulPalette(),
+        UiThemeId.Emerald => EmeraldPalette(),
+        _ => BluePalette(),
+    };
 
     private static void ApplyPalette(ThemePalette p, UiThemeId id, Application? app)
     {
@@ -294,6 +307,49 @@ public static class LumaTheme
         SectionLabelHex = "#6B7280",
         FloatingShadow = "0 20 50 0 #14080F23, 0 0 40 0 #227C4DFF",
         SoftShadow = "0 10 28 0 #12080F23",
+    };
+
+    private static ThemePalette EmeraldPalette() => new()
+    {
+        // White → mint glass, emerald accents
+        AccentStart = Color.Parse("#059669"),      // emerald-600
+        AccentEnd = Color.Parse("#34D399"),        // emerald-400
+        AccentSoft = Color.Parse("#10B981"),       // emerald-500
+        AccentBright0 = Color.Parse("#10B981"),
+        AccentBright1 = Color.Parse("#34D399"),
+        AccentBright2 = Color.Parse("#6EE7B7"),
+        Star0 = Color.Parse("#6EE7B7"),
+        InkPanel = Color.Parse("#F0FDF8"),
+        InkPanelDeep = Color.Parse("#D1FAE5"),
+        TextBright = Color.Parse("#0F172A"),
+        TextBody = Color.Parse("#1E293B"),
+        TextMuted = Color.Parse("#64748B"),
+        GlassFill = Color.Parse("#F7FDFB"),
+        GlassFillStrong = Color.Parse("#FFFFFF"),
+        BorderAccent = Color.Parse("#A7F3D0"),
+        BorderSoft = Color.Parse("#D1FAE5"),
+        SurfaceGlass = Color.Parse("#FFFFFF"),
+        QuietGlass = Color.Parse("#F0FDF8"),
+        ComposeFill = Color.Parse("#FFFFFF"),
+        PanelFill0 = Color.Parse("#FFFFFF"),
+        PanelFill1 = Color.Parse("#F0FDF8"),
+        PanelFill2 = Color.Parse("#DCFCE7"),
+        UserBubble0 = Color.Parse("#F7FDFB"),
+        UserBubble1 = Color.Parse("#D1FAE5"),
+        AssistantBubble0 = Color.Parse("#FFFFFF"),
+        AssistantBubble1 = Color.Parse("#F0FDF8"),
+        PanelBorderBusy = Color.Parse("#6EE7B7"),
+        PanelBorderWriting = Color.Parse("#2DD4BF"),
+        OrbBottom = Color.Parse("#28D1FAE5"),
+        Danger = Color.Parse("#E5455A"),
+        DangerFill = Color.Parse("#FEE2E2"),
+        DangerHot = Color.Parse("#FECACA"),
+        WarnFill = Color.Parse("#FEF3C7"),
+        WarnText = Color.Parse("#B45309"),
+        LiveGreen = Color.Parse("#059669"),
+        SectionLabelHex = "#64748B",
+        FloatingShadow = "0 20 50 0 #140F172A, 0 0 40 0 #22059669",
+        SoftShadow = "0 10 28 0 #120F172A",
     };
 
     private sealed class ThemePalette

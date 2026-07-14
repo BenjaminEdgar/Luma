@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Luma.Ocr</RootNamespace>
+    <AssemblyName>Luma.Ocr</AssemblyName>
+    <Description>Cross-platform local OCR library with pixel and normalized coordinates.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.26.0" />
+    <PackageReference Include="RapidOCRSharpOnnx" Version="1.2.3" />
+  </ItemGroup>
+
+</Project>

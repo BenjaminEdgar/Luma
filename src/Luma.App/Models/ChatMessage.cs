@@ -247,4 +247,6 @@ public sealed record AiRequest(string Question, string? ImagePath, string? Conte
     public string? WorkingDirectory { get; init; }
     public TaskKind TaskKind { get; init; } = TaskKind.Chat;
     public string? TaskContext { get; init; }
+    /// <summary>On-device OCR transcription + coordinates for attached screenshots (optional).</summary>
+    public string? LocalOcrContext { get; init; }
 }

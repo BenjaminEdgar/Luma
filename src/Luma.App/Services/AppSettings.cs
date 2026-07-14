@@ -31,7 +31,7 @@ public sealed class AppSettings
     /// </summary>
     public int SuggestionFreshSeconds { get; set; } = 45;
     /// <summary>Downscale ambient capture before suggestion calls (smaller = faster tokens).</summary>
-    public int SuggestionImageMaxWidth { get; set; } = 720;
+    public int SuggestionImageMaxWidth { get; set; } = 360;
     /// <summary>Skips regenerating chips when the screen is visually unchanged - a free reuse.</summary>
     public bool SkipSuggestionsWhenScreenUnchanged { get; set; } = true;
 
@@ -47,6 +47,25 @@ public sealed class AppSettings
     /// and tighter history caps on chat turns — lower token use at the cost of fewer structured UX hooks.
     /// </summary>
     public bool LeanChatMode { get; set; }
+
+    /// <summary>
+    /// Run on-device OCR (Luma.Ocr / PP-OCR ONNX) on screen captures and inject text + coordinates
+    /// into the provider prompt so answers do not rely on the LLM reading pixels.
+    /// </summary>
+    public bool LocalOcrEnabled { get; set; } = true;
+
+    /// <summary>
+    /// When OCR succeeds, do not send screenshots to the provider (no vision tokens).
+    /// Open/suggest/digest use local OCR chips/text instead of image models when possible.
+    /// Falls back to screenshots only if OCR is off or fails.
+    /// </summary>
+    public bool LocalOcrPreferOverVision { get; set; } = true;
+
+    /// <summary>
+    /// Optional folder containing det.onnx + rec.onnx. Blank = auto (env LUMA_OCR_MODELS,
+    /// %LocalAppData%/Luma/ocr-models, app/models/ocr, or repo models/ocr).
+    /// </summary>
+    public string LocalOcrModelsPath { get; set; } = "";
 
     // Per-provider model overrides.
     public string ClaudeChatModel { get; set; } = "";
@@ -69,7 +88,7 @@ public sealed class AppSettings
     /// <summary>When Chaos Mode is on, Start focus lock blocks explain for this many minutes.</summary>
     public int ChaosPomodoroMinutes { get; set; } = 25;
 
-    /// <summary>UI theme id: Blue (default) or Colorful. See <see cref="UiThemeId"/>.</summary>
+    /// <summary>UI theme id: Blue (default), Colorful, or Emerald. See <see cref="UiThemeId"/>.</summary>
     public string UiTheme { get; set; } = nameof(UiThemeId.Blue);
 
     public static void Load()

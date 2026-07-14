@@ -27,6 +27,11 @@ public sealed partial class MainWindowViewModel
         NotifyChaosChanged();
         NotifyLeanChatChanged();
         NotifyModelPickerChanged();
+        // Re-probe models so the OCR banner matches toggles / path changes immediately.
+        _localOcr.Reset();
+        ProbeOcrModelsOnStartup();
+        if (_contextPath is not null && AppSettings.Current.LocalOcrEnabled && Messages.Count == 0)
+            _ = RefreshAmbientOcrAsync(_lifetime.Token);
     }
 
     private void SelectProvider(object? parameter)

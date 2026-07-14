@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -650,6 +651,8 @@ public sealed class McpInstallManager
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(servers, JsonOptions));
         SyncToGrokConfig(servers);
+        SyncToCodexConfig(servers);
+        SyncToClaudeConfig(servers);
     }
 
     public McpInstalledServer Install(McpCatalogEntry entry, string? workspacePath = null, IDictionary<string, string>? envOverrides = null)
@@ -747,6 +750,93 @@ public sealed class McpInstallManager
         return list.Count - before;
     }
 
+    /// <summary>
+    /// Pulls [mcp_servers.*] tables from ~/.codex/config.toml into Luma's install list.
+    /// </summary>
+    public int ImportFromCodexConfig()
+    {
+        var path = CodexConfigPath();
+        if (!File.Exists(path)) return 0;
+        var text = File.ReadAllText(path);
+        var list = LoadInstalled().ToList();
+        var before = list.Count;
+        foreach (var parsed in ParseMcpServerTables(text))
+        {
+            if (list.Any(s => string.Equals(s.ConfigSectionName, parsed.ConfigSectionName, StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(s.Id, parsed.Id, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            list.Add(parsed);
+        }
+        if (list.Count == before) return 0;
+        SaveInstalled(list);
+        return list.Count - before;
+    }
+
+    /// <summary>
+    /// Pulls mcpServers from ~/.claude.json into Luma's install list.
+    /// </summary>
+    public int ImportFromClaudeConfig()
+    {
+        try
+        {
+            var path = ClaudeConfigPath();
+            if (!File.Exists(path)) return 0;
+            var root = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
+            if (root?["mcpServers"] is not JsonObject mcp) return 0;
+
+            var list = LoadInstalled().ToList();
+            var before = list.Count;
+            foreach (var (key, node) in mcp)
+            {
+                if (node is not JsonObject entry) continue;
+                var id = key; // Use key as ID for Claude servers
+                if (list.Any(s => string.Equals(s.ConfigSectionName, id, StringComparison.OrdinalIgnoreCase)
+                                  || string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var server = new McpInstalledServer
+                {
+                    Id = id,
+                    Title = entry["title"]?.GetValue<string>() ?? id,
+                    Description = "Imported from Claude config",
+                    ConfigKey = id,
+                    Enabled = true,
+                    InstalledAt = DateTimeOffset.UtcNow,
+                };
+
+                if (entry["url"]?.GetValue<string>() is string url && !string.IsNullOrWhiteSpace(url))
+                {
+                    server.Kind = McpInstallKind.RemoteHttp;
+                    server.RemoteUrl = url;
+                }
+                else
+                {
+                    server.Kind = McpInstallKind.CustomCommand;
+                    server.Command = entry["command"]?.GetValue<string>() ?? "npx";
+                    if (entry["args"] is JsonArray argsArr)
+                        server.Args = argsArr.Select(a => a?.GetValue<string>() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList();
+                }
+
+                if (entry["env"] is JsonObject env)
+                    foreach (var (ek, ev) in env)
+                        server.Env[ek] = ev?.GetValue<string>() ?? "";
+
+                list.Add(server);
+            }
+            if (list.Count == before) return 0;
+            SaveInstalled(list);
+            return list.Count - before;
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>Imports servers from all three provider configs (Claude, Codex, Grok) in one call.</summary>
+    public int ImportFromAllConfigs()
+    {
+        var count = ImportFromClaudeConfig() + ImportFromCodexConfig() + ImportFromGrokConfig();
+        return count;
+    }
+
     /// <summary>Parses flat <c>[mcp_servers.name]</c> tables from a Grok config.toml body.</summary>
     public static IReadOnlyList<McpInstalledServer> ParseMcpServerTables(string toml)
     {
@@ -815,6 +905,12 @@ public sealed class McpInstallManager
     public static string GrokConfigPath() =>
         Path.Combine(GetUserProfileRoot(), ".grok", "config.toml");
 
+    public static string CodexConfigPath() =>
+        Path.Combine(GetUserProfileRoot(), ".codex", "config.toml");
+
+    public static string ClaudeConfigPath() =>
+        Path.Combine(GetUserProfileRoot(), ".claude.json");
+
     public static string StorePath() =>
         Path.Combine(GetLocalAppDataRoot(), "Luma", "mcp-installs.json");
 
@@ -835,10 +931,66 @@ public sealed class McpInstallManager
     }
 
     /// <summary>Writes [mcp_servers.*] blocks for Luma-managed servers into ~/.grok/config.toml.</summary>
-    public void SyncToGrokConfig(IReadOnlyList<McpInstalledServer>? servers = null)
+    public void SyncToGrokConfig(IReadOnlyList<McpInstalledServer>? servers = null) =>
+        SyncToTomlConfig(GrokConfigPath(), servers ?? LoadInstalled(), includeEnabled: true);
+
+    /// <summary>Writes [mcp_servers.*] blocks for Luma-managed servers into ~/.codex/config.toml.</summary>
+    public void SyncToCodexConfig(IReadOnlyList<McpInstalledServer>? servers = null)
     {
-        servers ??= LoadInstalled();
-        var path = GrokConfigPath();
+        try { SyncToTomlConfig(CodexConfigPath(), servers ?? LoadInstalled(), includeEnabled: false); }
+        catch { }
+    }
+
+    /// <summary>Merges Luma-managed servers into Claude Code's ~/.claude.json mcpServers map.</summary>
+    public void SyncToClaudeConfig(IReadOnlyList<McpInstalledServer>? servers = null)
+    {
+        try
+        {
+            servers ??= LoadInstalled();
+            var path = ClaudeConfigPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var root = (File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path)) as JsonObject : null) ?? new JsonObject();
+
+            var mcp = root["mcpServers"] as JsonObject ?? new JsonObject();
+            // Drop keys Luma managed last sync so removed/disabled servers don't linger.
+            if (root["lumaMcpManaged"] is JsonArray prev)
+                foreach (var k in prev.Select(n => n?.GetValue<string>()).Where(k => !string.IsNullOrEmpty(k)).ToArray())
+                    mcp.Remove(k!);
+
+            var managed = new JsonArray();
+            foreach (var server in servers.Where(s => s.Enabled))
+            {
+                var entry = new JsonObject();
+                if (server.Kind == McpInstallKind.RemoteHttp && !string.IsNullOrWhiteSpace(server.RemoteUrl))
+                {
+                    entry["type"] = "http";
+                    entry["url"] = server.RemoteUrl;
+                }
+                else
+                {
+                    entry["command"] = server.Command ?? "npx";
+                    if (server.Args.Count > 0)
+                        entry["args"] = new JsonArray(server.Args.Select(a => (JsonNode)a).ToArray());
+                    var env = server.Env.Where(kv => !string.IsNullOrWhiteSpace(kv.Value)).ToArray();
+                    if (env.Length > 0)
+                    {
+                        var e = new JsonObject();
+                        foreach (var kv in env) e[kv.Key] = kv.Value;
+                        entry["env"] = e;
+                    }
+                }
+                mcp[server.ConfigSectionName] = entry;
+                managed.Add(server.ConfigSectionName);
+            }
+            root["mcpServers"] = mcp;
+            root["lumaMcpManaged"] = managed;
+            File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { }
+    }
+
+    private static void SyncToTomlConfig(string path, IReadOnlyList<McpInstalledServer> servers, bool includeEnabled)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         var existing = File.Exists(path) ? File.ReadAllText(path) : "";
@@ -860,7 +1012,7 @@ public sealed class McpInstallManager
         {
             var key = server.ConfigSectionName;
             builder.AppendLine($"[mcp_servers.{key}]");
-            builder.AppendLine("enabled = true");
+            if (includeEnabled) builder.AppendLine("enabled = true");
             if (server.Kind == McpInstallKind.RemoteHttp && !string.IsNullOrWhiteSpace(server.RemoteUrl))
             {
                 builder.AppendLine($"url = \"{EscapeToml(server.RemoteUrl)}\"");

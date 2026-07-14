@@ -7,7 +7,7 @@ public sealed class McpMarketplaceUiTests
     [Fact]
     public void HeroAndEmptyStateStringsAreSet()
     {
-        Assert.Equal("Power up Grok with tools", McpMarketplaceUi.HeroTitle);
+        Assert.Equal("Power up your agents with tools", McpMarketplaceUi.HeroTitle);
         Assert.Contains("Grok", McpMarketplaceUi.HeroSubtitle, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("SPOTLIGHT", McpMarketplaceUi.FeaturedSection);
         Assert.Equal("Nothing installed yet", McpMarketplaceUi.InstalledEmptyTitle);
@@ -80,8 +80,8 @@ public sealed class McpMarketplaceUiTests
     [Fact]
     public void InstallSuccessCopyUnlocksServer()
     {
-        Assert.Equal("You unlocked Memory for Grok", McpMarketplaceUi.YouUnlockedLine("Memory"));
-        Assert.Equal("✓ You unlocked Memory for Grok",
+        Assert.Equal("You unlocked Memory for your agents", McpMarketplaceUi.YouUnlockedLine("Memory"));
+        Assert.Equal("✓ You unlocked Memory for your agents",
             McpMarketplaceUi.InstallSuccessStatus("Memory", []));
         Assert.Contains("GITHUB_TOKEN",
             McpMarketplaceUi.InstallSuccessStatus("GitHub", ["GITHUB_TOKEN"]));

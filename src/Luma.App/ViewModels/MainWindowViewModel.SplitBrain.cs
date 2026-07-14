@@ -49,10 +49,14 @@ public sealed partial class MainWindowViewModel
         {
             var taskContext = BuildTurnContext(prompt);
             var history = Messages.Take(Messages.Count - 2).ToArray();
-            var reqA = new AiRequest(SplitBrainPrompts.Explainer(prompt), region, context, history)
-            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext };
-            var reqB = new AiRequest(SplitBrainPrompts.Implementer(prompt), region, context, history)
-            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext };
+            var localOcr = ChatCaptureAttachment.HasVisual(region, context)
+                ? await ResolveOcrForPathsAsync(region, context, cts.Token)
+                : null;
+            var (provR, provC) = ChatCaptureAttachment.ForProvider(region, context, localOcr);
+            var reqA = new AiRequest(SplitBrainPrompts.Explainer(prompt), provR, provC, history)
+            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext, LocalOcrContext = localOcr };
+            var reqB = new AiRequest(SplitBrainPrompts.Implementer(prompt), provR, provC, history)
+            { WorkingDirectory = WorkingDirectory, TaskContext = taskContext, LocalOcrContext = localOcr };
             var clientA = _clientFactory.Create((AiProvider)providers[0]);
             var clientB = _clientFactory.Create((AiProvider)providers[1]);
             var taskA = clientA.AskAsync(reqA, null, cts.Token);

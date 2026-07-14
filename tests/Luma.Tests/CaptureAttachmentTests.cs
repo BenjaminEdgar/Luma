@@ -55,8 +55,10 @@ public sealed class CaptureAttachmentTests
         Assert.Contains("RunTurnAsync(prompt, displayPrompt: suggestion, attachCaptures: true)", source);
 
         // First request uses the resolved attachment paths, not raw fields unconditionally.
+        // OCR preference may strip images via ForProvider before the AiRequest is built.
         Assert.Contains("ChatCaptureAttachment.ForFirstRequest", source);
-        Assert.Contains("new AiRequest(prompt, region, context, history)", source);
+        Assert.Contains("ChatCaptureAttachment.ForProvider", source);
+        Assert.Contains("new AiRequest(prompt, provRegion, provContext, history)", source);
 
         // NEED_SCREEN still retries with a capture when the first request was text-only.
         Assert.Contains("!sentVisual && ClarifyingQuestionParser.TryExtractScreenRereadReason", source);

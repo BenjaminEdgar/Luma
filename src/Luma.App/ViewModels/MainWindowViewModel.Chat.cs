@@ -56,6 +56,8 @@ public sealed partial class MainWindowViewModel
         _planCoordinator.Clear();
         ImplementPlanCommand.RaiseCanExecuteChanged();
         if (_regionPath is not null) ReplaceCapture(ref _regionPath, null);
+        _ambientOcrContext = null;
+        _ambientOcrSourcePath = null;
         OnPropertyChanged(nameof(CanStartNewChat));
         NewChatCommand.RaiseCanExecuteChanged();
         NotifySurfaceStateChanged();
@@ -210,8 +212,33 @@ public sealed partial class MainWindowViewModel
             ? RunCodeContinuationAsync(source, session, answer)
             : RunTurnAsync(answer, attachCaptures: false);
 
+    /// <summary>OCR paths, reusing ambient full-screen OCR when the context file matches.</summary>
+    private async Task<string?> ResolveOcrForPathsAsync(
+        string? regionPath, string? contextPath, CancellationToken cancellationToken)
+    {
+        if (!AppSettings.Current.LocalOcrEnabled) return null;
+
+        // Reuse ambient OCR when only full-screen context is needed and it matches.
+        if (regionPath is null && contextPath is not null)
+        {
+            var ambient = AmbientOcrIfCurrent();
+            if (ambient is not null &&
+                string.Equals(contextPath, _ambientOcrSourcePath, StringComparison.OrdinalIgnoreCase))
+                return ambient;
+        }
+
+        var ocr = await _localOcr.BuildContextAsync(regionPath, contextPath, cancellationToken);
+        if (ocr is not null && regionPath is null && contextPath is not null)
+        {
+            _ambientOcrContext = ocr;
+            _ambientOcrSourcePath = contextPath;
+        }
+
+        return ocr;
+    }
+
     /// <param name="attachCaptures">
-    /// When true (explain screen/selection, suggestion chips), attach available screenshots on the first request.
+    /// When true (explain screen/selection, suggestion chips), use available screenshots for OCR (and vision fallback).
     /// When false (typed chat), start text-only so the model can answer without screen tokens and request
     /// NEED_SCREEN only when visual evidence is actually needed.
     /// </param>
@@ -251,16 +278,50 @@ public sealed partial class MainWindowViewModel
             // Snapshot project files so we can audit agent writes after the turn.
             var writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
             BeginLivePair(WorkingDirectory, writeSnapshot, answer);
+            // On-device OCR first — prefer OCR text over vision tokens for the provider.
+            string? localOcr = null;
+            if (sentVisual)
+            {
+                SetOcrUi(OcrUiPhase.Running, "ON-DEVICE OCR RUNNING for this answer…");
+                SetActivity("OCR RUNNING", "On-device text extraction (preferred over vision)");
+                localOcr = await ResolveOcrForPathsAsync(region, context, cts.Token);
+                if (localOcr is not null)
+                {
+                    var lines = CountOcrLines(localOcr);
+                    var prefer = ScreenEvidence.PrefersOcrOverVision(localOcr);
+                    SetOcrUi(OcrUiPhase.Ready,
+                        prefer
+                            ? $"OCR READY · ~{lines} lines · sending TEXT ONLY to {providerName} (no screenshot tokens)."
+                            : $"OCR READY · ~{lines} lines · OCR + screenshot to {providerName}.");
+                    answer.Caption = prefer
+                        ? $"* {providerName} · local OCR only (no vision)"
+                        : $"* {providerName} · local OCR + screen";
+                    answer.TurnMeta = BuildTurnMeta(providerName, prefer ? "OCR-only" : "OCR+vision", hasVisual: true, WorkingDirectory);
+                    SetActivity(prefer ? "OCR → model" : "OCR + vision",
+                        prefer ? "Local text only — vision skipped" : "Local text with screenshot");
+                }
+                else
+                {
+                    SetOcrUi(OcrUiPhase.Failed,
+                        string.IsNullOrWhiteSpace(_localOcr.LastError)
+                            ? "OCR produced no text — falling back to screenshot vision."
+                            : $"OCR failed: {_localOcr.LastError}");
+                    SetActivity("Vision fallback", "OCR unavailable — using screenshot");
+                }
+            }
+
+            var (provRegion, provContext) = ChatCaptureAttachment.ForProvider(region, context, localOcr);
             // Attach the chosen project folder so providers can read files (cwd + prompt root).
-            var request = new AiRequest(prompt, region, context, history)
+            var request = new AiRequest(prompt, provRegion, provContext, history)
             {
                 WorkingDirectory = WorkingDirectory,
                 TaskContext = taskContext,
+                LocalOcrContext = localOcr,
             };
             var text = await client.AskAsync(request, streamBridge.OnPartial, cts.Token);
             streamBridge.SealPartials();
             SetActivity("Streaming", "Receiving the answer");
-            // Text-first turn: if the model needs the screen, capture once and retry with it.
+            // Text-first turn: if the model needs the screen, capture once; OCR preferred over vision.
             if (!sentVisual && ClarifyingQuestionParser.TryExtractScreenRereadReason(text, out var reason))
             {
                 answer.Caption = $"* {providerName} is reading the screen";
@@ -280,13 +341,35 @@ public sealed partial class MainWindowViewModel
                 }
                 finally { _owner.Show(); _owner.Activate(); }
 
+                SetOcrUi(OcrUiPhase.Running, "NEED_SCREEN → ON-DEVICE OCR RUNNING…");
+                SetActivity("OCR RUNNING", "On-device OCR after NEED_SCREEN");
+                localOcr = await ResolveOcrForPathsAsync(_regionPath, _contextPath, cts.Token);
+                if (localOcr is not null)
+                {
+                    var prefer = ScreenEvidence.PrefersOcrOverVision(localOcr);
+                    SetOcrUi(OcrUiPhase.Ready,
+                        prefer
+                            ? $"OCR READY after NEED_SCREEN · text only to {providerName}."
+                            : $"OCR READY after NEED_SCREEN · OCR + screenshot.");
+                    answer.Caption = prefer
+                        ? $"* {providerName} · local OCR only (no vision)"
+                        : $"* {providerName} · local OCR + screen";
+                    answer.TurnMeta = BuildTurnMeta(providerName, prefer ? "OCR-only" : "OCR+vision", hasVisual: true, WorkingDirectory);
+                }
+                else
+                {
+                    SetOcrUi(OcrUiPhase.Failed, "OCR failed on NEED_SCREEN — using screenshot vision.");
+                }
+
+                var (needRegion, needContext) = ChatCaptureAttachment.ForProvider(_regionPath, _contextPath, localOcr);
                 streamBridge.Reopen();
                 writeSnapshot = WorkspaceWriteAuditor.Capture(WorkingDirectory);
                 BeginLivePair(WorkingDirectory, writeSnapshot, answer);
-                var screenRequest = new AiRequest(prompt, _regionPath, _contextPath, history)
+                var screenRequest = new AiRequest(prompt, needRegion, needContext, history)
                 {
                     WorkingDirectory = WorkingDirectory,
                     TaskContext = taskContext,
+                    LocalOcrContext = localOcr,
                 };
                 text = await client.AskAsync(screenRequest, streamBridge.OnPartial, cts.Token);
                 streamBridge.SealPartials();

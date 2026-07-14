@@ -84,7 +84,7 @@ public sealed class UiExperienceTests
     }
 
     [Fact]
-    public void ThemePaletteDefaultsToBlueAndSupportsColorful()
+    public void ThemePaletteDefaultsToBlueAndSupportsColorfulAndEmerald()
     {
         // Default Blue: #2563EB → #38BDF8, soft #3B82F6, mist #F0F7FF.
         LumaTheme.Apply(UiThemeId.Blue, app: null);
@@ -110,19 +110,39 @@ public sealed class UiExperienceTests
         Assert.Equal(0x00, LumaTheme.AccentEnd.R);
         Assert.Equal(0xE5, LumaTheme.AccentEnd.G);
 
+        // Emerald: #059669 → #34D399, mint mist #F0FDF8.
+        LumaTheme.Apply(UiThemeId.Emerald, app: null);
+        Assert.Equal(UiThemeId.Emerald, LumaTheme.CurrentId);
+        Assert.Equal(0x05, LumaTheme.AccentStart.R);
+        Assert.Equal(0x96, LumaTheme.AccentStart.G);
+        Assert.Equal(0x69, LumaTheme.AccentStart.B);
+        Assert.Equal(0x34, LumaTheme.AccentEnd.R);
+        Assert.Equal(0xD3, LumaTheme.AccentEnd.G);
+        Assert.Equal(0x99, LumaTheme.AccentEnd.B);
+        Assert.Equal(0xF0, LumaTheme.InkPanel.R);
+        Assert.Equal(0xFD, LumaTheme.InkPanel.G);
+        Assert.NotNull(LumaTheme.CreatePanelFillBrush());
+
+        Assert.Equal(3, LumaTheme.ThemeChoices.Count);
+        Assert.Equal(UiThemeId.Emerald, LumaTheme.ThemeChoices[2].Id);
+
         // Restore default for other tests.
         LumaTheme.Apply(UiThemeId.Blue, app: null);
     }
 
     [Fact]
-    public void ThemeSettingParsesBlueAndColorful()
+    public void ThemeSettingParsesBlueColorfulAndEmerald()
     {
         Assert.Equal(UiThemeId.Blue, LumaTheme.ParseThemeId(null));
         Assert.Equal(UiThemeId.Blue, LumaTheme.ParseThemeId("Blue"));
         Assert.Equal(UiThemeId.Colorful, LumaTheme.ParseThemeId("Colorful"));
         Assert.Equal(UiThemeId.Colorful, LumaTheme.ParseThemeId("aurora"));
+        Assert.Equal(UiThemeId.Emerald, LumaTheme.ParseThemeId("Emerald"));
+        Assert.Equal(UiThemeId.Emerald, LumaTheme.ParseThemeId("mint"));
+        Assert.Equal(UiThemeId.Emerald, LumaTheme.ParseThemeId("2"));
         Assert.Contains("UiTheme", ReadShipped("src/Luma.App/Services/AppSettings.cs"));
         Assert.Contains("LumaTheme.Apply", ReadShipped("src/Luma.App/Services/SettingsWindow.cs"));
+        Assert.Contains("ThemeChoiceIndex", ReadShipped("src/Luma.App/Services/SettingsWindow.cs"));
         Assert.Contains("ApplyFromSettings", ReadShipped("src/Luma.App/App.axaml.cs"));
     }
 
@@ -178,11 +198,14 @@ public sealed class UiExperienceTests
         // Default seed palette is Blue (white → blue).
         Assert.Contains("#2563EB", xaml);
         Assert.Contains("#38BDF8", xaml);
-        // Colorful palette still lives in LumaTheme for switching.
+        // Colorful + Emerald palettes live in LumaTheme for switching.
         var theme = ReadShipped("src/Luma.App/Services/LumaTheme.cs");
         Assert.Contains("#7C4DFF", theme);
         Assert.Contains("#00E5FF", theme);
         Assert.Contains("UiThemeId.Colorful", theme);
+        Assert.Contains("#059669", theme);
+        Assert.Contains("#34D399", theme);
+        Assert.Contains("UiThemeId.Emerald", theme);
     }
 
     [Fact]

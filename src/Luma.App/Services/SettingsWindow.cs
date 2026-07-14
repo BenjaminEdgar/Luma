@@ -22,6 +22,9 @@ public sealed class SettingsWindow : Window
     private readonly NumericUpDown _imageWidth;
     private readonly CheckBox _skipUnchanged;
     private readonly CheckBox _leanChat;
+    private readonly CheckBox _localOcr;
+    private readonly CheckBox _localOcrPrefer;
+    private readonly TextBox _localOcrModels;
     private readonly NumericUpDown _historyMessages;
     private readonly NumericUpDown _historyChars;
     private readonly NumericUpDown _memoryChars;
@@ -45,7 +48,7 @@ public sealed class SettingsWindow : Window
             MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             ItemsSource = LumaTheme.ThemeChoices.Select(t => t.Label).ToList(),
-            SelectedIndex = (int)LumaTheme.ParseThemeId(settings.UiTheme),
+            SelectedIndex = ThemeChoiceIndex(LumaTheme.ParseThemeId(settings.UiTheme)),
         };
         _capture = Toggle("Capture the screen when the panel opens", settings.CaptureScreenOnOpen);
         _suggest = Toggle("Suggest prompts from what's on screen", settings.SuggestFromScreen);
@@ -58,6 +61,9 @@ public sealed class SettingsWindow : Window
         _imageWidth = Number(480, 7680, settings.SuggestionImageMaxWidth);
         _skipUnchanged = Toggle("Skip suggestions when the screen is unchanged", settings.SkipSuggestionsWhenScreenUnchanged);
         _leanChat = Toggle("Lean chat mode (shorter prompts, tighter history)", settings.LeanChatMode);
+        _localOcr = Toggle("On-device OCR for screenshots (local models, no cloud)", settings.LocalOcrEnabled);
+        _localOcrPrefer = Toggle("Prefer OCR over vision (skip screenshot tokens when OCR works)", settings.LocalOcrPreferOverVision);
+        _localOcrModels = Text(settings.LocalOcrModelsPath, @"Auto — models\ocr or %LocalAppData%\Luma\ocr-models");
         _historyMessages = Number(0, 500, settings.HistoryMessageLimit);
         _historyChars = Number(0, 200_000, settings.HistoryCharacterLimit);
         _memoryChars = Number(0, 20_000, settings.AssistantMemoryCharacterLimit);
@@ -117,7 +123,7 @@ public sealed class SettingsWindow : Window
                             {
                                 Section("Appearance"),
                                 Labeled("Theme", _theme),
-                                Hint("Blue is white→blue glass (default). Colorful is the violet→cyan Aurora look."),
+                                Hint("Blue is white→blue glass (default). Colorful is violet→cyan Aurora. Emerald is white→mint with emerald accents."),
                                 Section("Screen context"),
                                 _globalShortcut,
                                 Hint("From any application, press Ctrl+Shift+E to select a region and explain it. Restart Luma after changing this."),
@@ -127,6 +133,12 @@ public sealed class SettingsWindow : Window
                                 Labeled("Focus lock minutes", _chaosPomodoro),
                                 _capture,
                                 Hint("Luma grabs a screenshot as ambient context so answers can see what you see."),
+                                _localOcr,
+                                Hint("Runs PP-OCR ONNX on open, suggestions, explain, and NEED_SCREEN. Requires det.onnx + rec.onnx (python tools/ocr/download_models.py)."),
+                                _localOcrPrefer,
+                                Hint("When OCR succeeds: no vision tokens; open chips/digest use local text; chat/explain send OCR text only. Falls back to screenshots if OCR fails."),
+                                Labeled("OCR models folder (optional)", _localOcrModels),
+                                Hint("Leave blank to auto-discover. Point at a folder with det.onnx and rec.onnx after fine-tuning."),
                                 _suggest,
                                 Hint("Sends the capture to the provider to offer one-click prompt chips."),
                                 _prewarm,
@@ -199,11 +211,7 @@ public sealed class SettingsWindow : Window
         settings.EnableGlobalExplainShortcut = _globalShortcut.IsChecked ?? true;
         settings.ChaosMode = _chaosMode.IsChecked ?? false;
         settings.ChaosPomodoroMinutes = (int)(_chaosPomodoro.Value ?? 25);
-        var themeId = _theme.SelectedIndex switch
-        {
-            1 => UiThemeId.Colorful,
-            _ => UiThemeId.Blue,
-        };
+        var themeId = ThemeIdFromChoiceIndex(_theme.SelectedIndex);
         settings.UiTheme = LumaTheme.ThemeIdToSetting(themeId);
         LumaTheme.Apply(themeId);
         settings.SuggestionCount = (int)(_count.Value ?? 3);
@@ -211,6 +219,9 @@ public sealed class SettingsWindow : Window
         settings.SuggestionImageMaxWidth = (int)(_imageWidth.Value ?? 1280);
         settings.SkipSuggestionsWhenScreenUnchanged = _skipUnchanged.IsChecked ?? true;
         settings.LeanChatMode = _leanChat.IsChecked ?? false;
+        settings.LocalOcrEnabled = _localOcr.IsChecked ?? true;
+        settings.LocalOcrPreferOverVision = _localOcrPrefer.IsChecked ?? true;
+        settings.LocalOcrModelsPath = _localOcrModels.Text?.Trim() ?? "";
         settings.HistoryMessageLimit = (int)(_historyMessages.Value ?? 12);
         settings.HistoryCharacterLimit = (int)(_historyChars.Value ?? 4000);
         settings.AssistantMemoryCharacterLimit = (int)(_memoryChars.Value ?? 2000);
@@ -232,6 +243,22 @@ public sealed class SettingsWindow : Window
         Text = title, FontSize = 12.5, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6,
         Foreground = LumaTheme.AccentSoftBrush, Margin = new Thickness(0, 8, 0, 0),
     };
+
+    /// <summary>Maps a theme id to its index in <see cref="LumaTheme.ThemeChoices"/> (supports 3+ themes).</summary>
+    private static int ThemeChoiceIndex(UiThemeId id)
+    {
+        for (var i = 0; i < LumaTheme.ThemeChoices.Count; i++)
+        {
+            if (LumaTheme.ThemeChoices[i].Id == id) return i;
+        }
+        return 0;
+    }
+
+    private static UiThemeId ThemeIdFromChoiceIndex(int index)
+    {
+        if (index < 0 || index >= LumaTheme.ThemeChoices.Count) return UiThemeId.Blue;
+        return LumaTheme.ThemeChoices[index].Id;
+    }
 
     private static TextBlock Hint(string text) => new()
     {

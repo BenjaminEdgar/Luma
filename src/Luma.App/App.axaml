@@ -123,7 +123,7 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- Primary: brand gradient (violet → cyan), flat interaction. -->
+        <!-- Primary: theme accent gradient, flat interaction. -->
         <Style Selector="Button.accent">
             <Setter Property="Background" Value="{DynamicResource AccentGradient}" />
             <Setter Property="Foreground" Value="White" />
@@ -143,63 +143,98 @@
             <Setter Property="Opacity" Value="0.92" />
         </Style>
         <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#D4D0F0" />
+            <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
         </Style>
 
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F2F4FF" />
-            <Setter Property="Foreground" Value="#080F23" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <Style Selector="Button.ghost:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E8E4F8" />
+            <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
         </Style>
 
-        <!-- Secondary: white + soft violet rim (brand board secondary button). -->
+        <!-- Secondary: white + soft accent rim. -->
         <Style Selector="Button.outline">
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="#1E293B" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBodyBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F8F7FF" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="#080F23" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <Style Selector="Button.outline:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F2F4FF" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
         </Style>
 
         <Style Selector="Border.statuspill">
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#E8E4F8" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="11,5" />
         </Style>
         <Style Selector="Border.statuspill.plan">
-            <Setter Property="Background" Value="#F5F0FF" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
             <Setter Property="BoxShadow" Value="0 0 14 0 #332563EB" />
+        </Style>
+        <Style Selector="Border.statuspill.ocr-run">
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 0 18 0 #552563EB" />
+        </Style>
+        <Style Selector="Border.statuspill.ocr-ready">
+            <Setter Property="Background" Value="#ECFDF5" />
+            <Setter Property="BorderBrush" Value="#34D399" />
+        </Style>
+        <Style Selector="Border.statuspill.ocr-alert">
+            <Setter Property="Background" Value="#FFF7ED" />
+            <Setter Property="BorderBrush" Value="#F59E0B" />
+        </Style>
+
+        <!-- Loud local-OCR strip under the header -->
+        <Style Selector="Border.ocrstrip">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12,9" />
+        </Style>
+        <Style Selector="Border.ocrstrip.running">
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 0 20 0 #442563EB" />
+        </Style>
+        <Style Selector="Border.ocrstrip.ready">
+            <Setter Property="Background" Value="#ECFDF5" />
+            <Setter Property="BorderBrush" Value="#6EE7B7" />
+        </Style>
+        <Style Selector="Border.ocrstrip.alert">
+            <Setter Property="Background" Value="#FFF7ED" />
+            <Setter Property="BorderBrush" Value="#FBBF24" />
         </Style>
 
         <!-- Soft pill chips. -->
         <Style Selector="Button.chip">
             <Setter Property="MaxWidth" Value="420" />
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="#1E293B" />
-            <Setter Property="BorderBrush" Value="#E8E4F8" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBodyBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="12,6" />
@@ -208,9 +243,9 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F2F4FF" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
-            <Setter Property="Foreground" Value="#080F23" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
@@ -241,7 +276,7 @@
         <Style Selector="Button.msgcopy">
             <Setter Property="Background" Value="#FFFFFF" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="#E8E4F8" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -344,7 +379,7 @@
         </Style>
         <!-- Energy stream caret (kept class streamcursor for product DNA). -->
         <Style Selector="TextBlock.streamcursor">
-            <Setter Property="Foreground" Value="#FF7C5CFF" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Margin" Value="0,1,0,0" />
@@ -401,7 +436,7 @@
         <Style Selector="Ellipse.raildot">
             <Setter Property="Width" Value="6" />
             <Setter Property="Height" Value="6" />
-            <Setter Property="Fill" Value="#4F46E5" />
+            <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="Opacity" Value="0.95" />
         </Style>
@@ -473,8 +508,8 @@
             <Setter Property="Foreground" Value="#0F172A" />
         </Style>
         <Style Selector="Button.qchoice:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4F46E5" />
-            <Setter Property="BorderBrush" Value="#4F46E5" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.qskip">
@@ -509,15 +544,15 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.actioncard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E0E7FF" />
-            <Setter Property="BorderBrush" Value="#A5B4FC" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
         </Style>
 
         <!-- Signal thinking dots for pending messages. -->
         <Style Selector="Ellipse.thinkdot">
             <Setter Property="Width" Value="7" />
             <Setter Property="Height" Value="7" />
-            <Setter Property="Fill" Value="#FF7C5CFF" />
+            <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Opacity" Value="0.35" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -588,10 +623,10 @@
             </Style.Animations>
         </Style>
 
-        <!-- Chat cards: clean white assistant / lavender-tinted user, soft asymmetric tails. -->
+        <!-- Chat cards: clean white assistant / tinted user, soft asymmetric tails. -->
         <Style Selector="Border.bubble">
             <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#ECE8FA" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18,18,18,6" />
             <Setter Property="Padding" Value="15,12" />
@@ -616,7 +651,7 @@
         </Style>
         <Style Selector="Border.bubble.user">
             <Setter Property="Background" Value="{DynamicResource UserBubbleBrush}" />
-            <Setter Property="BorderBrush" Value="#E4DDFB" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18,18,6,18" />
             <Setter Property="HorizontalAlignment" Value="Right" />
@@ -641,11 +676,11 @@
 
         <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="#F8FFFFFF" />
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
         </Style>
         <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="#FFFFFFFF" />
-            <Setter Property="BorderBrush" Value="#A5B4FC" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
         </Style>
 
         <Style Selector="TextBlock.brandmark">
@@ -653,14 +688,14 @@
             <Setter Property="FontSize" Value="17" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="LetterSpacing" Value="-0.2" />
-            <Setter Property="Foreground" Value="#080F23" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <!-- Brand tagline: letter-spaced caps under the hero mark. -->
         <Style Selector="TextBlock.tagline">
             <Setter Property="FontSize" Value="9.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="LetterSpacing" Value="3.4" />
-            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="Opacity" Value="0.85" />
         </Style>
         <!-- Satellite dot slowly circles the hero mark (animates a plain double — keyframe-safe). -->
@@ -676,14 +711,14 @@
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="LetterSpacing" Value="0.6" />
-            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="TextBlock.muted">
-            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
         </Style>
         <Style Selector="TextBlock.body">
-            <Setter Property="Foreground" Value="#1E293B" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBodyBrush}" />
         </Style>
 
         <Style Selector="Border.panelshell">
@@ -751,27 +786,27 @@
             <Setter Property="Padding" Value="10,5" />
             <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
-        <!-- Compose + menu trigger: soft violet coin, bottom-left of the capsule. -->
+        <!-- Compose + menu trigger: soft accent coin, bottom-left of the capsule. -->
         <Style Selector="Button.composemore">
-            <Setter Property="Background" Value="#F5F2FF" />
-            <Setter Property="BorderBrush" Value="#E6DEFC" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.composemore:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#EDE7FF" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         </Style>
         <Style Selector="Button.composemore:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E1D8FF" />
-            <Setter Property="BorderBrush" Value="#A78BFF" />
+            <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
         </Style>
         <!-- Compose model picker: pill next to send (provider · effort). -->
         <Style Selector="Button.composemodel">
-            <Setter Property="Background" Value="#F6F4FF" />
-            <Setter Property="BorderBrush" Value="#E0D8FC" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -779,17 +814,17 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button.composemodel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#EDE7FF" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         </Style>
         <Style Selector="Button.composemodel:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E1D8FF" />
-            <Setter Property="BorderBrush" Value="#A78BFF" />
+            <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
         </Style>
-        <!-- Context tokens: violet-tinted pills that sit inside the compose capsule. -->
+        <!-- Context tokens: soft glass pills inside the compose capsule. -->
         <Style Selector="Border.cwdchip">
-            <Setter Property="Background" Value="#F6F4FF" />
-            <Setter Property="BorderBrush" Value="#E6DEFC" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ComposeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="10,5" />
@@ -925,8 +960,8 @@
             <Setter Property="Foreground" Value="#0F172A" />
         </Style>
         <Style Selector="Button.chaoschip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4F46E5" />
-            <Setter Property="BorderBrush" Value="#4F46E5" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <!-- Lean chat chip: glass pill in same family as chaos/split chips (prevents gray fallback).
@@ -943,20 +978,20 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.leanchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#EEF2FF" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
-            <Setter Property="Foreground" Value="#0F172A" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <Style Selector="Button.leanchip:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4F46E5" />
-            <Setter Property="BorderBrush" Value="#4F46E5" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <!-- Plan mode chip: aurora pill (distinct from chaos/cwd). BoxShadow not on Button. -->
+        <!-- Plan mode chip: accent pill (distinct from chaos/cwd). BoxShadow not on Button. -->
         <Style Selector="Button.planchip">
-            <Setter Property="Background" Value="#EEF6FF" />
-            <Setter Property="Foreground" Value="#4338CA" />
-            <Setter Property="BorderBrush" Value="#C4B5FD" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="9,5" />
@@ -965,9 +1000,9 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.planchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#E8F0FF" />
-            <Setter Property="BorderBrush" Value="#A78BFF" />
-            <Setter Property="Foreground" Value="#312E81" />
+            <Setter Property="Background" Value="{DynamicResource QuietGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrightBrush}" />
         </Style>
         <Style Selector="Button.planchip:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
@@ -998,7 +1033,7 @@
         <Style Selector="TextBlock.splitvs">
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="#4338CA" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Opacity" Value="0.9" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="2,0" />

@@ -84,14 +84,16 @@
               <TextBlock Text="Luma" Classes="brandmark" />
             </Border>
           </StackPanel>
-          <Border Grid.Column="2" Name="StatusPill" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,8,0">
+          <Border Grid.Column="2" Name="StatusPill" Classes="statuspill" VerticalAlignment="Center" Margin="0,0,8,0"
+                  ToolTip.Tip="{Binding OcrBannerDetail}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Ellipse Width="7" Height="7" VerticalAlignment="Center" IsVisible="{Binding !IsBusy}"
+              <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                       IsVisible="{Binding !ShowHeaderSpinner}"
                        Fill="{DynamicResource AccentBrush}" />
               <Ellipse Classes="thinkingring" Width="9" Height="9" VerticalAlignment="Center"
-                       IsVisible="{Binding IsBusy}" />
-              <TextBlock Text="{Binding SurfaceStatus}" FontSize="11" Foreground="#1E293B"
-                         TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                       IsVisible="{Binding ShowHeaderSpinner}" />
+              <TextBlock Text="{Binding SurfaceStatus}" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B"
+                         TextTrimming="CharacterEllipsis" MaxWidth="150" />
             </StackPanel>
           </Border>
           <Button Grid.Column="3" Classes="outline" Command="{Binding NewChatCommand}"
@@ -106,7 +108,7 @@
                     CornerRadius="10" Padding="0" VerticalAlignment="Center"
                     ToolTip.Tip="Settings">
               <Path Data="M4,8 L20,8 M4,16 L20,16 M14,8 m-2.4,0 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0 M9,16 m-2.4,0 a2.4,2.4 0 1 0 4.8,0 a2.4,2.4 0 1 0 -4.8,0"
-                    Stroke="#6B7280" StrokeThickness="1.6" StrokeLineCap="Round" Fill="#FFF2F4FF"
+                    Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.6" StrokeLineCap="Round" Fill="{DynamicResource QuietGlassBrush}"
                     Width="13" Height="13" Stretch="Uniform" />
             </Button>
             <Button Name="ClosePanelButton" Classes="ghost" Content="&#x00D7;"
@@ -115,8 +117,27 @@
           </StackPanel>
         </Grid>
 
-        <!-- Status: warn / compact busy detail / memory chip -->
+        <!-- Status: OCR banner (loud) / warn / busy detail / memory -->
         <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
+          <Border Name="OcrBanner" IsVisible="{Binding ShowOcrBanner}" Classes="ocrstrip"
+                  ToolTip.Tip="{Binding OcrBannerDetail}">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+              <Ellipse Classes="thinkingring" Width="12" Height="12" VerticalAlignment="Center"
+                       IsVisible="{Binding IsOcrRunning}" />
+              <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="1"
+                       IsVisible="{Binding !IsOcrRunning}"
+                       Fill="{DynamicResource AccentBrush}" />
+              <StackPanel Grid.Column="1" Spacing="1">
+                <TextBlock Text="{Binding OcrBannerTitle}" FontSize="12" FontWeight="Bold"
+                           Foreground="#0F172A" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding OcrBannerDetail}" FontSize="11" Foreground="#334155"
+                           TextWrapping="Wrap" LineHeight="15" />
+              </StackPanel>
+              <TextBlock Grid.Column="2" Text="LOCAL" FontSize="9" FontWeight="Bold"
+                         Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Top"
+                         LetterSpacing="0.8" Margin="0,2,0,0" />
+            </Grid>
+          </Border>
           <Border IsVisible="{Binding HasProviderProblem}" Classes="warnstrip">
             <TextBlock Text="{Binding ProviderStatus}" FontSize="11.5" TextWrapping="Wrap"
                        Foreground="#B45309" />
@@ -126,7 +147,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Ellipse Classes="thinkingring" Width="11" Height="11" VerticalAlignment="Center" />
               <TextBlock Text="{Binding SurfaceDetail}" FontSize="11.5" Foreground="#1E293B"
-                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                         TextWrapping="Wrap" VerticalAlignment="Center" />
             </StackPanel>
           </Border>
           <Border IsVisible="{Binding HasAssistantMemory}" Classes="memorychip"
@@ -209,6 +230,15 @@
               <TextBlock Text="Ctrl+Shift+E  ·  select &amp; explain from any app"
                          FontSize="10.5" Foreground="#64748B" />
             </Border>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
+                        IsVisible="{Binding IsOcrRunning}" Margin="0,6,0,0">
+              <Ellipse Classes="thinkingring" Width="14" Height="14" />
+              <TextBlock Text="{Binding OcrBannerTitle}" FontSize="12.5" FontWeight="Bold"
+                         Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Text="{Binding OcrBannerDetail}" FontSize="11.5" Classes="muted"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                       IsVisible="{Binding IsOcrRunning}" Margin="0,2,0,0" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
                         IsVisible="{Binding IsSuggesting}" Margin="0,4,0,0">
               <Ellipse Classes="thinkingring" Width="12" Height="12" />
@@ -532,6 +562,11 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsOcrRunning}">
+            <Ellipse Classes="thinkingring" Width="11" Height="11" />
+            <TextBlock Text="{Binding OcrBannerTitle}" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentBrush}" />
+          </StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSuggesting}">
             <Ellipse Classes="thinkingring" Width="11" Height="11" />
             <TextBlock Text="Refining quick actions…" FontSize="11" Classes="muted" />

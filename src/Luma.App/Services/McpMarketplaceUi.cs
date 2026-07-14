@@ -14,12 +14,12 @@ public enum McpCardInstallState
 /// </summary>
 public static class McpMarketplaceUi
 {
-    public const string HeroTitle = "Power up Grok with tools";
-    public const string HeroSubtitle = "Discover · configure · sync servers for Grok";
+    public const string HeroTitle = "Power up your agents with tools";
+    public const string HeroSubtitle = "Discover · configure · sync servers for Claude, Codex & Grok";
     public const string FeaturedSection = "SPOTLIGHT";
     public const string MoreSection = "MORE SERVERS";
     public const string InstalledEmptyTitle = "Nothing installed yet";
-    public const string InstalledEmptyHint = "Start with one of these — one tap installs and syncs to Grok.";
+    public const string InstalledEmptyHint = "Start with one of these — one tap installs and syncs to all your agents.";
 
     /// <summary>Starter pack chips (filter only — no bulk install).</summary>
     public static IReadOnlyList<McpStarterPack> StarterPacks { get; } =
@@ -89,7 +89,7 @@ public static class McpMarketplaceUi
         $"{catalog} catalog · {installed} installed · {needKeys} need keys";
 
     public static string YouUnlockedLine(string title) =>
-        $"You unlocked {title} for Grok";
+        $"You unlocked {title} for your agents";
 
     public static string InstallSuccessStatus(string title, IReadOnlyList<string> missingKeys)
     {

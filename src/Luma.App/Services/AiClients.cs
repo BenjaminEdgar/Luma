@@ -216,13 +216,26 @@ public abstract class CliAiClient : IAiClient
             builder.AppendLine(PlanMode.ProgressDirective);
 
         var hasVisualContext = request.ImagePath is not null || request.ContextImagePath is not null;
-        if (hasVisualContext && !garnish)
+        var hasLocalOcr = !string.IsNullOrWhiteSpace(request.LocalOcrContext);
+        if ((hasVisualContext || hasLocalOcr) && !garnish)
         {
             if (lean)
             {
-                builder.AppendLine(
-                    "Screenshot is primary evidence. Prefer the region image when present. " +
-                    "Do not invent unreadable text. Answer the user first.");
+                builder.AppendLine(hasLocalOcr
+                    ? "On-device OCR text is primary for exact wording; screenshot is secondary for layout. Prefer the region when present. Do not invent text."
+                    : "Screenshot is primary evidence. Prefer the region image when present. Do not invent unreadable text. Answer the user first.");
+            }
+            else if (hasLocalOcr)
+            {
+                builder.AppendLine(hasVisualContext
+                    ? "On-device LOCAL OCR is the primary source for wording (pixel + normalized 0–1 coords). " +
+                      "Use the screenshot only for layout/icons OCR missed. Never invent text absent from OCR or the image. " +
+                      "Answer intent first. SHOW_WHERE: label | x,y,w,h using OCR norm= when possible."
+                    : "On-device LOCAL OCR is the ONLY screen evidence (no screenshot attached — prefer OCR over vision). " +
+                      "Treat OCR full text and block coords as ground truth. Do not invent UI text. " +
+                      "If OCR is incomplete, say what is missing rather than guessing. " +
+                      "Answer intent first. SHOW_WHERE: optional label | x,y,w,h using OCR norm= fractions " +
+                      "(example: SHOW_WHERE: Apply button | 0.72,0.81,0.14,0.06).");
             }
             else
             {
@@ -314,6 +327,8 @@ public abstract class CliAiClient : IAiClient
             builder.AppendLine($"Pinned memory:\n{memory}");
         }
         if (!string.IsNullOrWhiteSpace(request.TaskContext)) builder.AppendLine($"Context:\n{request.TaskContext}");
+        if (!string.IsNullOrWhiteSpace(request.LocalOcrContext))
+            builder.AppendLine(request.LocalOcrContext.Trim());
         if (request.History.Count > 0)
         {
             // Every call re-sends the conversation, so trim it to the configured token budget.

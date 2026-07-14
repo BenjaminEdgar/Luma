@@ -20,7 +20,7 @@ The diff card is a per-file, per-hunk checklist with colored additions/deletions
 
 ## Requirements
 
-- .NET 9 SDK or newer (building from source; supported by Visual Studio 2022 17.12+)
+- .NET 10 SDK (building from source; supported by Visual Studio 2022 17.12+)
 - Claude Code (`claude`), Codex CLI (`codex`), and/or Grok Build (`grok`), already authenticated
   - Grok Build: install from [x.ai/cli](https://x.ai/cli) (Windows: `irm https://x.ai/cli/install.ps1 | iex`), then run `grok login`
   - Model IDs must match `grok models` (chat defaults to the CLI flagship; suggestions default to `grok-composer-2.5-fast`)

@@ -197,11 +197,15 @@ public sealed class McpMarketplaceWindow : Window
             if (e.Key == Key.Escape) { Close(); e.Handled = true; }
         };
 
-        Opened += async (_, _) =>
+        Opened += (_, _) =>
         {
-            await LoadMarketAsync(null);
+            // Show curated servers instantly, fetch registry in background.
+            _lastEntries = McpCuratedCatalog.All.ToList();
+            RenderMarket(_lastEntries);
+            _status.Text = "Loading full registry…";
             RefreshInstalled();
             UpdateLiveCounts();
+            _ = LoadMarketAsync(null);
         };
     }
 
@@ -511,11 +515,11 @@ public sealed class McpMarketplaceWindow : Window
             {
                 MakeButton("Import from config", "outline", () =>
                 {
-                    var n = _installs.ImportFromGrokConfig();
+                    var n = _installs.ImportFromAllConfigs();
                     RefreshInstalled();
                     _status.Text = n == 0
-                        ? "No new servers found in config.toml"
-                        : $"Imported {n} server{(n == 1 ? "" : "s")} from Grok config";
+                        ? "No new servers found in any config"
+                        : $"Imported {n} server{(n == 1 ? "" : "s")} from Claude, Codex & Grok";
                 }),
                 MakeButton("Resync Grok", "outline", () =>
                 {

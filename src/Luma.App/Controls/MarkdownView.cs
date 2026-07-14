@@ -18,27 +18,33 @@ public sealed class MarkdownView : ContentControl
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
     private static readonly FontFamily Mono = new("Cascadia Mono,Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,monospace");
-    // Glass-aligned tokens (track LumaTheme / App.axaml Luma Bloom pearl palette).
-    private static readonly IBrush InlineCodeBg = new SolidColorBrush(Color.Parse("#337C5CFF"));
-    private static readonly IBrush InlineCodeFg = new SolidColorBrush(Color.Parse("#FF2E2850"));
-    private static readonly IBrush CodeBlockBg = new SolidColorBrush(Color.Parse("#F8F8FD"));
-    private static readonly IBrush CodeBlockHeaderBg = new SolidColorBrush(Color.Parse("#F2F0FE"));
-    private static readonly IBrush CodeBlockBorder = new SolidColorBrush(Color.Parse("#E4DFF7"));
-    private static readonly IBrush CodeBlockFg = new SolidColorBrush(Color.Parse("#FF1A1433"));
-    private static readonly IBrush HeadingFg = LumaTheme.TextBrightBrush;
-    private static readonly IBrush HeadingAccentFg = LumaTheme.AccentSoftBrush;
-    private static readonly IBrush MutedFg = LumaTheme.TextMutedBrush;
-    private static readonly IBrush LinkFg = LumaTheme.AccentSoftBrush;
-    private static readonly IBrush RuleBrush = new SolidColorBrush(Color.Parse("#887C5CFF"));
-    private static readonly IBrush QuoteBar = new SolidColorBrush(Color.Parse("#CC7C5CFF"));
-    private static readonly IBrush QuoteBg = new SolidColorBrush(Color.Parse("#227C5CFF"));
-    private static readonly IBrush TableHeaderBg = new SolidColorBrush(Color.Parse("#F2F0FE"));
-    private static readonly IBrush TableStripeBg = new SolidColorBrush(Color.Parse("#7AF6F5FE"));
-    private static readonly IBrush TableLine = new SolidColorBrush(Color.Parse("#ECE9F8"));
-    private static readonly IBrush TableBorder = new SolidColorBrush(Color.Parse("#E4DFF7"));
-    private static readonly IBrush CheckFill = new SolidColorBrush(Color.Parse("#7C4DFF"));
-    private static readonly IBrush CheckRim = new SolidColorBrush(Color.Parse("#C4B5FD"));
-    private static readonly IBrush BulletFg = new SolidColorBrush(Color.Parse("#7C4DFF"));
+    // Theme-aware tokens (read LumaTheme live so Blue / Colorful stay coherent).
+    private static IBrush InlineCodeBg => AccentA(0x28);
+    private static IBrush InlineCodeFg => LumaTheme.TextBodyBrush;
+    private static IBrush CodeBlockBg => LumaTheme.GlassFillBrush;
+    private static IBrush CodeBlockHeaderBg => LumaTheme.GlassFillStrongBrush;
+    private static IBrush CodeBlockBorder => LumaTheme.BorderAccentBrush;
+    private static IBrush CodeBlockFg => LumaTheme.TextBrightBrush;
+    private static IBrush HeadingFg => LumaTheme.TextBrightBrush;
+    private static IBrush HeadingAccentFg => LumaTheme.AccentSoftBrush;
+    private static IBrush MutedFg => LumaTheme.TextMutedBrush;
+    private static IBrush LinkFg => LumaTheme.AccentSoftBrush;
+    private static IBrush RuleBrush => AccentA(0x66);
+    private static IBrush QuoteBar => AccentA(0xCC);
+    private static IBrush QuoteBg => AccentA(0x18);
+    private static IBrush TableHeaderBg => LumaTheme.GlassFillBrush;
+    private static IBrush TableStripeBg => AccentA(0x12);
+    private static IBrush TableLine => LumaTheme.BorderAccentBrush;
+    private static IBrush TableBorder => LumaTheme.BorderAccentBrush;
+    private static IBrush CheckFill => LumaTheme.AccentBrush;
+    private static IBrush CheckRim => LumaTheme.BorderAccentBrush;
+    private static IBrush BulletFg => LumaTheme.AccentBrush;
+
+    private static IBrush AccentA(byte a)
+    {
+        var c = LumaTheme.AccentStart;
+        return new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
+    }
 
     private static readonly TimeSpan RebuildThrottle = TimeSpan.FromMilliseconds(75);
     private DateTime _lastRebuild = DateTime.MinValue;

@@ -66,7 +66,7 @@ Working directory is passed on chat turns when set. Agents may read/write under 
 
 - Prefer small pure helpers in `Services/` (testable without Avalonia window).
 - `dotnet test tests/Luma.Tests -c Release` (Debug may lock if `Luma.exe` is running).
-- Don’t invent OCR (removed). Don’t re-add top capture preview.
+- Local OCR: `src/Luma.Ocr` + `LocalOcrService` injects on-device text/coords on visual turns (`AppSettings.LocalOcrEnabled`). Models: `models/ocr` via `python tools/ocr/download_models.py`. Don’t re-add top capture preview.
 - Grok usage: interactive `grok` then `/usage show` — not shown in Luma.
 
 ## Build / run

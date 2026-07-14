@@ -19,6 +19,12 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     private readonly IRunningOperationCoordinator _operations;
     private readonly ProviderDiagnostics _diagnostics;
     private readonly IScreenDifferenceService _screenDifference;
+    private readonly LocalOcrService _localOcr = new();
+    /// <summary>Last ambient full-screen OCR block (first open / refresh); reused for chips and turns.</summary>
+    private string? _ambientOcrContext;
+    private string? _ambientOcrSourcePath;
+    private OcrUiPhase _ocrPhase = OcrUiPhase.Checking;
+    private string _ocrDetail = OcrUiStatus.DefaultDetail(OcrUiPhase.Checking);
     private readonly DispatcherTimer _operationTicker;
     private readonly CancellationTokenSource _lifetime = new();
     private string? _regionPath;
@@ -419,7 +425,21 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     public bool ShowScreenLandingActions => Messages.Count == 0 && !HasWorkingDirectory;
     public bool ShowRepoLandingActions => Messages.Count == 0 && HasWorkingDirectory;
     /// <summary>Compact busy strip when there is detail beyond the header status pill.</summary>
-    public bool ShowBusyDetail => IsBusy && !string.IsNullOrWhiteSpace(SurfaceDetail);
+    public bool ShowBusyDetail =>
+        (IsBusy || _refreshingContext || OcrUiStatus.IsBusyPhase(_ocrPhase) || IsSuggesting)
+        && !string.IsNullOrWhiteSpace(SurfaceDetail);
+    /// <summary>Always-on OCR strip when local OCR is enabled (or still checking).</summary>
+    public bool ShowOcrBanner =>
+        AppSettings.Current.LocalOcrEnabled || _ocrPhase is OcrUiPhase.Checking or OcrUiPhase.Offline;
+    public bool IsOcrRunning => OcrUiStatus.IsBusyPhase(_ocrPhase);
+    public bool IsOcrReady => _ocrPhase == OcrUiPhase.Ready;
+    public bool IsOcrAlert => OcrUiStatus.IsAlertPhase(_ocrPhase);
+    /// <summary>Header status-pill spinner for OCR / busy / capture / suggest.</summary>
+    public bool ShowHeaderSpinner =>
+        IsBusy || IsOcrRunning || _refreshingContext || IsSuggesting || IsImprovingPrompt;
+    public string OcrBannerTitle => OcrUiStatus.BannerTitle(_ocrPhase);
+    public string OcrBannerDetail => _ocrDetail;
+    public OcrUiPhase OcrPhase => _ocrPhase;
     /// <summary>Shortcut tip only on screen landing — hide in repo mode to cut empty-state noise.</summary>
     public bool ShowGlobalExplainHint => GlobalExplainShortcutAvailable && ShowScreenLandingActions;
     public string Question
@@ -445,40 +465,52 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
     public string AssistantMemoryPreview => MemoryPreview(AppSettings.Current.AssistantMemory);
     public string SurfaceStatus =>
         IsFocusLocked ? PomodoroLabel
+        : OcrUiStatus.IsBusyPhase(_ocrPhase) ? OcrUiStatus.PillLabel(_ocrPhase)
         : _refreshingContext ? "Capturing"
         : _busy ? _activityStatus
         : IsImprovingPrompt ? "Improving prompt"
         : IsSuggesting ? "Preparing shortcuts"
+        : _ocrPhase is OcrUiPhase.Offline or OcrUiPhase.Failed ? OcrUiStatus.PillLabel(_ocrPhase)
+        : _ocrPhase == OcrUiPhase.Ready ? OcrUiStatus.PillLabel(_ocrPhase)
         : PlanModeEnabled ? "Plan"
         : ChaosModeEnabled ? "Chaos"
         : LeanChatEnabled ? "Lean"
         : HasRegion ? "Region ready"
         : HasContext ? "Screen ready"
+        : AppSettings.Current.LocalOcrEnabled ? OcrUiStatus.PillLabel(_ocrPhase)
         : "Ready";
     public string SurfaceDetail =>
         IsFocusLocked ? ChaosMode.PomodoroBlockedMessage(_focusUntilUtc!.Value - DateTimeOffset.UtcNow)
-        : _refreshingContext ? "Refreshing screen context"
+        : OcrUiStatus.IsBusyPhase(_ocrPhase) ? _ocrDetail
+        : _refreshingContext ? "Refreshing screen context for local OCR…"
         : _busy ? (HasRunningOperations ? RunningStatus : _activityDetail)
         : IsImprovingPrompt ? "Rewriting your draft — not sent yet"
-        : IsSuggesting ? "Generating quick actions"
+        : IsSuggesting ? "Building quick actions (OCR-first when possible)…"
+        : _ocrPhase is OcrUiPhase.Offline or OcrUiPhase.Failed or OcrUiPhase.Ready ? _ocrDetail
         : PlanModeEnabled ? "Chat clarifies · plan window updates."
         : ChaosModeEnabled ? "Roast · debate · ELI5/staff tone · focus lock"
         : LeanChatEnabled ? "Short prompts · tighter history · fewer tokens"
         : HasRegion ? "Selected area stays in focus until you clear it"
-        : HasContext ? "Screen context loaded"
+        : HasContext ? "Screen context loaded · local OCR preferred"
         : "No screen context yet";
-    public string LandingTitle => PlanModeEnabled
+    public string LandingTitle =>
+        OcrUiStatus.IsBusyPhase(_ocrPhase) ? "Reading your screen…"
+        : PlanModeEnabled
         ? "Draft the plan."
         : ChaosModeEnabled
         ? "Chaos Mode is on."
         : HasWorkingDirectory ? "What should change?"
         : HasCapture ? "Ask about your screen." : "Start with the screen.";
-    public string LandingSubtitle => PlanModeEnabled
+    public string LandingSubtitle =>
+        OcrUiStatus.IsBusyPhase(_ocrPhase) ? _ocrDetail
+        : PlanModeEnabled
         ? "Clarify in chat · approve → Implement."
         : ChaosModeEnabled
         ? "Roast, debate, flip tone, or focus-lock Explain."
         : HasWorkingDirectory
             ? "Type a change, or pick a chip below."
+        : _ocrPhase == OcrUiPhase.Ready
+            ? "On-device OCR is active — chips prefer local text over the vision model."
         : HasCapture
             ? "Use a chip, type a question, or explain a region."
             : "Explain the screen, pick a region, or just ask.";
@@ -510,6 +542,7 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
 
     public async Task InitializeDiagnosticsAsync()
     {
+        ProbeOcrModelsOnStartup();
         var claude = _diagnostics.CheckAsync("claude", _lifetime.Token);
         var codex = _diagnostics.CheckAsync("codex", _lifetime.Token);
         var grok = _diagnostics.CheckAsync("grok", _lifetime.Token);
@@ -525,6 +558,47 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         NotifySurfaceStateChanged();
         if (_contextPath is not null && Messages.Count == 0) _ = GenerateSuggestionsAsync();
     }
+
+    /// <summary>Obvious OCR state as soon as Luma boots (models present / offline).</summary>
+    private void ProbeOcrModelsOnStartup()
+    {
+        if (!AppSettings.Current.LocalOcrEnabled)
+        {
+            SetOcrUi(OcrUiPhase.Disabled);
+            return;
+        }
+
+        SetOcrUi(OcrUiPhase.Checking);
+        var models = LocalOcrService.TryResolveModelsDirectory();
+        if (models is null)
+        {
+            SetOcrUi(OcrUiPhase.Offline,
+                "No det.onnx + rec.onnx found. Run: python tools/ocr/download_models.py  ·  or set the models folder in Settings.");
+            return;
+        }
+
+        SetOcrUi(OcrUiPhase.Idle,
+            $"Models found · {models}  ·  Prefer OCR over vision is {(AppSettings.Current.LocalOcrPreferOverVision ? "ON" : "off")}.");
+    }
+
+    private void SetOcrUi(OcrUiPhase phase, string? detail = null)
+    {
+        _ocrPhase = phase;
+        _ocrDetail = string.IsNullOrWhiteSpace(detail) ? OcrUiStatus.DefaultDetail(phase) : detail.Trim();
+        OnPropertyChanged(nameof(OcrPhase));
+        OnPropertyChanged(nameof(OcrBannerTitle));
+        OnPropertyChanged(nameof(OcrBannerDetail));
+        OnPropertyChanged(nameof(ShowOcrBanner));
+        OnPropertyChanged(nameof(IsOcrRunning));
+        OnPropertyChanged(nameof(IsOcrReady));
+        OnPropertyChanged(nameof(IsOcrAlert));
+        OnPropertyChanged(nameof(ShowHeaderSpinner));
+        NotifySurfaceStateChanged();
+        OcrUiChanged?.Invoke();
+    }
+
+    /// <summary>Lets the window restyle the status pill (running / ready / alert).</summary>
+    public Action? OcrUiChanged { get; set; }
 
     private void OnOperationsChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
@@ -632,12 +706,20 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         OnPropertyChanged(nameof(SurfaceStatus));
         OnPropertyChanged(nameof(SurfaceDetail));
         OnPropertyChanged(nameof(ShowBusyDetail));
+        OnPropertyChanged(nameof(ShowOcrBanner));
+        OnPropertyChanged(nameof(IsOcrRunning));
+        OnPropertyChanged(nameof(IsOcrReady));
+        OnPropertyChanged(nameof(IsOcrAlert));
+        OnPropertyChanged(nameof(ShowHeaderSpinner));
+        OnPropertyChanged(nameof(OcrBannerTitle));
+        OnPropertyChanged(nameof(OcrBannerDetail));
         OnPropertyChanged(nameof(LandingTitle));
         OnPropertyChanged(nameof(LandingSubtitle));
         OnPropertyChanged(nameof(ComposePlaceholder));
         OnPropertyChanged(nameof(ShowScreenLandingActions));
         OnPropertyChanged(nameof(ShowRepoLandingActions));
         OnPropertyChanged(nameof(ShowGlobalExplainHint));
+        OcrUiChanged?.Invoke();
     }
 
     private void NotifyPlanStateChanged()
@@ -670,6 +752,7 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IDispo
         _chaosTicker.Stop();
         _lifetime.Cancel();
         _planCoordinator.Dispose();
+        _localOcr.Dispose();
         DisposeMessages();
         ReplaceCapture(ref _regionPath, null);
         ReplaceCapture(ref _contextPath, null);

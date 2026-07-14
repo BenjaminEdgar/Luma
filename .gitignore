@@ -5,3 +5,7 @@ obj-*/
 publish/
 *.user
 *.suo
+
+# Large portable OCR model weights (see models/ocr/README.md)
+models/ocr/*.onnx
+# Keep dict.txt / manifest.json / README tracked when present

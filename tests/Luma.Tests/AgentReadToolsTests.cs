@@ -44,7 +44,7 @@ public sealed class AgentReadToolsTests
     {
         var source = ReadShipped("src/Luma.App/ViewModels/MainWindowViewModel.Chat.cs");
         Assert.Contains("WorkingDirectory = WorkingDirectory", source);
-        Assert.Contains("new AiRequest(prompt, region, context, history)", source);
+        Assert.Contains("new AiRequest(prompt, provRegion, provContext, history)", source);
     }
 
     [Fact]
